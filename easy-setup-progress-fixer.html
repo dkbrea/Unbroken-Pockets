@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Easy Setup Progress Fixer</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.5;
+            color: #333;
+        }
+        h1 { 
+            color: #0070f3; 
+            margin-bottom: 10px;
+        }
+        h2 { 
+            color: #0070f3;
+            font-size: 1.2rem;
+            margin-top: 20px;
+        }
+        .container {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .info {
+            background-color: #f0f7ff;
+            border-left: 4px solid #0070f3;
+            padding: 12px 16px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .warning {
+            background-color: #fff9e6;
+            border-left: 4px solid #ffb100;
+            padding: 12px 16px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .btn {
+            background-color: #0070f3;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            margin: 5px 5px 5px 0;
+            transition: background 0.2s;
+        }
+        .btn:hover {
+            background-color: #0060df;
+        }
+        .btn:active {
+            transform: translateY(1px);
+        }
+        .btn-secondary {
+            background-color: #f0f0f0;
+            color: #333;
+        }
+        .btn-secondary:hover {
+            background-color: #e0e0e0;
+        }
+        .btn-danger {
+            background-color: #ff4545;
+        }
+        .btn-danger:hover {
+            background-color: #e03535;
+        }
+        .btn-green {
+            background-color: #10b981;
+        }
+        .btn-green:hover {
+            background-color: #059669;
+        }
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f5f5f5;
+            border-radius: 4px;
+            min-height: 20px;
+        }
+        .flex {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .checkbox-item input {
+            margin-right: 8px;
+        }
+        .success {
+            color: #10b981;
+            font-weight: bold;
+        }
+        .error {
+            color: #ff4545;
+            font-weight: bold;
+        }
+        #progress-display {
+            font-family: monospace;
+            white-space: pre-wrap;
+            padding: 15px;
+            background-color: #f8f8f8;
+            border-radius: 4px;
+            margin-top: 15px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Easy Setup Progress Fixer</h1>
+        <p>This tool helps you fix the "Getting Started" section checkmarks on your dashboard.</p>
+        
+        <div class="info">
+            Just run this file locally in your browser, then click the buttons to fix your setup progress.
+        </div>
+
+        <h2>Current Setup Progress</h2>
+        <div id="status" class="status">Loading...</div>
+        <button id="check-progress" class="btn">Check Current Progress</button>
+        
+        <h2>Quick Fix Options</h2>
+        <button id="fix-all" class="btn btn-green">Mark All Items as Complete</button>
+        <button id="reset-all" class="btn btn-danger">Reset All Items</button>
+        
+        <h2>Set Individual Items</h2>
+        <div class="flex">
+            <div class="checkbox-item">
+                <input type="checkbox" id="accountsSetup"> 
+                <label for="accountsSetup">Accounts Setup</label>
+            </div>
+            <div class="checkbox-item">
+                <input type="checkbox" id="recurringExpensesSetup"> 
+                <label for="recurringExpensesSetup">Recurring Expenses Setup</label>
+            </div>
+            <div class="checkbox-item">
+                <input type="checkbox" id="recurringIncomeSetup"> 
+                <label for="recurringIncomeSetup">Recurring Income Setup</label>
+            </div>
+            <div class="checkbox-item">
+                <input type="checkbox" id="subscriptionsSetup"> 
+                <label for="subscriptionsSetup">Subscriptions Setup</label>
+            </div>
+            <div class="checkbox-item">
+                <input type="checkbox" id="debtSetup"> 
+                <label for="debtSetup">Debt Setup</label>
+            </div>
+            <div class="checkbox-item">
+                <input type="checkbox" id="goalsSetup"> 
+                <label for="goalsSetup">Goals Setup</label>
+            </div>
+        </div>
+        <button id="save-changes" class="btn">Save Changes</button>
+        
+        <div class="warning">
+            After making changes, go to your dashboard and refresh the page to see the updated checkmarks.
+        </div>
+        
+        <h2>Technical Details</h2>
+        <div id="progress-display">No data loaded yet</div>
+    </div>
+
+    <script>
+        // Constants and variables
+        const STORAGE_KEY = 'setup_progress';
+        const DEFAULT_SETUP_PROGRESS = {
+            accountsSetup: false,
+            recurringExpensesSetup: false,
+            recurringIncomeSetup: false,
+            subscriptionsSetup: false,
+            debtSetup: false,
+            goalsSetup: false
+        };
+        
+        // DOM elements
+        const statusEl = document.getElementById('status');
+        const progressDisplayEl = document.getElementById('progress-display');
+        const checkboxes = {
+            accountsSetup: document.getElementById('accountsSetup'),
+            recurringExpensesSetup: document.getElementById('recurringExpensesSetup'),
+            recurringIncomeSetup: document.getElementById('recurringIncomeSetup'),
+            subscriptionsSetup: document.getElementById('subscriptionsSetup'),
+            debtSetup: document.getElementById('debtSetup'),
+            goalsSetup: document.getElementById('goalsSetup')
+        };
+        
+        // Helper Functions
+        function getSetupProgress() {
+            try {
+                const progress = localStorage.getItem(STORAGE_KEY);
+                return progress ? JSON.parse(progress) : { ...DEFAULT_SETUP_PROGRESS };
+            } catch (e) {
+                console.error('Error getting setup progress:', e);
+                return { ...DEFAULT_SETUP_PROGRESS };
+            }
+        }
+        
+        function saveSetupProgress(progress) {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+                return true;
+            } catch (e) {
+                console.error('Error saving setup progress:', e);
+                return false;
+            }
+        }
+        
+        function displayProgress(progress) {
+            // Update checkboxes
+            for (const [key, value] of Object.entries(progress)) {
+                if (checkboxes[key]) {
+                    checkboxes[key].checked = value;
+                }
+            }
+            
+            // Update status area
+            let statusHTML = '';
+            for (const [key, value] of Object.entries(progress)) {
+                const formattedKey = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                statusHTML += `<div>${formattedKey}: <span class="${value ? 'success' : 'error'}">${value ? '✓ Complete' : '✗ Incomplete'}</span></div>`;
+            }
+            statusEl.innerHTML = statusHTML;
+            
+            // Update technical display
+            progressDisplayEl.textContent = JSON.stringify(progress, null, 2);
+        }
+        
+        function showMessage(message, isError = false) {
+            const el = document.createElement('div');
+            el.textContent = message;
+            el.className = isError ? 'error' : 'success';
+            el.style.padding = '10px';
+            el.style.marginTop = '10px';
+            el.style.borderRadius = '4px';
+            el.style.backgroundColor = isError ? '#ffebeb' : '#ebffeb';
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+                if (el.parentNode) {
+                    el.parentNode.removeChild(el);
+                }
+            }, 3000);
+            
+            // Add to document
+            document.querySelector('.container').appendChild(el);
+        }
+        
+        // Event Handlers
+        document.getElementById('check-progress').addEventListener('click', () => {
+            const progress = getSetupProgress();
+            displayProgress(progress);
+            showMessage('Progress checked successfully');
+        });
+        
+        document.getElementById('fix-all').addEventListener('click', () => {
+            const progress = { ...DEFAULT_SETUP_PROGRESS };
+            
+            // Set all to true
+            for (const key in progress) {
+                progress[key] = true;
+            }
+            
+            if (saveSetupProgress(progress)) {
+                displayProgress(progress);
+                showMessage('All items marked as complete!');
+            } else {
+                showMessage('Failed to save progress', true);
+            }
+        });
+        
+        document.getElementById('reset-all').addEventListener('click', () => {
+            if (saveSetupProgress({ ...DEFAULT_SETUP_PROGRESS })) {
+                displayProgress({ ...DEFAULT_SETUP_PROGRESS });
+                showMessage('All progress has been reset');
+            } else {
+                showMessage('Failed to reset progress', true);
+            }
+        });
+        
+        document.getElementById('save-changes').addEventListener('click', () => {
+            const progress = { ...DEFAULT_SETUP_PROGRESS };
+            
+            // Get values from checkboxes
+            for (const [key, checkbox] of Object.entries(checkboxes)) {
+                progress[key] = checkbox.checked;
+            }
+            
+            if (saveSetupProgress(progress)) {
+                displayProgress(progress);
+                showMessage('Changes saved successfully');
+            } else {
+                showMessage('Failed to save changes', true);
+            }
+        });
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            const progress = getSetupProgress();
+            displayProgress(progress);
+        });
+    </script>
+</body>
+</html> 

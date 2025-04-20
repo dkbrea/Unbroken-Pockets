@@ -1,0 +1,36 @@
+{
+    "mcpServers": {
+      "supabase": {
+        "command": "node",
+        "args": ["mcp-server.js"],
+        "env": {
+          "SUPABASE_URL": "https://vhtltupeibcofyopizxn.supabase.co",
+          "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZodGx0dXBlaWJjb2Z5b3BpenhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ4NjcyOTYsImV4cCI6MjA2MDQ0MzI5Nn0.Qt13OpffPJSu_xct98xJo7Y3fNPgkaxSnlkFmB9vokQ"
+        }
+      }
+    },
+    "tools": [
+      {
+        "name": "get_accounts",
+        "description": "Retrieve all accounts from Supabase",
+        "parameters": {}
+      },
+      {
+        "name": "add_account",
+        "description": "Add a new account to Supabase",
+        "parameters": {
+          "name": { "type": "string" },
+          "institution": { "type": "string" },
+          "balance": { "type": "number" },
+          "type": { "type": "string" },
+          "lastUpdated": { "type": "string" },
+          "isHidden": { "type": "boolean", "optional": true },
+          "icon": { "type": "string", "optional": true },
+          "color": { "type": "string", "optional": true },
+          "accountNumber": { "type": "string", "optional": true },
+          "notes": { "type": "string", "optional": true }
+        }
+      }
+    ]
+  }
+  

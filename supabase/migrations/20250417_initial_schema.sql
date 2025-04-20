@@ -1,0 +1,126 @@
+-- Create budget_categories table
+CREATE TABLE IF NOT EXISTS budget_categories (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  allocated DECIMAL(12, 2) NOT NULL,
+  spent DECIMAL(12, 2) NOT NULL,
+  icon VARCHAR(50) NOT NULL,
+  color VARCHAR(50) NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create budget_periods table
+CREATE TABLE IF NOT EXISTS budget_periods (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  is_active BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create cash_flow table
+CREATE TABLE IF NOT EXISTS cash_flow (
+  id SERIAL PRIMARY KEY,
+  month VARCHAR(50) NOT NULL,
+  income DECIMAL(12, 2) NOT NULL,
+  expenses DECIMAL(12, 2) NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create financial_goals table
+CREATE TABLE IF NOT EXISTS financial_goals (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  icon VARCHAR(50) NOT NULL,
+  color VARCHAR(50) NOT NULL,
+  current_amount DECIMAL(12, 2) NOT NULL,
+  target_amount DECIMAL(12, 2) NOT NULL,
+  target_date DATE NOT NULL,
+  contribution_frequency VARCHAR(50) NOT NULL,
+  contribution_amount DECIMAL(12, 2) NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create investment_portfolio table
+CREATE TABLE IF NOT EXISTS investment_portfolio (
+  id SERIAL PRIMARY KEY,
+  total_value DECIMAL(12, 2) NOT NULL,
+  change_amount DECIMAL(12, 2) NOT NULL,
+  change_percentage DECIMAL(6, 2) NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create portfolio_performance table
+CREATE TABLE IF NOT EXISTS portfolio_performance (
+  id SERIAL PRIMARY KEY,
+  time_range VARCHAR(10) NOT NULL,
+  amount DECIMAL(12, 2) NOT NULL,
+  percentage DECIMAL(6, 2) NOT NULL,
+  portfolio_id INTEGER REFERENCES investment_portfolio(id),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create asset_allocation table
+CREATE TABLE IF NOT EXISTS asset_allocation (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  value DECIMAL(12, 2) NOT NULL,
+  percentage INTEGER NOT NULL,
+  color VARCHAR(50) NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create investment_accounts table
+CREATE TABLE IF NOT EXISTS investment_accounts (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  institution VARCHAR(255) NOT NULL,
+  balance DECIMAL(12, 2) NOT NULL,
+  change_amount DECIMAL(12, 2) NOT NULL,
+  change_percentage DECIMAL(6, 2) NOT NULL,
+  account_type VARCHAR(50) NOT NULL,
+  last_updated DATE NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create holdings table
+CREATE TABLE IF NOT EXISTS holdings (
+  id SERIAL PRIMARY KEY,
+  symbol VARCHAR(10) NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  value DECIMAL(12, 2) NOT NULL,
+  shares DECIMAL(12, 2) NOT NULL,
+  price_per_share DECIMAL(12, 2) NOT NULL,
+  change_amount DECIMAL(12, 2) NOT NULL,
+  change_percentage DECIMAL(6, 2) NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create report_types table
+CREATE TABLE IF NOT EXISTS report_types (
+  id VARCHAR(50) PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  icon VARCHAR(50) NOT NULL,
+  color VARCHAR(50) NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create spending_categories table
+CREATE TABLE IF NOT EXISTS spending_categories (
+  id SERIAL PRIMARY KEY,
+  report_type_id VARCHAR(50) REFERENCES report_types(id),
+  category VARCHAR(255) NOT NULL,
+  amount DECIMAL(12, 2) NOT NULL,
+  color VARCHAR(50) NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+); 
