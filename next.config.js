@@ -20,15 +20,31 @@ const nextConfig = {
   // Disable source maps in production for better performance
   productionBrowserSourceMaps: false,
   
-  // Existing redirects
+  // Redirects configuration
   async redirects() {
-    return [
+    // In production, redirect all app routes to landing page temporarily
+    const isProduction = process.env.NODE_ENV === 'production';
+    
+    // Base redirects that apply in both development and production
+    const baseRedirects = [
       {
         source: '/cashflow',
         destination: '/cash-flow',
         permanent: true,
       },
     ];
+    
+    // Production-only redirects to route all app routes to landing
+    const productionRedirects = isProduction ? [
+      // Redirect all app routes except home page to landing page
+      {
+        source: '/((?!api|auth|_next/static|_next/image|favicon.ico|landing.html|signin.html).*)',
+        destination: '/landing.html',
+        permanent: false,
+      }
+    ] : [];
+    
+    return [...baseRedirects, ...productionRedirects];
   },
   
   // Increase build output verbosity to help troubleshoot
