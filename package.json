@@ -2,7 +2,6 @@
   "name": "temp",
   "version": "0.1.0",
   "private": true,
-  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "rm -rf .next && NEXT_DISABLE_ESLINT=1 NEXT_DISABLE_TYPE_CHECKS=1 NODE_OPTIONS=\"--no-warnings\" next build",
@@ -35,13 +34,6 @@
     "yahoo-finance2": "^2.13.3"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "cross-env": "^7.0.3",
-    "eslint": "^9",
-    "eslint-config-next": "15.3.0",
-    "typescript": "^5"
+    "@eslint/eslintrc": "^3"
   }
 }
