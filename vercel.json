@@ -1,5 +1,5 @@
 {
-  "buildCommand": "cross-env NEXT_DISABLE_ESLINT=1 NEXT_DISABLE_TYPE_CHECKS=1 next build",
+  "buildCommand": "npm run build:vercel",
   "outputDirectory": ".next",
   "framework": "nextjs",
   "env": {
