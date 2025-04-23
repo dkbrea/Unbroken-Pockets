@@ -1,21 +1,7 @@
 import type { Metadata } from "next";
-import { Inter, Fira_Mono } from "next/font/google";
 import "./globals.css";
 import Sidebar from "@/components/layout/Sidebar";
 import ClientLayout from "@/components/layout/ClientLayout";
-
-// Inter works without specifying weight (defaults to 400)
-const inter = Inter({
-  variable: "--font-sans",
-  subsets: ["latin"],
-});
-
-// Fira_Mono REQUIRES weight
-const firaMono = Fira_Mono({
-  variable: "--font-mono",
-  weight: ["400", "500", "700"],
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "Unbroken Pockets | Personal Finance Analytics Platform",
@@ -30,7 +16,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${inter.variable} ${firaMono.variable} antialiased bg-[#FDF6EC] min-h-screen w-full`}
+        className="font-sans antialiased bg-[#FDF6EC] min-h-screen w-full"
       >
         <div className="flex w-full">
           <Sidebar />
