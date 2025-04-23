@@ -12,9 +12,10 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   
-  // Force using SWC compiler even if babel config exists
+  // Force using SWC compiler even if babel config exists and disable server components
   experimental: {
     forceSwcTransforms: true,
+    serverComponents: false,
   },
   
   // Disable source maps in production for better performance
@@ -28,24 +29,6 @@ const nextConfig = {
         destination: '/cash-flow',
         permanent: true,
       },
-      // If any page has missing components, redirect to landing page
-      {
-        source: '/:path*',
-        has: [
-          {
-            type: 'header',
-            key: 'x-vercel-deployment',
-          }
-        ],
-        missing: [
-          {
-            type: 'header',
-            key: 'x-development-mode',
-          }
-        ],
-        destination: '/landing.html',
-        permanent: false,
-      }
     ];
   },
   
@@ -61,6 +44,9 @@ const nextConfig = {
   devIndicators: {
     position: 'bottom-right',
   },
+
+  // Output directory
+  distDir: 'dist',
 
   // Exclude accounts page from the build process
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'].filter(ext => {
