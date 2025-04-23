@@ -28,12 +28,24 @@ const nextConfig = {
         destination: '/cash-flow',
         permanent: true,
       },
-      // Temporarily redirect accounts page to landing page
+      // If any page has missing components, redirect to landing page
       {
-        source: '/accounts',
+        source: '/:path*',
+        has: [
+          {
+            type: 'header',
+            key: 'x-vercel-deployment',
+          }
+        ],
+        missing: [
+          {
+            type: 'header',
+            key: 'x-development-mode',
+          }
+        ],
         destination: '/landing.html',
         permanent: false,
-      },
+      }
     ];
   },
   
