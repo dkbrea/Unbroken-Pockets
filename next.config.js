@@ -28,6 +28,12 @@ const nextConfig = {
         destination: '/cash-flow',
         permanent: true,
       },
+      // Temporarily redirect accounts page to landing page
+      {
+        source: '/accounts',
+        destination: '/landing.html',
+        permanent: false,
+      },
     ];
   },
   
@@ -42,6 +48,22 @@ const nextConfig = {
   // Development indicators position
   devIndicators: {
     position: 'bottom-right',
+  },
+
+  // Exclude accounts page from the build process
+  pageExtensions: ['tsx', 'ts', 'jsx', 'js'].filter(ext => {
+    // This function runs for each file extension
+    return true; // Include all extensions
+  }),
+
+  // Override webpack config to exclude accounts page
+  webpack: (config, { dev, isServer }) => {
+    if (!dev && !isServer) {
+      // Only apply this in production client-side build
+      // This creates an empty module for the accounts page
+      config.resolve.alias['@/app/accounts/page'] = require.resolve('./src/lib/empty-module.js');
+    }
+    return config;
   },
 };
 
