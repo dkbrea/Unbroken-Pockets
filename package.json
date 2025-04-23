@@ -2,11 +2,12 @@
   "name": "temp",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
-    "build:no-lint": "cross-env NEXT_DISABLE_ESLINT=1 NEXT_DISABLE_TYPE_CHECKS=1 next build",
-    "build:vercel": "NEXT_DISABLE_ESLINT=1 NEXT_DISABLE_TYPE_CHECKS=1 next build",
+    "build": "rm -rf .next && NEXT_DISABLE_ESLINT=1 NEXT_DISABLE_TYPE_CHECKS=1 NODE_OPTIONS=\"--no-warnings\" next build",
+    "build:no-lint": "rm -rf .next && NEXT_DISABLE_ESLINT=1 NEXT_DISABLE_TYPE_CHECKS=1 NODE_OPTIONS=\"--no-warnings\" next build",
+    "build:vercel": "NEXT_DISABLE_ESLINT=1 NEXT_DISABLE_TYPE_CHECKS=1 NODE_OPTIONS=\"--no-warnings\" next build",
     "start": "next start",
     "lint": "next lint",
     "fix-database": "node -e \"require('./src/utils/fix-database.js').fixDatabase()\""
