@@ -46,3 +46,9 @@ next-env.d.ts
 .backup_files/*.node
 .backup_files/*.pack
 
+
+# Large files
+.backup_files/
+*.pack
+*.node
+
