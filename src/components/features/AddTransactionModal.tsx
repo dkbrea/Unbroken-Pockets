@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { 
   CreditCard, 
   X, 
@@ -58,7 +58,7 @@ type TransactionSource = 'new' | 'recurring' | 'debt_payment' | 'budget_expense'
 type AddTransactionModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  onTransactionAdded?: (transaction: any) => void;
+  onTransactionAdded?: (transaction: TransactionData) => void;
   preselectedAccountId?: string | null;
 }
 
@@ -68,9 +68,6 @@ const AddTransactionModal = ({
   onTransactionAdded,
   preselectedAccountId
 }: AddTransactionModalProps) => {
-  // Early exit if the modal is not open
-  if (!isOpen) return null;
-  
   // Basic transaction fields
   const [name, setName] = useState('')
   const [amount, setAmount] = useState('')
@@ -90,35 +87,6 @@ const AddTransactionModal = ({
   const [selectedDebtId, setSelectedDebtId] = useState<number | undefined>(undefined)
   const [selectedBudgetCategoryId, setSelectedBudgetCategoryId] = useState<number | undefined>(undefined)
   const [selectedGoalId, setSelectedGoalId] = useState<number | undefined>(undefined) 
-  
-  // Force a refresh when the modal opens
-  useEffect(() => {
-    if (isOpen) {
-      // Reset all selections
-      setSelectedRecurringId(undefined);
-      setSelectedFixedExpensesId(undefined);
-      setSelectedIncomeSourcesId(undefined);
-      setSelectedDebtId(undefined);
-      setSelectedBudgetCategoryId(undefined);
-      setSelectedGoalId(undefined);
-      
-      // Reset form fields
-      setName('');
-      setAmount('');
-      setCategory('');
-      setDestinationAccount('');
-      
-      // Set date to today
-      const today = new Date();
-      const formattedDate = today.toISOString().split('T')[0];
-      setDate(formattedDate);
-      
-      // If a preselected account ID is provided, set it as the source account
-      if (preselectedAccountId) {
-        setSourceAccount(preselectedAccountId);
-      }
-    }
-  }, [isOpen, preselectedAccountId]);
   
   // Get accounts from custom hook - only those that are defined in the Accounts page
   const { accounts = [] } = useAccountsData();
@@ -145,7 +113,6 @@ const AddTransactionModal = ({
   // Get transaction functions from custom hook
   const { addTransaction } = useTransactionsData();
   
-
   // For demonstration purposes, let's define hardcoded recurring transactions
   // In a real implementation, you would fetch these from your API
   const recurringTransactions: RecurringTransaction[] = [
@@ -180,6 +147,52 @@ const AddTransactionModal = ({
     );
   }, [accounts]);
 
+  // Create safe references to the fixed expenses and income sources arrays
+  const safeFixedExpenses = useMemo(() => {
+    console.log('Creating safeFixedExpenses with data:', fixedExpenses);
+    return Array.isArray(fixedExpenses) ? fixedExpenses : [];
+  }, [fixedExpenses]);
+
+  const safeIncomeSources = useMemo(() => {
+    console.log('Creating safeIncomeSources with data:', incomeSources);
+    return Array.isArray(incomeSources) ? incomeSources : [];
+  }, [incomeSources]);
+  
+  // Create safe reference to financial goals array
+  const safeFinancialGoals = useMemo(() => {
+    console.log('Creating safeFinancialGoals with data:', financialGoals);
+    return Array.isArray(financialGoals) ? financialGoals : [];
+  }, [financialGoals]);
+
+  // Force a refresh when the modal opens
+  useEffect(() => {
+    if (isOpen) {
+      // Reset all selections
+      setSelectedRecurringId(undefined);
+      setSelectedFixedExpensesId(undefined);
+      setSelectedIncomeSourcesId(undefined);
+      setSelectedDebtId(undefined);
+      setSelectedBudgetCategoryId(undefined);
+      setSelectedGoalId(undefined);
+      
+      // Reset form fields
+      setName('');
+      setAmount('');
+      setCategory('');
+      setDestinationAccount('');
+      
+      // Set date to today
+      const today = new Date();
+      const formattedDate = today.toISOString().split('T')[0];
+      setDate(formattedDate);
+      
+      // If a preselected account ID is provided, set it as the source account
+      if (preselectedAccountId) {
+        setSourceAccount(preselectedAccountId);
+      }
+    }
+  }, [isOpen, preselectedAccountId]);
+  
   // Set appropriate transaction type when changing between expense/income
   useEffect(() => {
     if (!isExpense && transactionType !== TRANSACTION_TYPES.INCOME) {
@@ -210,6 +223,19 @@ const AddTransactionModal = ({
     // Keep date and account as they likely remain the same across transaction types
   }, [transactionType]);
   
+  // Handle name and description fields based on transaction type
+  useEffect(() => {
+    if (transactionType === TRANSACTION_TYPES.INCOME) {
+      setName('Income');
+    } else if (transactionType === TRANSACTION_TYPES.DEBT_PAYMENT) {
+      setName('Debt Payment');
+    } else if (transactionType === TRANSACTION_TYPES.FIXED_EXPENSE) {
+      setName('Fixed Expense');
+    } else if (transactionType === TRANSACTION_TYPES.GOAL_CONTRIBUTION) {
+      setName('Goal Contribution');
+    }
+  }, [transactionType]);
+
   // Handle selecting a recurring transaction
   const handleRecurringSelect = (id: number) => {
     const selected = recurringTransactions.find(rt => rt.id === parseInt(id.toString()));
@@ -226,36 +252,6 @@ const AddTransactionModal = ({
     }
   };
   
-  // Create safe references to the fixed expenses and income sources arrays
-  const safeFixedExpenses = useMemo(() => {
-    console.log('Creating safeFixedExpenses with data:', fixedExpenses);
-    return Array.isArray(fixedExpenses) ? fixedExpenses : [];
-  }, [fixedExpenses]);
-
-  const safeIncomeSources = useMemo(() => {
-    console.log('Creating safeIncomeSources with data:', incomeSources);
-    return Array.isArray(incomeSources) ? incomeSources : [];
-  }, [incomeSources]);
-  
-  // Create safe reference to financial goals array
-  const safeFinancialGoals = useMemo(() => {
-    console.log('Creating safeFinancialGoals with data:', financialGoals);
-    return Array.isArray(financialGoals) ? financialGoals : [];
-  }, [financialGoals]);
-
-  // Handle name and description fields based on transaction type
-  useEffect(() => {
-    if (transactionType === TRANSACTION_TYPES.INCOME) {
-      setName('Income');
-    } else if (transactionType === TRANSACTION_TYPES.DEBT_PAYMENT) {
-      setName('Debt Payment');
-    } else if (transactionType === TRANSACTION_TYPES.FIXED_EXPENSE) {
-      setName('Fixed Expense');
-    } else if (transactionType === TRANSACTION_TYPES.GOAL_CONTRIBUTION) {
-      setName('Goal Contribution');
-    }
-  }, [transactionType]);
-
   // Handle selecting a fixed expense
   const handleFixedExpenseSelect = (id: string) => {
     // Add debug logging
@@ -500,8 +496,8 @@ const AddTransactionModal = ({
       console.log('Transaction added successfully:', newTransaction);
       
       // CRITICAL: Call onTransactionAdded BEFORE closing the modal
-      if (onTransactionAdded && newTransaction) {
-        await onTransactionAdded(newTransaction);
+      if (typeof onTransactionAdded === 'function' && newTransaction) {
+        onTransactionAdded(newTransaction);
       }
       
       // Only close the modal after everything is done
@@ -512,6 +508,9 @@ const AddTransactionModal = ({
     }
   };
 
+  // Early exit if the modal is not open
+  if (!isOpen) return null;
+  
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg shadow-lg w-full max-w-md">

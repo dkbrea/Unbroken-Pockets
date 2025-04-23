@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { 
   Search, 
@@ -20,7 +20,26 @@ import DebtPaymentWidget from '@/components/features/DebtPaymentWidget'
 import { useTransactionsData } from '@/hooks/useTransactionsData'
 import { useAccountsData } from '@/hooks/useAccountsData'
 
-export default function Transactions() {
+// Loading fallback for Suspense
+function TransactionsLoading() {
+  return (
+    <div className="w-full flex items-center justify-center min-h-[300px]">
+      <div className="animate-pulse text-lg">Loading transactions...</div>
+    </div>
+  );
+}
+
+// Main component wrapper with Suspense
+export default function TransactionsPage() {
+  return (
+    <Suspense fallback={<TransactionsLoading />}>
+      <TransactionsContent />
+    </Suspense>
+  );
+}
+
+// Actual transactions content component
+function TransactionsContent() {
   const searchParams = useSearchParams()
   const [searchQuery, setSearchQuery] = useState('')
   const [dateFilter, setDateFilter] = useState('Last 30 days')

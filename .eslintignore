@@ -1,0 +1,22 @@
+# Ignore build output
+.next/
+out/
+build/
+dist/
+
+# Ignore debug and utility scripts
+src/debug/**
+src/pages/api/**
+src/utils/fix-database.js
+
+# Ignore all node_modules
+node_modules/
+
+# Ignore test files
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+
+# Don't ignore these files
+!.eslintrc.js 
