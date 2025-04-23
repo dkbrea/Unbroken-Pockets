@@ -12,10 +12,9 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   
-  // Force using SWC compiler even if babel config exists and disable server components
+  // Force using SWC compiler even if babel config exists
   experimental: {
     forceSwcTransforms: true,
-    serverComponents: false,
   },
   
   // Disable source maps in production for better performance
