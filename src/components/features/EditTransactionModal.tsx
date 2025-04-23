@@ -155,7 +155,15 @@ const EditTransactionModal = ({ isOpen, onClose, transaction }: EditTransactionM
       setSelectedDebtId(transaction.debt_id);
       setSelectedBudgetCategoryId(transaction.budget_category_id);
     }
-  }, [transaction]);
+  }, [transaction?.id]); // Only re-run when transaction ID changes, not on every transaction change
+  
+  // Reset form when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      // Only reset state when modal is closed
+      // We don't need to reset when the modal is open as that would interfere with editing
+    }
+  }, [isOpen]);
 
   // Handle selecting a recurring transaction
   const handleRecurringSelect = (id: number) => {
@@ -277,11 +285,6 @@ const EditTransactionModal = ({ isOpen, onClose, transaction }: EditTransactionM
     // Close modal
     onClose();
   };
-
-  // Reset form
-  setSelectedRecurringId(undefined);
-  setSelectedDebtId(undefined);
-  setSelectedBudgetCategoryId(undefined);
 
   if (!isOpen || !transaction) return null;
 

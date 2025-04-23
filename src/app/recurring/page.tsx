@@ -16,7 +16,8 @@ import {
   List,
   CalendarDays,
   Wallet,
-  Lock
+  Lock,
+  RefreshCw
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useRecurringData, RecurringTransaction, RecurringViewMode } from '../../hooks/useRecurringData'
@@ -211,6 +212,26 @@ export default function Recurring() {
               refreshData();
             }}
           />
+          
+          <button 
+            className="flex items-center bg-green-600 rounded-md px-3 py-2 text-sm font-medium text-white hover:bg-green-700"
+            onClick={() => {
+              try {
+                // Clear all cached recurring transaction data
+                localStorage.removeItem('recurring_transactions');
+                console.log("Cleared localStorage cache for recurring transactions");
+                
+                // Force a refresh from the server
+                window.location.reload();
+              } catch (err) {
+                console.error("Error clearing cache:", err);
+                alert("Error refreshing data. Please try again.");
+              }
+            }}
+          >
+            <RefreshCw className="mr-2 h-4 w-4 text-white" />
+            Refresh Data
+          </button>
           
           {process.env.NODE_ENV !== 'production' && (
             <button 

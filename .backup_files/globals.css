@@ -1,0 +1,31 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #FDF6EC;
+  --foreground: #4A4A4A;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #FDF6EC;
+    --foreground: #4A4A4A;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-primary text-white py-2 px-4 rounded-md hover:bg-[#152C70] transition-colors;
+  }
+
+  .btn-secondary {
+    @apply bg-white border border-gray-300 py-2 px-4 rounded-md hover:bg-[#F5F5F5] transition-colors;
+  }
+}

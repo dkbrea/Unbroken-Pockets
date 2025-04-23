@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Fira_Mono } from "next/font/google";
 import "./globals.css";
-import Header from "@/components/layout/Header";
 import Sidebar from "@/components/layout/Sidebar";
 import ClientLayout from "@/components/layout/ClientLayout";
 
@@ -36,8 +35,7 @@ export default function RootLayout({
         <div className="flex w-full">
           <Sidebar />
           <div className="flex flex-col w-full">
-            <Header />
-            <ClientLayout>{children}</ClientLayout>
+              <ClientLayout>{children}</ClientLayout>
           </div>
         </div>
       </body>

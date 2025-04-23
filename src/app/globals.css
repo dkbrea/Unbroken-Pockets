@@ -2,22 +2,201 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Global CSS with styling from landing page */
+
 :root {
-  --background: #FDF6EC;
-  --foreground: #4A4A4A;
+  /* Brand colors from landing page */
+  --primary: #4A6FA1;
+  --primary-light: #7EB4E2;
+  --background-light: #f0f6ff;
+  --background-lighter: #f8fcff;
+  --text-dark: #333;
+  --text-medium: #555;
+  --text-light: #777;
+  --white: #ffffff;
+  --gradient-primary: linear-gradient(135deg, #4A6FA1 0%, #7EB4E2 100%);
+  
+  /* Spacing */
+  --spacing-xs: 0.5rem;
+  --spacing-sm: 1rem;
+  --spacing-md: 1.5rem;
+  --spacing-lg: 2rem;
+  --spacing-xl: 3rem;
+  
+  /* Border radius */
+  --radius-sm: 5px;
+  --radius-md: 10px;
+  --radius-lg: 15px;
+  --radius-xl: 20px;
+  --radius-round: 30px;
+  
+  /* Shadows */
+  --shadow-sm: 0 5px 15px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 15px 30px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 20px 50px rgba(0, 0, 0, 0.1);
+  --shadow-button: 0 4px 15px rgba(74, 111, 161, 0.2);
+  --shadow-button-hover: 0 8px 25px rgba(74, 111, 161, 0.4);
 }
+
+/* Base styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--background-light);
+  color: var(--text-dark);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Dynamic gradient background */
+.dynamic-gradient {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  background: radial-gradient(at 50% 50%, rgba(74, 111, 161, 0.3), rgba(126, 180, 226, 0.1));
+  filter: blur(80px);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* Button styles */
+.primary-button {
+  padding: 0.8rem 1.5rem;
+  background: var(--gradient-primary);
+  color: var(--white);
+  border: none;
+  border-radius: var(--radius-round);
+  font-weight: 500;
+  cursor: pointer;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  box-shadow: var(--shadow-button);
+}
+
+.primary-button:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-button-hover);
+}
+
+.secondary-button {
+  padding: 0.8rem 1.5rem;
+  background-color: transparent;
+  color: var(--primary);
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-round);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.secondary-button:hover {
+  background-color: rgba(74, 111, 161, 0.1);
+}
+
+/* Card styles */
+.card {
+  background-color: var(--white);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+  padding: var(--spacing-lg);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Form elements */
+input, select, textarea {
+  width: 100%;
+  padding: 0.8rem 1rem;
+  border: 1px solid #e0e0e0;
+  border-radius: var(--radius-md);
+  background-color: #f8f8f8;
+  color: var(--text-dark);
+  transition: all 0.3s ease;
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  background-color: var(--white);
+  box-shadow: 0 0 0 3px rgba(74, 111, 161, 0.1);
+}
+
+/* Links */
+a.styled-link {
+  color: var(--primary);
+  text-decoration: none;
+  position: relative;
+}
+
+a.styled-link::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  width: 0;
+  height: 1px;
+  background-color: var(--primary);
+  transition: width 0.3s ease;
+}
+
+a.styled-link:hover::after {
+  width: 100%;
+}
+
+/* Section containers */
+.section-container {
+  padding: var(--spacing-xl);
+  margin: var(--spacing-lg) 0;
+}
+
+/* Gradient text */
+.gradient-text {
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Helper classes */
+.text-primary {
+  color: var(--primary);
+}
+
+.bg-light {
+  background-color: var(--background-light);
+}
+
+.bg-white {
+  background-color: var(--white);
+}
+
+.shadow-hover {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.shadow-hover:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-md);
+}
+
+/* This keeps original project text styles */
+/* Extend with the styling from the landing page as needed */
 
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #FDF6EC;
     --foreground: #4A4A4A;
   }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
 }
 
 @layer components {

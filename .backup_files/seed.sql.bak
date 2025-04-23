@@ -1,0 +1,119 @@
+-- Insert budget periods
+INSERT INTO budget_periods (name, is_active) VALUES 
+  ('May 2023', TRUE);
+
+-- Insert budget categories
+INSERT INTO budget_categories (name, allocated, spent, icon, color) VALUES
+  ('Housing', 1800, 1650, 'Home', 'text-blue-600 bg-blue-100'),
+  ('Groceries', 600, 420, 'ShoppingCart', 'text-green-600 bg-green-100'),
+  ('Transportation', 400, 380, 'Car', 'text-purple-600 bg-purple-100'),
+  ('Dining Out', 350, 410, 'Utensils', 'text-red-600 bg-red-100'),
+  ('Entertainment', 250, 180, 'Coffee', 'text-yellow-600 bg-yellow-100'),
+  ('Personal', 200, 170, 'Briefcase', 'text-indigo-600 bg-indigo-100');
+
+-- Insert cash flow data
+INSERT INTO cash_flow (month, income, expenses) VALUES
+  ('Jan', 5200, 4320),
+  ('Feb', 5350, 4150),
+  ('Mar', 5100, 4600),
+  ('Apr', 5500, 4200),
+  ('May', 5450, 4100),
+  ('Jun', 5300, 4400);
+
+-- Insert financial goals
+INSERT INTO financial_goals (name, icon, color, current_amount, target_amount, target_date, contribution_frequency, contribution_amount) VALUES
+  ('Emergency Fund', 'CircleDollarSign', 'bg-blue-100 text-blue-600', 8500, 10000, '2023-08-01', 'Monthly', 500),
+  ('New Car', 'Car', 'bg-green-100 text-green-600', 12000, 30000, '2024-06-01', 'Monthly', 1000),
+  ('Down Payment', 'Home', 'bg-purple-100 text-purple-600', 35000, 100000, '2025-01-01', 'Monthly', 1500),
+  ('Vacation', 'Plane', 'bg-yellow-100 text-yellow-600', 2200, 5000, '2023-11-01', 'Monthly', 400),
+  ('Education', 'GraduationCap', 'bg-red-100 text-red-600', 15000, 50000, '2026-01-01', 'Monthly', 800),
+  ('Retirement', 'Briefcase', 'bg-indigo-100 text-indigo-600', 120000, 1000000, '2050-01-01', 'Monthly', 2000);
+
+-- Insert investment portfolio
+INSERT INTO investment_portfolio (total_value, change_amount, change_percentage) VALUES
+  (325750.82, 2145.32, 0.66);
+
+-- Insert portfolio performance
+WITH portfolio AS (SELECT id FROM investment_portfolio LIMIT 1)
+INSERT INTO portfolio_performance (time_range, amount, percentage, portfolio_id) VALUES
+  ('1D', 215.43, 0.07, (SELECT id FROM portfolio)),
+  ('1W', 890.21, 0.28, (SELECT id FROM portfolio)),
+  ('1M', 1530.45, 0.47, (SELECT id FROM portfolio)),
+  ('1Y', 42350.87, 14.94, (SELECT id FROM portfolio)),
+  ('All', 125750.82, 62.88, (SELECT id FROM portfolio));
+
+-- Insert asset allocation
+INSERT INTO asset_allocation (name, value, percentage, color) VALUES
+  ('US Stocks', 182420.46, 56, 'bg-blue-500'),
+  ('International Stocks', 52120.13, 16, 'bg-green-500'),
+  ('Bonds', 48862.62, 15, 'bg-purple-500'),
+  ('Real Estate', 26060.07, 8, 'bg-yellow-500'),
+  ('Alternative', 16287.54, 5, 'bg-red-500');
+
+-- Insert investment accounts
+INSERT INTO investment_accounts (name, institution, balance, change_amount, change_percentage, account_type, last_updated) VALUES
+  ('401(k)', 'Fidelity', 185345.67, 1250.45, 0.68, 'Retirement', '2023-04-28'),
+  ('Roth IRA', 'Vanguard', 87652.34, 530.82, 0.61, 'Retirement', '2023-04-28'),
+  ('Brokerage Account', 'Charles Schwab', 42450.89, 215.56, 0.51, 'Taxable', '2023-04-28'),
+  ('Crypto Wallet', 'Coinbase', 10301.92, 148.49, 1.46, 'Alternative', '2023-04-28');
+
+-- Insert holdings
+INSERT INTO holdings (symbol, name, value, shares, price_per_share, change_amount, change_percentage) VALUES
+  ('VTI', 'Vanguard Total Stock Market ETF', 45320.45, 215.43, 210.37, 350.34, 0.78),
+  ('VXUS', 'Vanguard Total International Stock ETF', 25670.23, 432.12, 59.41, 120.56, 0.47),
+  ('BND', 'Vanguard Total Bond Market ETF', 32450.67, 380.58, 85.27, -45.67, -0.14),
+  ('VNQ', 'Vanguard Real Estate ETF', 18540.32, 178.25, 104.01, 78.93, 0.43),
+  ('AAPL', 'Apple Inc.', 15320.78, 85.67, 178.85, 250.34, 1.66);
+
+-- Insert report types
+INSERT INTO report_types (id, name, icon, color) VALUES
+  ('spending', 'Spending by Category', 'PieChart', 'bg-blue-100 text-blue-600'),
+  ('income', 'Income Analysis', 'BarChart2', 'bg-green-100 text-green-600'),
+  ('trends', 'Spending Trends', 'LineChart', 'bg-purple-100 text-purple-600'),
+  ('tax', 'Tax Report', 'BarChart', 'bg-yellow-100 text-yellow-600');
+
+-- Insert spending categories
+INSERT INTO spending_categories (report_type_id, category, amount, color) VALUES
+  ('spending', 'Housing', 1850, 'bg-blue-500'),
+  ('spending', 'Food', 850, 'bg-green-500'),
+  ('spending', 'Transportation', 450, 'bg-purple-500'),
+  ('spending', 'Entertainment', 350, 'bg-yellow-500'),
+  ('spending', 'Utilities', 320, 'bg-red-500'),
+  ('spending', 'Other', 580, 'bg-gray-500');
+
+-- Insert accounts data
+INSERT INTO accounts (name, institution, balance, type, last_updated, is_hidden, icon, color, account_number, notes) VALUES
+  ('Main Checking', 'Chase Bank', 4783.52, 'checking', '2023-04-28', FALSE, 'CircleDollarSign', 'text-blue-600', '4567', 'Primary checking account'),
+  ('Savings Account', 'Chase Bank', 12450.00, 'savings', '2023-04-28', FALSE, 'BuildingIcon', 'text-green-600', '9876', 'Emergency fund savings'),
+  ('Credit Card Gold', 'American Express', -1245.67, 'credit', '2023-04-28', FALSE, 'CreditCard', 'text-purple-600', '3456', 'Primary credit card'),
+  ('Cash Wallet', 'Personal', 325.00, 'cash', '2023-04-28', FALSE, 'Wallet', 'text-yellow-600', NULL, 'Physical cash'),
+  ('Car Loan', 'Bank of America', -15000.00, 'loan', '2023-04-28', TRUE, 'BuildingIcon', 'text-red-600', '1234', 'Auto loan for Honda Accord');
+
+-- Insert transactions data
+INSERT INTO transactions (date, name, category, amount, account, logo, is_reconciled, notes, tags) VALUES
+  ('2025-04-15', 'Whole Foods Market', 'Food & Dining', -78.35, 'Chase Checking', 'https://picsum.photos/32/32?random=1', TRUE, 'Weekly grocery shopping', ARRAY['groceries', 'food']),
+  ('2025-04-14', 'Amazon', 'Shopping', -43.68, 'Amex Blue', 'https://picsum.photos/32/32?random=2', FALSE, 'Home office supplies', ARRAY['shopping', 'home office']),
+  ('2025-04-14', 'Direct Deposit - BigCorp Inc', 'Income', 2600.00, 'Chase Checking', 'https://picsum.photos/32/32?random=3', TRUE, 'Bi-weekly salary payment', ARRAY['income', 'salary']),
+  ('2025-04-13', 'Netflix', 'Entertainment', -15.99, 'Amex Blue', 'https://picsum.photos/32/32?random=4', FALSE, 'Monthly streaming subscription', ARRAY['subscription', 'entertainment']),
+  ('2025-04-12', 'Shell Gas Station', 'Transportation', -48.73, 'Chase Checking', 'https://picsum.photos/32/32?random=5', TRUE, 'Gas for commute', ARRAY['transportation', 'gas']),
+  ('2025-04-10', 'Rent Payment', 'Housing', -1800.00, 'Chase Checking', 'https://picsum.photos/32/32?random=6', TRUE, 'Monthly rent payment', ARRAY['housing', 'fixed expense']),
+  ('2025-04-08', 'Target', 'Shopping', -65.94, 'Amex Blue', 'https://picsum.photos/32/32?random=7', TRUE, 'Household items', ARRAY['shopping', 'household']),
+  ('2025-04-07', 'Uber', 'Transportation', -24.99, 'Amex Blue', 'https://picsum.photos/32/32?random=8', FALSE, 'Ride to airport', ARRAY['transportation', 'travel']),
+  ('2025-04-05', 'Electricity Bill', 'Utilities', -95.67, 'Chase Checking', 'https://picsum.photos/32/32?random=9', TRUE, 'Monthly electricity bill', ARRAY['utilities', 'fixed expense']),
+  ('2025-04-02', 'Bonus Payment', 'Income', 500.00, 'Chase Checking', 'https://picsum.photos/32/32?random=10', TRUE, 'Quarterly performance bonus', ARRAY['income', 'bonus']);
+
+-- Insert user data
+INSERT INTO users (id, email, first_name, last_name, avatar, created_at, last_login, is_email_verified) VALUES
+  ('usr_123456', 'user@example.com', 'Alex', 'Johnson', 'https://ui-avatars.com/api/?name=Alex+Johnson&background=1F3A93&color=fff', '2023-01-15', '2023-04-28', TRUE);
+
+-- Insert user preferences
+INSERT INTO user_preferences (user_id, currency, date_format, theme, hide_balances, email_notifications, browser_notifications, mobile_notifications, dashboard_widgets) VALUES
+  ('usr_123456', 'USD', 'MM/DD/YYYY', 'light', FALSE, TRUE, TRUE, FALSE, ARRAY['cashflow', 'budget', 'goals', 'recentTransactions', 'accounts']);
+
+-- Insert notifications
+INSERT INTO notifications (id, user_id, title, message, timestamp, type, source, is_read, action_url, action_label) VALUES
+  ('notif_1', 'usr_123456', 'Low Balance Alert', 'Your checking account balance is below $500', NOW() - INTERVAL '30 minutes', 'warning', 'account', FALSE, '/accounts', 'View Account'),
+  ('notif_2', 'usr_123456', 'Bill Due Soon', 'Your electricity bill of $95.67 is due in 3 days', NOW() - INTERVAL '2 hours', 'info', 'bill', FALSE, '/bills', 'Pay Now'),
+  ('notif_3', 'usr_123456', 'Budget Alert', 'You''ve reached 90% of your Entertainment budget this month', NOW() - INTERVAL '12 hours', 'warning', 'budget', TRUE, '/budget', 'View Budget'),
+  ('notif_4', 'usr_123456', 'Goal Achievement', 'Congratulations! You''ve reached 50% of your Emergency Fund goal', NOW() - INTERVAL '1 day', 'success', 'goal', TRUE, '/goals', 'View Goal'),
+  ('notif_5', 'usr_123456', 'New Feature Available', 'Try our new budget insights feature to optimize your spending', NOW() - INTERVAL '3 days', 'info', 'system', TRUE, '/budget/insights', 'Try It'); 

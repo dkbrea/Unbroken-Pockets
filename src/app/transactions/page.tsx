@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { 
   Search, 
   Filter, 
@@ -20,16 +21,63 @@ import { useTransactionsData } from '@/hooks/useTransactionsData'
 import { useAccountsData } from '@/hooks/useAccountsData'
 
 export default function Transactions() {
+  const searchParams = useSearchParams()
   const [searchQuery, setSearchQuery] = useState('')
   const [dateFilter, setDateFilter] = useState('Last 30 days')
   const [showAddModal, setShowAddModal] = useState(false)
   const [viewMode, setViewMode] = useState<'all' | 'debit_only'>('all')
+  const [accountFilter, setAccountFilter] = useState<string | null>(null)
+  const [accountName, setAccountName] = useState<string | null>(null)
+  
+  // Add state for tracking the selected account ID for new transactions
+  const [selectedAccountForNewTransaction, setSelectedAccountForNewTransaction] = useState<string | null>(null)
   
   // Get transaction data
-  const { transactions, filteredTransactions, setFilter } = useTransactionsData()
+  const { 
+    transactions, 
+    recentTransactions, 
+    filteredTransactions, 
+    setFilter, 
+    refetchTransactions,
+    deleteTransaction,
+    isLoading
+  } = useTransactionsData()
   
   // Get accounts data
   const { accounts } = useAccountsData()
+  
+  // Apply filters from URL query parameters
+  useEffect(() => {
+    if (!searchParams) return
+    
+    const accountId = searchParams.get('accountId')
+    const accountNameParam = searchParams.get('accountName')
+    
+    if (accountId) {
+      console.log(`Filtering transactions for account ID: ${accountId}`)
+      setAccountFilter(accountId)
+      
+      // Store the account ID for new transactions
+      setSelectedAccountForNewTransaction(accountId)
+      
+      // Find the account in our accounts data by ID
+      const matchingAccount = accounts.find(acc => acc.id?.toString() === accountId)
+      
+      // If we found a matching account by ID, use its name
+      if (matchingAccount) {
+        setAccountName(matchingAccount.name)
+      }
+      // Otherwise use the name from URL parameter if available
+      else if (accountNameParam) {
+        setAccountName(decodeURIComponent(accountNameParam))
+      }
+      
+      // Update the transactions filter to only show this account's transactions
+      if (matchingAccount) {
+        setFilter({ accounts: [matchingAccount.name] })
+      }
+    }
+  }, [searchParams, accounts, setFilter])
   
   // Count credit/debit transactions
   const debitAccountsCount = accounts.filter(
@@ -40,10 +88,39 @@ export default function Transactions() {
     t => t.is_debt_transaction
   ).length
 
+  // Handle transaction added callback
+  const handleTransactionAdded = useCallback(async (newTransaction: any) => {
+    console.log('New transaction added, refreshing list:', newTransaction);
+    
+    // Force a refresh of the transaction data
+    if (refetchTransactions) {
+      await refetchTransactions();
+    }
+  }, [refetchTransactions]);
+
+  // Handle transaction deletion
+  const handleDeleteTransaction = useCallback(async (id: number) => {
+    await deleteTransaction(id);
+  }, [deleteTransaction]);
+
+  // Handle refresh request
+  const handleRefresh = useCallback(async () => {
+    if (refetchTransactions) {
+      await refetchTransactions();
+    }
+  }, [refetchTransactions]);
+
+  // Determine which transactions to display based on view mode
+  const displayTransactions = viewMode === 'debit_only'
+    ? transactions.filter(t => t.is_debt_transaction)
+    : transactions;
+
   return (
     <div className="w-full">
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-[#1F3A93] mb-4 md:mb-0">Transactions</h1>
+        <h1 className="text-2xl font-bold text-[#1F3A93] mb-4 md:mb-0">
+          {accountName ? `Transactions: ${accountName}` : 'Transactions'}
+        </h1>
         
         <div className="flex flex-col md:flex-row space-y-3 md:space-y-0 md:space-x-3">
           <div className="relative">
@@ -69,6 +146,11 @@ export default function Transactions() {
             <button className="flex items-center bg-white border border-gray-300 rounded-md px-3 py-2 text-sm font-medium text-[#4A4A4A] hover:bg-[#F5F5F5]">
               <Filter className="mr-2 h-4 w-4 text-[#4A4A4A]" />
               Filters
+              {accountFilter && (
+                <span className="ml-2 bg-blue-100 text-blue-700 text-xs rounded-full px-2 py-0.5">
+                  1
+                </span>
+              )}
             </button>
             
             {debitAccountsCount > 0 && (
@@ -100,16 +182,38 @@ export default function Transactions() {
               onClick={() => setShowAddModal(true)}
             >
               <Plus className="mr-2 h-4 w-4 text-white" />
-              Add
+              Add Transaction
             </button>
           </div>
         </div>
       </div>
 
+      {/* Account Filter Alert */}
+      {accountFilter && (
+        <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex justify-between items-center">
+            <p className="text-blue-700">
+              Showing transactions for account: <span className="font-semibold">{accountName}</span>
+            </p>
+            <button 
+              onClick={() => {
+                setAccountFilter(null)
+                setAccountName(null)
+                setFilter({ accounts: [] })
+                window.history.pushState({}, '', '/transactions')
+              }}
+              className="text-blue-700 hover:text-blue-900 font-medium"
+            >
+              Clear Filter
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Debt Payment Widget */}
       <DebtPaymentWidget />
 
-      {debitAccountsCount > 0 && (
+      {debitAccountsCount > 0 && !accountFilter && (
         <div className="mb-6 bg-purple-50 border border-purple-200 rounded-lg p-4">
           <h2 className="text-lg font-semibold text-purple-800 flex items-center">
             <CreditCard className="mr-2 h-5 w-5" /> 
@@ -140,14 +244,25 @@ export default function Transactions() {
         </div>
         
         {/* Transactions List */}
-        <TransactionsList detailed={true} />
+        <TransactionsList 
+          detailed={true}
+          transactions={displayTransactions}
+          recentTransactions={recentTransactions}
+          isLoading={isLoading}
+          onDeleteTransaction={handleDeleteTransaction}
+          onRefresh={handleRefresh}
+        />
       </div>
       
       {/* Add Transaction Modal */}
-      <AddTransactionModal 
-        isOpen={showAddModal} 
-        onClose={() => setShowAddModal(false)} 
-      />
+      {showAddModal && (
+        <AddTransactionModal 
+          isOpen={true} 
+          onClose={() => setShowAddModal(false)}
+          onTransactionAdded={handleTransactionAdded}
+          preselectedAccountId={selectedAccountForNewTransaction}
+        />
+      )}
     </div>
   )
 } 

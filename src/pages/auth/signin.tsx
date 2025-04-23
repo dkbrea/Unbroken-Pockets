@@ -3,6 +3,8 @@ import { useRouter } from 'next/router'
 import Link from 'next/link'
 import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
+import './custom-signin-styles.css'
+import './global-styles-override.css'
 
 export default function SignIn() {
   const router = useRouter()
@@ -36,6 +38,31 @@ export default function SignIn() {
     
     checkSession()
   }, [router])
+
+  // Add dynamic gradient effect
+  useEffect(() => {
+    const dynamicGradient = document.querySelector('.dynamic-gradient');
+    
+    if (dynamicGradient) {
+      const handleMouseMove = (e: MouseEvent) => {
+        const windowWidth = window.innerWidth;
+        const windowHeight = window.innerHeight;
+        
+        const mouseXpercentage = Math.round((e.pageX / windowWidth) * 100);
+        const mouseYpercentage = Math.round((e.pageY / windowHeight) * 100);
+        
+        (dynamicGradient as HTMLElement).style.background = 
+          `radial-gradient(at ${mouseXpercentage}% ${mouseYpercentage}%, rgba(74, 111, 161, 0.3), rgba(126, 180, 226, 0.1))`;
+      };
+      
+      document.addEventListener('mousemove', handleMouseMove);
+      
+      // Clean up event listener
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+      };
+    }
+  }, []);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -89,89 +116,103 @@ export default function SignIn() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#FDF6EC] p-4">
-      <div className="w-full max-w-md bg-white rounded-lg shadow-md p-8">
-        <div className="flex justify-center mb-6">
-          <Image 
-            src="/logo.svg" 
-            alt="Unbroken Pockets Logo" 
-            width={50} 
-            height={50} 
-            priority
-          />
-        </div>
-        
-        <h1 className="text-2xl font-bold text-center text-[#1F3A93] mb-6">Sign in to your account</h1>
-        
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-md text-sm">
-            {error}
-          </div>
-        )}
-        
-        <form onSubmit={handleSignIn}>
-          <div className="mb-4">
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#1F3A93] focus:border-transparent"
-              required
+    <>
+      {/* Background elements */}
+      <div className="dynamic-gradient"></div>
+      
+      {/* Main container */}
+      <div className="auth-container">
+        <div className="auth-card">
+          {/* Decorative shapes */}
+          <div className="shape shape-1"></div>
+          <div className="shape shape-2"></div>
+          
+          {/* Logo and header */}
+          <div className="logo-container">
+            <Image 
+              src="/logo.svg" 
+              alt="Unbroken Pockets Logo" 
+              width={60} 
+              height={60} 
+              priority
             />
           </div>
           
-          <div className="mb-6">
-            <div className="flex items-center justify-between mb-1">
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                Password
-              </label>
-              <Link href="/auth/reset-password" className="text-xs text-[#1F3A93] hover:underline">
-                Forgot password?
-              </Link>
+          <h1 className="auth-title">Welcome Back</h1>
+          <p className="auth-subtitle">Sign in to manage your finances</p>
+          
+          {/* Error message */}
+          {error && (
+            <div className="error-message">
+              {error}
             </div>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#1F3A93] focus:border-transparent"
-              required
-            />
+          )}
+          
+          {/* Sign-in form */}
+          <form onSubmit={handleSignIn}>
+            <div className="form-group">
+              <label htmlFor="email" className="form-label">
+                Email
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="form-input"
+                required
+              />
+            </div>
+            
+            <div className="form-group">
+              <div className="flex items-center justify-between mb-1">
+                <label htmlFor="password" className="form-label">
+                  Password
+                </label>
+                <Link href="/auth/reset-password" className="auth-link" style={{ fontSize: '0.85rem', display: 'block', textAlign: 'right', marginTop: '0.5rem' }}>
+                  Forgot password?
+                </Link>
+              </div>
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="form-input"
+                required
+              />
+            </div>
+            
+            <button
+              type="submit"
+              disabled={loading}
+              className="auth-button"
+            >
+              {loading ? 'Signing in...' : 'Sign In'}
+            </button>
+          </form>
+          
+          <div style={{ marginTop: '2rem', textAlign: 'center', fontSize: '0.9rem', color: '#555' }}>
+            <p>
+              Don't have an account?{' '}
+              <Link href="/auth/signup" className="auth-link">
+                Sign up
+              </Link>
+            </p>
           </div>
           
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-[#1F3A93] text-white py-2 px-4 rounded-md hover:bg-[#152C70] focus:outline-none focus:ring-2 focus:ring-[#1F3A93] focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? 'Signing in...' : 'Sign in'}
-          </button>
-        </form>
-        
-        <div className="mt-6 text-center text-sm">
-          <p className="text-gray-600">
-            Don't have an account?{' '}
-            <Link href="/auth/signup" className="text-[#1F3A93] hover:underline">
-              Sign up
-            </Link>
-          </p>
+          {debugInfo && (
+            <div className="mt-6 p-3 border border-gray-200 rounded-md">
+              <details>
+                <summary className="text-sm font-medium text-gray-600 cursor-pointer">Debug Information</summary>
+                <pre className="mt-2 text-xs overflow-auto max-h-40 whitespace-pre-wrap">
+                  {JSON.stringify(debugInfo, null, 2)}
+                </pre>
+              </details>
+            </div>
+          )}
         </div>
-        
-        {debugInfo && (
-          <div className="mt-6 p-3 border border-gray-200 rounded-md">
-            <details>
-              <summary className="text-sm font-medium text-gray-600 cursor-pointer">Debug Information</summary>
-              <pre className="mt-2 text-xs overflow-auto max-h-40 whitespace-pre-wrap">
-                {JSON.stringify(debugInfo, null, 2)}
-              </pre>
-            </details>
-          </div>
-        )}
       </div>
-    </div>
+    </>
   )
 } 

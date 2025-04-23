@@ -86,16 +86,16 @@ const Sidebar = () => {
 
   return (
     <div className="flex md:w-64 md:flex-col md:fixed md:inset-y-0 z-40">
-      <div className="flex-1 flex flex-col min-h-0 border-r border-gray-200 bg-white shadow-sm">
+      <div className="flex-1 flex flex-col min-h-0 border-r border-gray-200 bg-white shadow-md">
         {/* Logo and app name */}
-        <div className="flex items-center h-16 flex-shrink-0 px-4 bg-[#1F3A93] text-white">
-          <Link href="/" className="flex items-center">
-            <span className="h-8 w-8 rounded-md bg-[#FFC857] flex items-center justify-center mr-2">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <div className="flex items-center h-20 flex-shrink-0 px-4 bg-gradient-primary text-white">
+          <Link href="/" className="flex flex-col items-center w-full transition-transform duration-300 hover:-translate-y-1">
+            <div className="h-10 w-10 rounded-md bg-white/20 flex items-center justify-center mb-1 shadow-sm">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M12 2L4 7V17L12 22L20 17V7L12 2Z" fill="white" stroke="white" strokeWidth="2" />
               </svg>
-            </span>
-            <span className="text-xl font-bold">Unbroken Pockets</span>
+            </div>
+            <span className="text-xl font-bold text-center">Unbroken Pockets</span>
           </Link>
         </div>
         
@@ -109,15 +109,15 @@ const Sidebar = () => {
                 <Link
                   key={item.name}
                   href={item.href}
-                  className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
+                  className={`group flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-300 ${
                     isActive
-                      ? 'bg-[#FDF6EC] text-[#1F3A93]'
-                      : 'text-[#4A4A4A] hover:bg-[#FDF6EC] hover:text-[#1F3A93]'
+                      ? 'bg-background-light text-primary shadow-sm'
+                      : 'text-text-medium hover:bg-background-lighter hover:text-primary hover:-translate-y-1'
                   }`}
                 >
                   <Icon
                     className={`mr-3 flex-shrink-0 h-5 w-5 ${
-                      isActive ? 'text-[#FFC857]' : 'text-[#4A4A4A] group-hover:text-[#1F3A93]'
+                      isActive ? 'text-primary-light' : 'text-text-medium group-hover:text-primary'
                     }`}
                     aria-hidden="true"
                   />
@@ -131,21 +131,23 @@ const Sidebar = () => {
           <div className="border-t border-gray-200 mt-auto">
             <div className="px-4 py-4 flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <div className="bg-black text-white rounded-full h-8 w-8 flex items-center justify-center">
-                  <span className="text-sm font-medium">N</span>
+                <div className="bg-primary text-white rounded-full h-9 w-9 flex items-center justify-center shadow-sm">
+                  <span className="text-sm font-medium">
+                    {user?.email ? user.email.charAt(0).toUpperCase() : 'U'}
+                  </span>
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-sm font-medium text-gray-900 truncate max-w-[120px]">
+                  <span className="text-sm font-medium text-text-dark truncate max-w-[120px]">
                     {user?.email || 'User'}
                   </span>
-                  <span className="text-xs text-gray-500">
+                  <span className="text-xs text-text-light">
                     Profile
                   </span>
                 </div>
               </div>
               <button 
                 onClick={handleSignOut}
-                className="text-gray-500 hover:text-red-600"
+                className="text-text-light hover:text-primary transition-colors duration-300"
                 title="Sign out"
               >
                 <LogOut className="h-5 w-5" />

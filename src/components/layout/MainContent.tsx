@@ -9,7 +9,7 @@ interface MainContentProps {
 const MainContent = ({ children }: MainContentProps) => {
   return (
     <main className="md:pl-64 flex flex-col flex-1 min-h-screen">
-      <div className="p-6 flex-grow w-full">
+      <div className="p-6 pt-8 flex-grow w-full">
         {children}
       </div>
     </main>

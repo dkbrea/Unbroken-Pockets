@@ -3,34 +3,37 @@
 import { useState, useEffect } from 'react'
 import { XCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { AccountType } from '@/lib/services/accountService'
 
 interface Account {
   id: string | number;
   name: string;
   institution: string;
   balance: number;
-  account_type: string;
+  type: AccountType;
+  account_type?: string; // For backward compatibility
   last_updated: string;
-  change: {
+  change?: {
     amount: number;
     percentage: number;
   };
 }
 
-interface EditAccountModalProps {
+type EditAccountModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  onAccountUpdated: () => void;
-  account: Account;
+  onSubmit: (id: number, accountData: { name: string; institution: string; type: AccountType; balance: number }) => void;
+  account: Account | null;
+  isSubmitting?: boolean;
 }
 
 export default function EditAccountModal({
   isOpen,
   onClose,
-  onAccountUpdated,
-  account
+  onSubmit,
+  account,
+  isSubmitting = false
 }: EditAccountModalProps) {
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
   // Initialize form data from the account prop
@@ -38,7 +41,7 @@ export default function EditAccountModal({
     name: account?.name || '',
     institution: account?.institution || '',
     balance: account?.balance?.toString() || '',
-    account_type: account?.account_type || 'Retirement',
+    account_type: account?.account_type || account?.type || 'checking',
     last_updated: account?.last_updated || new Date().toISOString().split('T')[0]
   });
   
@@ -49,7 +52,7 @@ export default function EditAccountModal({
         name: account.name || '',
         institution: account.institution || '',
         balance: account.balance?.toString() || '',
-        account_type: account.account_type || 'Retirement',
+        account_type: account.account_type || account.type || 'checking',
         last_updated: account.last_updated || new Date().toISOString().split('T')[0]
       });
     }
@@ -65,10 +68,13 @@ export default function EditAccountModal({
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
     setError(null);
     
     try {
+      if (!account) {
+        throw new Error('No account selected');
+      }
+
       // Validate the user is authenticated
       const { data: userData } = await supabase.auth.getUser();
       if (!userData?.user?.id) {
@@ -81,12 +87,13 @@ export default function EditAccountModal({
       
       // Update the account in the database
       const { error: updateError } = await supabase
-        .from('investment_accounts')
+        .from('accounts')
         .update({
           name: formData.name,
           institution: formData.institution,
           balance: parseFloat(formData.balance),
           account_type: formData.account_type,
+          type: formData.account_type as AccountType, // Add type field to match both schemas
           last_updated: formData.last_updated,
           change_amount: changeAmount,
           change_percentage: changePercentage,
@@ -102,25 +109,30 @@ export default function EditAccountModal({
       console.log('Account updated successfully');
       
       // Call the callback function
-      onAccountUpdated();
+      onSubmit(account.id as number, {
+        name: formData.name,
+        institution: formData.institution,
+        type: formData.account_type as AccountType,
+        balance: parseFloat(formData.balance)
+      });
       
       // Close the modal
       onClose();
     } catch (err: any) {
       console.error('Error updating account:', err);
-      setError(err.message || 'Failed to update investment account. Please try again.');
-    } finally {
-      setIsSubmitting(false);
+      setError(err.message || 'Failed to update account. Please try again.');
     }
   };
   
-  if (!isOpen) return null;
+  if (!isOpen || !account) return null;
   
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center p-6 border-b">
-          <h2 className="text-xl font-semibold text-gray-800">Edit Investment Account</h2>
+          <h2 className="text-xl font-semibold text-gray-800">
+            Edit {account.type.charAt(0).toUpperCase() + account.type.slice(1)} Account
+          </h2>
           <button 
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600"
@@ -200,11 +212,10 @@ export default function EditAccountModal({
               onChange={handleChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#1F3A93] focus:border-[#1F3A93]"
             >
-              <option value="Retirement">Retirement</option>
-              <option value="Taxable">Taxable</option>
-              <option value="Education">Education</option>
-              <option value="Alternative">Alternative</option>
-              <option value="Other">Other</option>
+              <option value="checking">Checking</option>
+              <option value="savings">Savings</option>
+              <option value="cash">Cash</option>
+              <option value="investment">Investment</option>
             </select>
           </div>
           

@@ -548,4 +548,71 @@ export const copyBudgetEntriesFromPreviousMonth = async (targetMonth: Date, sour
     console.error('Error in copyBudgetEntriesFromPreviousMonth:', error);
     return false;
   }
+};
+
+/**
+ * Marks a transaction as a budget expense and associates it with a budget category
+ * @param transactionId The ID of the transaction to mark as a budget expense
+ * @param categoryId The budget category ID to associate with this transaction
+ * @returns True if successful, false otherwise
+ */
+export const markTransactionAsBudgetExpense = async (transactionId: number, categoryId: number): Promise<boolean> => {
+  try {
+    console.log(`Marking transaction ${transactionId} as budget expense for category ${categoryId}`);
+    const supabase = createClient();
+    
+    // Update the transaction record
+    const { error } = await supabase
+      .from('transactions')
+      .update({
+        is_budget_expense: true,
+        budget_category_id: categoryId,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', transactionId);
+    
+    if (error) {
+      console.error('Error marking transaction as budget expense:', error);
+      return false;
+    }
+    
+    console.log(`Transaction ${transactionId} successfully marked as budget expense`);
+    return true;
+  } catch (error) {
+    console.error('Unexpected error marking transaction as budget expense:', error);
+    return false;
+  }
+};
+
+/**
+ * Unmarks a transaction as a budget expense
+ * @param transactionId The ID of the transaction to unmark as a budget expense
+ * @returns True if successful, false otherwise
+ */
+export const unmarkTransactionAsBudgetExpense = async (transactionId: number): Promise<boolean> => {
+  try {
+    console.log(`Unmarking transaction ${transactionId} as budget expense`);
+    const supabase = createClient();
+    
+    // Update the transaction record
+    const { error } = await supabase
+      .from('transactions')
+      .update({
+        is_budget_expense: false,
+        budget_category_id: null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', transactionId);
+    
+    if (error) {
+      console.error('Error unmarking transaction as budget expense:', error);
+      return false;
+    }
+    
+    console.log(`Transaction ${transactionId} successfully unmarked as budget expense`);
+    return true;
+  } catch (error) {
+    console.error('Unexpected error unmarking transaction as budget expense:', error);
+    return false;
+  }
 }; 

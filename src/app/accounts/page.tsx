@@ -2,13 +2,24 @@
 
 import { useState, useEffect } from 'react'
 import { Plus, Search, Filter, CreditCard, Wallet, BuildingIcon, CircleDollarSign, Edit, Trash2 } from 'lucide-react'
-import { getAccounts, getTotalBalance, Account, AccountType, clearAllAccounts, updateAccount, deleteAccount } from '@/lib/services/accountService'
+import { getAccounts, getTotalBalance, Account as BaseAccount, AccountType, clearAllAccounts, updateAccount, deleteAccount } from '@/lib/services/accountService'
 import AddAccountModal from '@/components/features/AddAccountModal'
 import EditAccountModal from '@/components/features/EditAccountModal'
 import DeleteConfirmModal from '@/components/features/DeleteConfirmModal'
+import AccountTransactionsModal from '@/components/features/AccountTransactionsModal'
 import { createAccount } from '@/lib/services/accountService'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { useDebtData } from '@/hooks/useDebtData'
+import AddTransactionModal from '@/components/features/AddTransactionModal'
+
+// Extend the base Account type to include debt-specific properties
+interface Account extends BaseAccount {
+  is_debt?: boolean;
+  interest_rate?: number;
+  minimum_payment?: number;
+}
 
 export default function Accounts() {
   const router = useRouter()
@@ -23,6 +34,45 @@ export default function Accounts() {
   const [isSubmittingAccount, setIsSubmittingAccount] = useState(false)
   const [authChecked, setAuthChecked] = useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState<'all' | 'checking' | 'savings' | 'credit' | 'investment'>('all')
+  
+  // Get credit card debts
+  const { debts } = useDebtData()
+  const creditCardDebts = debts.filter(debt => debt.category === 'Credit Card')
+
+  // Convert credit card debts to account format for display
+  const creditCardAccounts = creditCardDebts.map(debt => ({
+    id: debt.id,
+    name: debt.name,
+    institution: debt.lender || 'Unknown',
+    balance: debt.balance,
+    type: 'credit' as AccountType, // Cast as AccountType
+    last_updated: debt.updatedAt || new Date().toISOString().split('T')[0],
+    is_debt: true,
+    interest_rate: debt.interestRate,
+    minimum_payment: debt.minimumPayment
+  }))
+  
+  // Combined accounts for display
+  const allAccounts = [...accounts, ...creditCardAccounts]
+  
+  // New state for transactions modal
+  const [isTransactionsModalOpen, setIsTransactionsModalOpen] = useState(false)
+  const [selectedAccountForTransactions, setSelectedAccountForTransactions] = useState<Account | null>(null)
+  const [isAddTransactionModalOpen, setIsAddTransactionModalOpen] = useState(false)
+  const [selectedAccountForAddTransaction, setSelectedAccountForAddTransaction] = useState<Account | null>(null)
+  
+  // Function to handle opening the transactions modal
+  const handleViewTransactions = (account: Account) => {
+    setSelectedAccountForTransactions(account)
+    setIsTransactionsModalOpen(true)
+  }
+  
+  // Function to handle opening the add transaction modal
+  const handleAddTransaction = (account: Account) => {
+    setSelectedAccountForAddTransaction(account)
+    setIsAddTransactionModalOpen(true)
+  }
   
   useEffect(() => {
     // Check authentication status first
@@ -197,16 +247,40 @@ export default function Accounts() {
     }
   }
   
-  const filteredAccounts = accounts.filter(account => 
-    account.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (account.institution && account.institution.toLowerCase().includes(searchQuery.toLowerCase()))
+  const filterAccountsByType = (accounts: Account[]) => {
+    switch(activeTab) {
+      case 'checking':
+        return accounts.filter(a => a.type === 'checking' || a.type === 'cash')
+      case 'savings':
+        return accounts.filter(a => a.type === 'savings')
+      case 'credit':
+        return accounts.filter(a => a.type === 'credit')
+      case 'investment':
+        return accounts.filter(a => a.type === 'investment')
+      default:
+        return accounts
+    }
+  }
+  
+  const filteredAccounts = filterAccountsByType(
+    allAccounts.filter(account => 
+      account.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (account.institution && account.institution.toLowerCase().includes(searchQuery.toLowerCase()))
+    )
   )
+
+  const handleTabClick = (tab: 'all' | 'checking' | 'savings' | 'credit' | 'investment') => {
+    setActiveTab(tab)
+  }
+
+  // Total credit card debt
+  const totalCreditCardDebt = creditCardDebts.reduce((sum, debt) => sum + debt.balance, 0)
 
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Header */}
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Accounts</h1>
+        <h1 className="text-3xl font-bold text-[#1F3A93]">Accounts</h1>
         <div className="flex space-x-2">
           <div className="relative">
             <input
@@ -230,12 +304,6 @@ export default function Accounts() {
             <span>Add Account</span>
           </button>
         </div>
-      </div>
-
-      {/* Total Balance Card */}
-      <div className="bg-gradient-to-r from-blue-500 to-blue-700 rounded-xl p-6 mb-8 text-white shadow-lg">
-        <h2 className="text-xl font-medium mb-1">Total Balance</h2>
-        <p className="text-4xl font-bold">${totalBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
       </div>
 
       {/* Error State */}
@@ -324,49 +392,214 @@ export default function Accounts() {
         </div>
       ) : (
         <>
-          {/* Accounts Grid */}
+          {/* Financial Overview Dashboard */}
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+            {/* Total Balance Card - Enhanced version of existing card */}
+            <div className="bg-gradient-to-r from-blue-500 to-blue-700 rounded-xl p-6 text-white shadow-lg col-span-1">
+              <h2 className="text-xl font-medium mb-1">Total Balance</h2>
+              <p className="text-3xl font-bold">${totalBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+              <p className="text-blue-100 text-sm mt-2">Across {accounts.length} accounts</p>
+            </div>
+            
+            {/* Account Type Summary */}
+            <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100 col-span-1">
+              <h2 className="text-xl font-medium mb-3 text-gray-800">Spending</h2>
+              <p className="text-2xl font-bold text-gray-900">
+                ${accounts.filter(a => a.type === 'checking' || a.type === 'cash').reduce((sum, account) => sum + account.balance, 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+              <p className="text-gray-500 text-sm mt-2">
+                {accounts.filter(a => a.type === 'checking' || a.type === 'cash').length} accounts
+              </p>
+            </div>
+            
+            <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100 col-span-1">
+              <h2 className="text-xl font-medium mb-3 text-gray-800">Savings</h2>
+              <p className="text-2xl font-bold text-green-600">
+                ${accounts.filter(a => a.type === 'savings' || a.type === 'investment').reduce((sum, account) => sum + account.balance, 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+              <p className="text-gray-500 text-sm mt-2">
+                {accounts.filter(a => a.type === 'savings' || a.type === 'investment').length} accounts
+              </p>
+            </div>
+            
+            <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100 col-span-1">
+              <h2 className="text-xl font-medium mb-3 text-gray-800">Credit Cards</h2>
+              <p className="text-2xl font-bold text-red-600">
+                ${totalCreditCardDebt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+              <p className="text-gray-500 text-sm mt-2">
+                {creditCardDebts.length} credit cards
+              </p>
+            </div>
+          </div>
+
+          {/* Account Type Tabs */}
+          <div className="mb-6">
+            <div className="border-b border-gray-200">
+              <nav className="-mb-px flex space-x-8">
+                <button 
+                  className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === 'all' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                  onClick={() => handleTabClick('all')}
+                >
+                  All Accounts
+                </button>
+                <button 
+                  className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === 'checking' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                  onClick={() => handleTabClick('checking')}
+                >
+                  Checking & Cash
+                </button>
+                <button 
+                  className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === 'savings' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                  onClick={() => handleTabClick('savings')}
+                >
+                  Savings
+                </button>
+                <button 
+                  className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === 'credit' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                  onClick={() => handleTabClick('credit')}
+                >
+                  Credit Cards
+                </button>
+                <button 
+                  className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === 'investment' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                  onClick={() => handleTabClick('investment')}
+                >
+                  Investments
+                </button>
+              </nav>
+            </div>
+          </div>
+
+          {/* Accounts Grid - Enhanced from existing layout */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredAccounts.map((account) => (
-              <div key={account.id} className="bg-white border rounded-lg shadow-sm p-5 hover:shadow-md transition-shadow">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center">
-                    <div className="bg-blue-50 p-2 rounded-full mr-3">
-                      {getAccountIcon(account.type)}
+              <div key={account.id} className="bg-white border rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+                {/* Account Header with Color Bar based on type */}
+                <div className={`h-2 ${
+                  account.type === 'checking' ? 'bg-blue-500' :
+                  account.type === 'savings' ? 'bg-green-500' :
+                  account.type === 'credit' ? 'bg-red-500' :
+                  account.type === 'cash' ? 'bg-yellow-500' :
+                  'bg-indigo-500'
+                }`}></div>
+                
+                <div className="p-5">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center">
+                      <div className={`p-2 rounded-full mr-3 ${
+                        account.type === 'checking' ? 'bg-blue-100 text-blue-600' :
+                        account.type === 'savings' ? 'bg-green-100 text-green-600' :
+                        account.type === 'credit' ? 'bg-red-100 text-red-600' :
+                        account.type === 'cash' ? 'bg-yellow-100 text-yellow-600' :
+                        'bg-indigo-100 text-indigo-600'
+                      }`}>
+                        {getAccountIcon(account.type)}
+                      </div>
+                      <div>
+                        <h3 className="font-medium text-lg">{account.name}</h3>
+                        <p className="text-gray-500 text-sm">{account.institution || 'Personal'}</p>
+                        {account.is_debt && (
+                          <p className="text-xs text-red-500 mt-1">
+                            Interest: {(account as any).interest_rate}% | Min Payment: ${(account as any).minimum_payment}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-medium text-lg">{account.name}</h3>
-                      <p className="text-gray-500 text-sm">{account.institution || 'Personal'}</p>
+                    <div className="flex space-x-2">
+                      {!account.is_debt ? (
+                        <>
+                          <button 
+                            onClick={() => handleEditAccount(account)}
+                            className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                            title="Edit Account"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteAccount(account)}
+                            className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
+                            title="Delete Account"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </>
+                      ) : (
+                        <Link
+                          href="/debt"
+                          className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                          title="Manage in Debt Tracker"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Link>
+                      )}
                     </div>
                   </div>
-                  <div className="flex space-x-2">
-                    <button 
-                      onClick={() => handleEditAccount(account)}
-                      className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
-                      title="Edit Account"
-                    >
-                      <Edit className="h-4 w-4" />
-                    </button>
-                    <button 
-                      onClick={() => handleDeleteAccount(account)}
-                      className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
-                      title="Delete Account"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                  
+                  {/* Balance with card styling based on account type */}
+                  <div className={`p-4 mb-4 rounded-lg ${
+                    account.type === 'checking' ? 'bg-blue-50' :
+                    account.type === 'savings' ? 'bg-green-50' :
+                    account.type === 'credit' ? 'bg-red-50' :
+                    account.type === 'cash' ? 'bg-yellow-50' :
+                    'bg-indigo-50'
+                  }`}>
+                    <p className="text-gray-600 text-sm">Current Balance</p>
+                    <p className={`text-2xl font-bold ${
+                      account.type === 'credit' ? 'text-red-600' : 'text-gray-900'
+                    }`}>
+                      ${account.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
                   </div>
-                </div>
-                <div className="mt-4 pt-4 border-t border-gray-100">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600 text-sm">Balance</span>
-                    <span className="font-semibold">${account.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-                  <div className="flex justify-between items-center mt-2">
-                    <span className="text-gray-600 text-sm">Type</span>
-                    <span className="capitalize">{account.type}</span>
-                  </div>
-                  <div className="flex justify-between items-center mt-2">
-                    <span className="text-gray-600 text-sm">Last Updated</span>
-                    <span className="text-sm text-gray-600">{account.last_updated ? new Date(account.last_updated).toLocaleDateString() : 'N/A'}</span>
+                  
+                  <div className="pt-4 border-t border-gray-100">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600 text-sm">Type</span>
+                      <span className="capitalize">{account.type}</span>
+                    </div>
+                    <div className="flex justify-between items-center mt-2">
+                      <span className="text-gray-600 text-sm">Last Updated</span>
+                      <span className="text-sm text-gray-600">{account.last_updated ? new Date(account.last_updated).toLocaleDateString() : 'N/A'}</span>
+                    </div>
+                    
+                    {/* Quick Actions with actual navigation links */}
+                    <div className="flex justify-between mt-4 pt-4 border-t border-gray-100">
+                      {!account.is_debt ? (
+                        <>
+                          <button 
+                            onClick={() => handleViewTransactions(account)}
+                            className="text-sm text-blue-600 hover:text-blue-800"
+                          >
+                            View Transactions
+                          </button>
+                          <button 
+                            onClick={() => handleAddTransaction(account)}
+                            className="text-sm text-blue-600 hover:text-blue-800"
+                          >
+                            Add Transaction
+                          </button>
+                        </>
+                      ) : (
+                        <div className="flex w-full justify-center">
+                          <Link
+                            href="/debt"
+                            className="text-sm text-blue-600 hover:text-blue-800"
+                          >
+                            Manage in Debt Tracker
+                          </Link>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -532,14 +765,28 @@ export default function Accounts() {
         </details>
       </div>
       
-      {/* Edit Account Modal */}
-      <EditAccountModal
-        isOpen={isEditModalOpen}
-        onClose={() => setIsEditModalOpen(false)}
-        onSubmit={handleUpdateAccount}
-        account={selectedAccount}
-        isSubmitting={isSubmittingAccount}
-      />
+      {/* Edit Account Modal - Only render when selectedAccount is not null */}
+      {selectedAccount && (
+        <EditAccountModal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          onSubmit={handleUpdateAccount}
+          account={{
+            id: selectedAccount.id || 0,
+            name: selectedAccount.name,
+            institution: selectedAccount.institution || '',
+            balance: selectedAccount.balance,
+            type: selectedAccount.type,
+            account_type: selectedAccount.type,
+            last_updated: selectedAccount.last_updated || new Date().toISOString().split('T')[0],
+            change: {
+              amount: 0,
+              percentage: 0
+            }
+          }}
+          isSubmitting={isSubmittingAccount}
+        />
+      )}
 
       {/* Add Account Modal */}
       <AddAccountModal
@@ -557,6 +804,26 @@ export default function Accounts() {
         itemName={selectedAccount?.name || ''}
         itemType="account"
       />
+
+      {/* Account Transactions Modal */}
+      {selectedAccountForTransactions && !selectedAccountForTransactions.is_debt && (
+        <AccountTransactionsModal
+          isOpen={isTransactionsModalOpen}
+          onClose={() => setIsTransactionsModalOpen(false)}
+          accountId={selectedAccountForTransactions.id || 0}
+          accountName={selectedAccountForTransactions.name}
+        />
+      )}
+
+      {/* Add Transaction Modal */}
+      {selectedAccountForAddTransaction && !selectedAccountForAddTransaction.is_debt && (
+        <AddTransactionModal
+          isOpen={isAddTransactionModalOpen}
+          onClose={() => setIsAddTransactionModalOpen(false)}
+          onTransactionAdded={() => loadAccounts()}
+          preselectedAccountId={selectedAccountForAddTransaction.id || 0}
+        />
+      )}
     </div>
   )
 } 

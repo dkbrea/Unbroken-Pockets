@@ -1,8 +1,16 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { CircleDollarSign, CreditCard, Wallet, BuildingIcon } from 'lucide-react';
 import { LucideIcon } from 'lucide-react';
+import { 
+  getAccounts, 
+  createAccount as createAccountService,
+  updateAccount as updateAccountService,
+  deleteAccount as deleteAccountService,
+  Account as ServiceAccount,
+  AccountType as ServiceAccountType
+} from '@/lib/services/accountService';
 
 export type AccountType = 'checking' | 'savings' | 'credit' | 'cash' | 'investment' | 'loan' | 'other';
 
@@ -34,67 +42,83 @@ export type AccountsState = {
   toggleAccountVisibility: (id: number) => void;
 };
 
-export function useAccountsData(): AccountsState {
-  // Mock accounts data
-  const [accounts, setAccounts] = useState<Account[]>([
-    { 
-      id: 1, 
-      name: 'Main Checking', 
-      institution: 'Chase Bank',
-      balance: 4783.52,
-      type: 'checking',
-      lastUpdated: '2023-04-28',
-      icon: CircleDollarSign,
-      color: 'text-blue-600',
-      accountNumber: '4567',
-    },
-    { 
-      id: 2, 
-      name: 'Savings Account', 
-      institution: 'Chase Bank',
-      balance: 12450.00,
-      type: 'savings',
-      lastUpdated: '2023-04-28',
-      icon: BuildingIcon,
-      color: 'text-green-600',
-      accountNumber: '9876',
-    },
-    { 
-      id: 3, 
-      name: 'Credit Card Gold', 
-      institution: 'American Express',
-      balance: -1245.67,
-      type: 'credit',
-      lastUpdated: '2023-04-28',
-      icon: CreditCard,
-      color: 'text-purple-600',
-      accountNumber: '3456',
-    },
-    { 
-      id: 4, 
-      name: 'Cash Wallet', 
-      institution: 'Personal',
-      balance: 325.00,
-      type: 'cash',
-      lastUpdated: '2023-04-28',
-      icon: Wallet,
-      color: 'text-yellow-600',
-    },
-    { 
-      id: 5, 
-      name: 'Car Loan', 
-      institution: 'Bank of America',
-      balance: -15000.00,
-      type: 'loan',
-      lastUpdated: '2023-04-28',
-      icon: BuildingIcon,
-      color: 'text-red-600',
-      accountNumber: '1234',
-      isHidden: true,
-    }
-  ]);
+// Map service account to UI account
+const mapServiceAccountToUIAccount = (account: ServiceAccount): Account => {
+  // Map icon based on account type
+  let icon: LucideIcon;
+  let color: string;
 
-  const [isLoading, setIsLoading] = useState(false);
+  switch (account.type) {
+    case 'checking':
+      icon = CircleDollarSign;
+      color = 'text-blue-600';
+      break;
+    case 'credit':
+      icon = CreditCard;
+      color = 'text-purple-600';
+      break;
+    case 'cash':
+      icon = Wallet;
+      color = 'text-yellow-600';
+      break;
+    case 'savings':
+      icon = BuildingIcon;
+      color = 'text-green-600';
+      break;
+    default:
+      icon = BuildingIcon;
+      color = 'text-gray-600';
+  }
+
+  return {
+    id: account.id || 0,
+    name: account.name,
+    institution: account.institution || 'Unknown',
+    balance: account.balance,
+    type: account.type as AccountType,
+    lastUpdated: account.last_updated || new Date().toISOString().split('T')[0],
+    isHidden: account.is_hidden || false,
+    icon,
+    color,
+    accountNumber: account.account_number,
+    notes: account.notes
+  };
+};
+
+// Map UI account to service account
+const mapUIAccountToServiceAccount = (account: Partial<Account>): Partial<ServiceAccount> => {
+  return {
+    name: account.name,
+    institution: account.institution,
+    balance: account.balance,
+    type: account.type as ServiceAccountType,
+    is_hidden: account.isHidden,
+    account_number: account.accountNumber,
+    notes: account.notes
+  };
+};
+
+export function useAccountsData(): AccountsState {
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch accounts from Supabase
+  useEffect(() => {
+    async function fetchAccounts() {
+      setIsLoading(true);
+      try {
+        const serviceAccounts = await getAccounts();
+        const mappedAccounts = serviceAccounts.map(mapServiceAccountToUIAccount);
+        setAccounts(mappedAccounts);
+      } catch (error) {
+        console.error('Error fetching accounts:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchAccounts();
+  }, []);
 
   // Get visible accounts
   const visibleAccounts = useMemo(() => {
@@ -129,48 +153,71 @@ export function useAccountsData(): AccountsState {
   }, [accounts]);
 
   // CRUD operations
-  const addAccount = useCallback((account: Omit<Account, 'id' | 'lastUpdated'>) => {
+  const addAccount = useCallback(async (account: Omit<Account, 'id' | 'lastUpdated'>) => {
     setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      const now = new Date().toISOString().split('T')[0];
-      setAccounts(prev => [
-        ...prev,
-        {
-          ...account,
-          id: Math.max(...prev.map(a => a.id), 0) + 1,
-          lastUpdated: now,
-        },
-      ]);
+    try {
+      const serviceAccount = mapUIAccountToServiceAccount(account);
+      const createdAccount = await createAccountService(serviceAccount as Omit<ServiceAccount, 'id' | 'user_id' | 'last_updated'>);
+      
+      if (createdAccount) {
+        const newUIAccount = mapServiceAccountToUIAccount(createdAccount);
+        setAccounts(prev => [...prev, newUIAccount]);
+      }
+    } catch (error) {
+      console.error('Error adding account:', error);
+    } finally {
       setIsLoading(false);
-    }, 500);
+    }
   }, []);
 
-  const updateAccount = useCallback((id: number, updates: Partial<Account>) => {
+  const updateAccount = useCallback(async (id: number, updates: Partial<Account>) => {
     setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const serviceUpdates = mapUIAccountToServiceAccount(updates);
+      const updatedAccount = await updateAccountService(id, serviceUpdates);
+      
+      if (updatedAccount) {
+        setAccounts(prev => prev.map(account => 
+          account.id === id ? mapServiceAccountToUIAccount(updatedAccount) : account
+        ));
+      }
+    } catch (error) {
+      console.error('Error updating account:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const deleteAccount = useCallback(async (id: number) => {
+    setIsLoading(true);
+    try {
+      const success = await deleteAccountService(id);
+      
+      if (success) {
+        setAccounts(prev => prev.filter(account => account.id !== id));
+      }
+    } catch (error) {
+      console.error('Error deleting account:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const toggleAccountVisibility = useCallback(async (id: number) => {
+    const account = accounts.find(a => a.id === id);
+    if (!account) return;
+    
+    const newIsHidden = !account.isHidden;
+    
+    try {
+      await updateAccountService(id, { is_hidden: newIsHidden });
       setAccounts(prev => prev.map(account => 
-        account.id === id ? { ...account, ...updates } : account
+        account.id === id ? { ...account, isHidden: newIsHidden } : account
       ));
-      setIsLoading(false);
-    }, 500);
-  }, []);
-
-  const deleteAccount = useCallback((id: number) => {
-    setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setAccounts(prev => prev.filter(account => account.id !== id));
-      setIsLoading(false);
-    }, 500);
-  }, []);
-
-  const toggleAccountVisibility = useCallback((id: number) => {
-    setAccounts(prev => prev.map(account => 
-      account.id === id ? { ...account, isHidden: !account.isHidden } : account
-    ));
-  }, []);
+    } catch (error) {
+      console.error('Error toggling account visibility:', error);
+    }
+  }, [accounts]);
 
   return {
     accounts,

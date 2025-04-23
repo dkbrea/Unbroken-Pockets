@@ -610,7 +610,7 @@ export async function loadInvestmentsData(): Promise<Partial<InvestmentsState>> 
       : 0;
     
     // Now get or create portfolio summary
-    let portfolioSummary: PortfolioSummary = {
+    const portfolioSummary: PortfolioSummary = {
       totalValue: totalPortfolioValue,
       change: {
         amount: totalChangeAmount,

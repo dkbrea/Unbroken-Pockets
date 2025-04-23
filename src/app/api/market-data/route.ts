@@ -131,7 +131,7 @@ export async function GET(request: Request) {
   try {
     // Get symbols from the query string
     const { searchParams } = new URL(request.url);
-    let symbols = searchParams.get('symbols');
+    const symbols = searchParams.get('symbols');
     const includeUserHoldings = searchParams.get('includeUserHoldings') === 'true';
     const updateHoldings = searchParams.get('updateHoldings') === 'true';
 

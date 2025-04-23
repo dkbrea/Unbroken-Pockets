@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fix Setup Progress</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        button {
+            background-color: #1F3A93;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background-color: #152C70;
+        }
+        .danger {
+            background-color: #dc3545;
+        }
+        .danger:hover {
+            background-color: #bd2130;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .success {
+            color: green;
+            font-weight: bold;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Setup Progress Fix Tool</h1>
+    
+    <div class="card">
+        <h2>Current Setup Progress State</h2>
+        <div id="current-state"></div>
+        <button onclick="checkCurrentState()">Refresh State</button>
+    </div>
+    
+    <div class="card">
+        <h2>Fix Options</h2>
+        <button onclick="enableAllSetupItems()">Mark All Items as Complete</button>
+        <button onclick="enableAccountsSetup()">Mark 'Set Up Accounts' as Complete</button>
+        <button onclick="enableRecurringExpensesSetup()">Mark 'Fixed Expenses' as Complete</button>
+        <button onclick="enableRecurringIncomeSetup()">Mark 'Income Sources' as Complete</button>
+        <button onclick="enableSubscriptionsSetup()">Mark 'Subscriptions' as Complete</button>
+        <button onclick="enableDebtSetup()">Mark 'Debt Tracking' as Complete</button>
+        <button onclick="enableGoalsSetup()">Mark 'Savings Goals' as Complete</button>
+        <button class="danger" onclick="resetAllSetupItems()">Reset All Items</button>
+    </div>
+    
+    <div class="card">
+        <h2>Manual Edit</h2>
+        <p>Edit the JSON directly:</p>
+        <textarea id="manual-json" rows="10" style="width: 100%"></textarea>
+        <br><br>
+        <button onclick="saveManualJson()">Save Custom JSON</button>
+    </div>
+    
+    <div class="card">
+        <h2>Result</h2>
+        <div id="result"></div>
+    </div>
+    
+    <script>
+        // Define the storage key that matches our service
+        const STORAGE_KEY = 'setup_progress';
+        
+        // Define the default setup progress
+        const DEFAULT_SETUP_PROGRESS = {
+            accountsSetup: false,
+            recurringExpensesSetup: false,
+            recurringIncomeSetup: false,
+            subscriptionsSetup: false,
+            debtSetup: false,
+            goalsSetup: false
+        };
+        
+        // Function to display the current state
+        function checkCurrentState() {
+            const currentStateEl = document.getElementById('current-state');
+            try {
+                const storedProgress = localStorage.getItem(STORAGE_KEY);
+                
+                if (storedProgress) {
+                    const parsedProgress = JSON.parse(storedProgress);
+                    currentStateEl.innerHTML = `<pre>${JSON.stringify(parsedProgress, null, 2)}</pre>`;
+                    document.getElementById('manual-json').value = JSON.stringify(parsedProgress, null, 2);
+                } else {
+                    currentStateEl.innerHTML = '<p>No setup progress found in localStorage</p><pre>' + 
+                        JSON.stringify(DEFAULT_SETUP_PROGRESS, null, 2) + '</pre>';
+                    document.getElementById('manual-json').value = JSON.stringify(DEFAULT_SETUP_PROGRESS, null, 2);
+                }
+            } catch (error) {
+                currentStateEl.innerHTML = `<p class="error">Error reading localStorage: ${error.message}</p>`;
+            }
+        }
+        
+        // Function to update the setup progress
+        function updateSetupProgress(updates) {
+            try {
+                // Get current progress or use default
+                let currentProgress;
+                const storedProgress = localStorage.getItem(STORAGE_KEY);
+                
+                if (storedProgress) {
+                    currentProgress = JSON.parse(storedProgress);
+                } else {
+                    currentProgress = { ...DEFAULT_SETUP_PROGRESS };
+                }
+                
+                // Update with new values
+                const updatedProgress = {
+                    ...currentProgress,
+                    ...updates
+                };
+                
+                // Save to localStorage
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedProgress));
+                
+                // Update the UI
+                const resultEl = document.getElementById('result');
+                resultEl.innerHTML = `<p class="success">Successfully updated setup progress:</p>
+                    <pre>${JSON.stringify(updatedProgress, null, 2)}</pre>`;
+                
+                // Refresh the current state display
+                checkCurrentState();
+                
+                return true;
+            } catch (error) {
+                const resultEl = document.getElementById('result');
+                resultEl.innerHTML = `<p class="error">Error updating setup progress: ${error.message}</p>`;
+                return false;
+            }
+        }
+        
+        // Function to enable all setup items
+        function enableAllSetupItems() {
+            updateSetupProgress({
+                accountsSetup: true,
+                recurringExpensesSetup: true,
+                recurringIncomeSetup: true,
+                subscriptionsSetup: true,
+                debtSetup: true,
+                goalsSetup: true
+            });
+        }
+        
+        // Functions to enable specific setup items
+        function enableAccountsSetup() {
+            updateSetupProgress({ accountsSetup: true });
+        }
+        
+        function enableRecurringExpensesSetup() {
+            updateSetupProgress({ recurringExpensesSetup: true });
+        }
+        
+        function enableRecurringIncomeSetup() {
+            updateSetupProgress({ recurringIncomeSetup: true });
+        }
+        
+        function enableSubscriptionsSetup() {
+            updateSetupProgress({ subscriptionsSetup: true });
+        }
+        
+        function enableDebtSetup() {
+            updateSetupProgress({ debtSetup: true });
+        }
+        
+        function enableGoalsSetup() {
+            updateSetupProgress({ goalsSetup: true });
+        }
+        
+        // Function to reset all setup items
+        function resetAllSetupItems() {
+            if (confirm('Are you sure you want to reset all setup progress? This will mark all items as NOT DONE.')) {
+                localStorage.removeItem(STORAGE_KEY);
+                const resultEl = document.getElementById('result');
+                resultEl.innerHTML = `<p class="success">Successfully reset setup progress to defaults</p>
+                    <pre>${JSON.stringify(DEFAULT_SETUP_PROGRESS, null, 2)}</pre>`;
+                checkCurrentState();
+            }
+        }
+        
+        // Function to save manual JSON
+        function saveManualJson() {
+            try {
+                const manualJson = document.getElementById('manual-json').value;
+                const parsedJson = JSON.parse(manualJson);
+                
+                // Save to localStorage
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(parsedJson));
+                
+                // Update the UI
+                const resultEl = document.getElementById('result');
+                resultEl.innerHTML = `<p class="success">Successfully saved custom setup progress:</p>
+                    <pre>${JSON.stringify(parsedJson, null, 2)}</pre>`;
+                
+                // Refresh the current state display
+                checkCurrentState();
+            } catch (error) {
+                const resultEl = document.getElementById('result');
+                resultEl.innerHTML = `<p class="error">Error saving custom JSON: ${error.message}</p>`;
+            }
+        }
+        
+        // Initialize the page
+        window.onload = function() {
+            checkCurrentState();
+        };
+    </script>
+</body>
+</html> 

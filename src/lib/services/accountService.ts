@@ -298,7 +298,7 @@ export async function getAccounts(): Promise<Account[]> {
     console.log('Current user ID for accounts query:', userId);
     
     // First check if user_id exists in the accounts table
-    let { data: accountsData, error: accountsError } = await supabase
+    const { data: accountsData, error: accountsError } = await supabase
       .from('accounts')
       .select('*')
       .order('name');
@@ -371,24 +371,116 @@ export async function getAccounts(): Promise<Account[]> {
 }
 
 /**
- * Gets the total balance of all accounts for the current user
+ * Gets the total balance of all accounts for the current user, including all transactions
  * @returns The total balance
  */
 export async function getTotalBalance(): Promise<number> {
   try {
+    const supabase = createClient();
     const accounts = await getAccounts();
     
-    // Calculate total balance
-    // For credit accounts (negative balance), we subtract from the total
-    const total = accounts.reduce((sum, account) => {
-      if (account.type === 'credit') {
-        // Credit accounts typically have negative balances
-        return sum - Math.abs(account.balance);
-      }
-      return sum + account.balance;
-    }, 0);
+    // Get current user ID
+    const userId = await getCurrentUserId();
     
-    console.log('Calculated total balance:', total);
+    // Get all transactions for this user to ensure the most accurate balance
+    const { data: transactions, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('user_id', userId);
+      
+    if (error) {
+      console.error('Error fetching transactions for balance calculation:', error);
+      
+      // Fallback to basic account balance calculation if transactions can't be fetched
+      const total = accounts.reduce((sum, account) => {
+        if (account.type === 'credit') {
+          // Credit accounts typically have negative balances
+          return sum - Math.abs(account.balance);
+        }
+        return sum + account.balance;
+      }, 0);
+      
+      console.log('Calculated total balance from accounts only:', total);
+      return total;
+    }
+    
+    // Create a dictionary of account balances including all transactions
+    const accountBalances: Record<string | number, number> = {};
+    
+    // Initialize with account balances from database
+    accounts.forEach(account => {
+      if (account.id !== undefined) {
+        accountBalances[account.id] = account.balance;
+      }
+    });
+    
+    // Log initial balances for debugging
+    console.log('Initial account balances:', accountBalances);
+    
+    // Factor in all transactions to get the most current balances
+    if (transactions && transactions.length > 0) {
+      console.log(`Found ${transactions.length} transactions to consider in balance calculation`);
+      
+      // Process transactions to update account balances
+      transactions.forEach(transaction => {
+        const accountId = transaction.account_id;
+        
+        // Skip if we don't have a valid account ID
+        if (!accountId || accountId === null) {
+          console.log('Skipping transaction without valid account_id:', transaction);
+          return;
+        }
+        
+        // Handle transfer transactions
+        if (transaction.is_transfer && transaction.destination_account_id) {
+          // For transfers, subtract from source account and add to destination
+          if (accountBalances[accountId] !== undefined) {
+            accountBalances[accountId] -= transaction.amount;
+            console.log(`Transfer: Account ${accountId} balance updated to ${accountBalances[accountId]}`);
+          } else {
+            console.log(`Warning: Source account ${accountId} not found for transfer`);
+          }
+          
+          if (accountBalances[transaction.destination_account_id] !== undefined) {
+            accountBalances[transaction.destination_account_id] += transaction.amount;
+            console.log(`Transfer: Destination account ${transaction.destination_account_id} balance updated to ${accountBalances[transaction.destination_account_id]}`);
+          } else {
+            console.log(`Warning: Destination account ${transaction.destination_account_id} not found for transfer`);
+          }
+        } else {
+          // For regular transactions, just update the source account
+          if (accountBalances[accountId] !== undefined) {
+            // Add the transaction amount (which will be negative for expenses)
+            accountBalances[accountId] += transaction.amount;
+            console.log(`Transaction: Account ${accountId} balance updated to ${accountBalances[accountId]} (${transaction.amount > 0 ? 'income' : 'expense'}: ${Math.abs(transaction.amount)})`);
+          } else {
+            console.log(`Warning: Account ${accountId} not found for transaction`);
+          }
+        }
+      });
+    }
+    
+    // Log final calculated balances for debugging
+    console.log('Final account balances after transactions:', accountBalances);
+    
+    // Calculate total balance across all accounts
+    let total = 0;
+    accounts.forEach(account => {
+      if (account.id !== undefined) {
+        const balance = accountBalances[account.id] || 0;
+        
+        if (account.type === 'credit') {
+          // Credit accounts typically have negative balances
+          total -= Math.abs(balance);
+          console.log(`Credit account ${account.id} (${account.name}): -${Math.abs(balance)}`);
+        } else {
+          total += balance;
+          console.log(`Deposit account ${account.id} (${account.name}): +${balance}`);
+        }
+      }
+    });
+    
+    console.log('Calculated total balance including transactions:', total);
     return total;
   } catch (error) {
     console.error('Error calculating total balance:', error);

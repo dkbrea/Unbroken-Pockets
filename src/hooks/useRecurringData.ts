@@ -18,6 +18,7 @@ export type RecurringTransaction = {
   description: string;
   startDate: string;
   debtId?: number;
+  isProjected?: boolean; // Flag to indicate this is a projected occurrence
 };
 
 // Add a new viewMode type
@@ -66,8 +67,8 @@ export function useRecurringData(): RecurringState {
   // Debug log when recurring transactions change
   useEffect(() => {
     console.log("Current recurring transactions:", recurringTransactions);
-    // Look for debt transactions specifically
-    const debtTransactions = recurringTransactions.filter(tx => tx.debtId);
+    // Look for debt transactions specifically - only consider it a debt transaction if debtId is non-null
+    const debtTransactions = recurringTransactions.filter(tx => tx.debtId !== undefined && tx.debtId !== null);
     console.log("Debt-related transactions:", debtTransactions);
   }, [recurringTransactions]);
   
@@ -112,12 +113,12 @@ export function useRecurringData(): RecurringState {
       console.log("Merged transactions:", mergedTransactions);
       
       // Debug debt transactions specifically
-      const debtTransactions = mergedTransactions.filter(tx => tx.debtId);
+      const debtTransactions = mergedTransactions.filter(tx => tx.debtId !== undefined && tx.debtId !== null);
       console.log("Debt transactions (all):", debtTransactions);
       
       // Verify that debt transactions have all necessary fields
       const verifiedTransactions = mergedTransactions.map(tx => {
-        if (tx.debtId) {
+        if (tx.debtId !== undefined && tx.debtId !== null) {
           console.log(`Processing debt transaction: ${tx.name} (ID: ${tx.id}, DebtID: ${tx.debtId})`);
         }
         return tx;
@@ -163,7 +164,7 @@ export function useRecurringData(): RecurringState {
   // Periodically check for orphaned debt transactions that reference deleted debts
   useEffect(() => {
     // Only run this if we have debt-related transactions and a user
-    const debtTransactions = localTransactions.filter(tx => tx.debtId);
+    const debtTransactions = localTransactions.filter(tx => tx.debtId !== undefined && tx.debtId !== null);
     if (debtTransactions.length === 0 || !user) return;
     
     const validateDebtTransactions = async () => {
@@ -260,15 +261,131 @@ export function useRecurringData(): RecurringState {
     return filtered;
   }, [localTransactions, searchQuery, isLoading]);
   
-  // For upcoming view, only show active transactions
+  // For upcoming view, show active transactions within the next 30 days and project recurring instances
   const displayTransactions = useMemo(() => {
     if (!filteredTransactions || filteredTransactions.length === 0) return [];
     
     let displayed = [];
     if (viewType === 'upcoming') {
-      displayed = filteredTransactions
-        .filter(t => t.status === 'active')
-        .sort((a, b) => new Date(a.nextDate).getTime() - new Date(b.nextDate).getTime());
+      // Get today and 30 days from today
+      const today = new Date();
+      const next30Days = new Date(today);
+      next30Days.setDate(today.getDate() + 30);
+      
+      // Format for comparison
+      const todayStr = today.toISOString().split('T')[0];
+      const next30DaysStr = next30Days.toISOString().split('T')[0];
+      
+      console.log(`Filtering upcoming transactions between ${todayStr} and ${next30DaysStr}`);
+      
+      // First, get transactions with nextDate already in the range
+      const immediateTransactions = filteredTransactions
+        .filter(t => t.status === 'active' && t.nextDate >= todayStr && t.nextDate <= next30DaysStr);
+      
+      // Add these to our displayed transactions
+      displayed = [...immediateTransactions];
+      
+      // Now, project additional occurrences for recurring transactions
+      const activeTransactions = filteredTransactions.filter(t => t.status === 'active');
+      
+      // For each active transaction, project occurrences based on frequency
+      activeTransactions.forEach(transaction => {
+        // Skip if the transaction's nextDate is already in our displayed list
+        if (immediateTransactions.some(t => t.id === transaction.id)) {
+          return;
+        }
+        
+        // Get the base date to project from
+        const baseDate = new Date(transaction.nextDate);
+        
+        // Project based on frequency
+        const projectedDates: Date[] = [];
+        
+        switch (transaction.frequency.toLowerCase()) {
+          case 'daily':
+            // Project daily occurrences
+            for (let i = 1; i <= 30; i++) {
+              const projectedDate = new Date(baseDate);
+              projectedDate.setDate(baseDate.getDate() + i);
+              
+              if (projectedDate > today && projectedDate <= next30Days) {
+                projectedDates.push(projectedDate);
+              }
+            }
+            break;
+            
+          case 'weekly':
+            // Project weekly occurrences
+            for (let i = 1; i <= 4; i++) {
+              const projectedDate = new Date(baseDate);
+              projectedDate.setDate(baseDate.getDate() + (i * 7));
+              
+              if (projectedDate > today && projectedDate <= next30Days) {
+                projectedDates.push(projectedDate);
+              }
+            }
+            break;
+            
+          case 'bi-weekly':
+            // Project bi-weekly occurrences
+            for (let i = 1; i <= 2; i++) {
+              const projectedDate = new Date(baseDate);
+              projectedDate.setDate(baseDate.getDate() + (i * 14));
+              
+              if (projectedDate > today && projectedDate <= next30Days) {
+                projectedDates.push(projectedDate);
+              }
+            }
+            break;
+            
+          case 'semi-monthly':
+            // Project semi-monthly occurrences (usually 1st and 15th)
+            // For simplicity, we'll just add 15 days to the base date
+            const semiMonthlyDate = new Date(baseDate);
+            semiMonthlyDate.setDate(baseDate.getDate() + 15);
+            
+            if (semiMonthlyDate > today && semiMonthlyDate <= next30Days) {
+              projectedDates.push(semiMonthlyDate);
+            }
+            break;
+            
+          case 'monthly':
+            // Project monthly occurrence
+            const monthlyDate = new Date(baseDate);
+            monthlyDate.setMonth(baseDate.getMonth() + 1);
+            
+            if (monthlyDate > today && monthlyDate <= next30Days) {
+              projectedDates.push(monthlyDate);
+            }
+            break;
+            
+          case 'quarterly':
+            // Project quarterly occurrence
+            const quarterlyDate = new Date(baseDate);
+            quarterlyDate.setMonth(baseDate.getMonth() + 3);
+            
+            if (quarterlyDate > today && quarterlyDate <= next30Days) {
+              projectedDates.push(quarterlyDate);
+            }
+            break;
+        }
+        
+        // For each projected date, create a copy of the transaction with the new date
+        projectedDates.forEach(date => {
+          const projectedTransaction = {
+            ...transaction,
+            nextDate: date.toISOString().split('T')[0],
+            isProjected: true, // Flag to indicate this is a projected occurrence
+          };
+          
+          displayed.push(projectedTransaction);
+        });
+      });
+      
+      // Sort all transactions by date
+      displayed.sort((a, b) => new Date(a.nextDate).getTime() - new Date(b.nextDate).getTime());
+      
+      console.log(`Found ${displayed.length} upcoming transactions in the next 30 days (including projections)`);
     } else {
       displayed = filteredTransactions;
     }
@@ -449,7 +566,7 @@ export function useRecurringData(): RecurringState {
     const debtTransactions = transactions.filter(t => 
       t.amount < 0 && 
       t.status === 'active' && 
-      (t.type === 'debt_payment' || t.debtId)
+      (t.type === 'debt_payment' || (t.debtId !== undefined && t.debtId !== null))
     );
     
     console.log(`Calculating debt payments for ${month.toLocaleDateString('en-US', {month: 'long', year: 'numeric'})}`);
@@ -503,7 +620,7 @@ export function useRecurringData(): RecurringState {
           .filter(t => 
             t.amount < 0 && 
             t.type !== 'debt_payment' && // Exclude debt_payment type
-            !t.debtId // Also exclude transactions with debtId for backward compatibility
+            !(t.debtId !== undefined && t.debtId !== null) // Use the proper check for debtId
           )
           .reduce((sum, t) => {
             const monthlyMultiplier = getMonthlyMultiplier(t.frequency);
@@ -513,7 +630,7 @@ export function useRecurringData(): RecurringState {
         // Calculate debt payments separately
         const debtTransactions = displayTransactions.filter(t => 
           t.amount < 0 && 
-          (t.type === 'debt_payment' || t.debtId)
+          (t.type === 'debt_payment' || (t.debtId !== undefined && t.debtId !== null))
         );
         console.log("Debt transactions for calculation:", debtTransactions);
         
@@ -572,12 +689,12 @@ export function useRecurringData(): RecurringState {
             amount: transaction.amount,
             type: transaction.type,
             frequency: transaction.frequency,
-            startDate: transaction.startDate,
-            nextDate: transaction.nextDate,
+            start_date: transaction.startDate,
+            next_date: transaction.nextDate,
             description: transaction.description || "",
             status: transaction.status || "active",
             category: transaction.category,
-            paymentMethod: transaction.paymentMethod,
+            payment_method: transaction.paymentMethod,
             user_id: user.id
           },
         ])
@@ -621,90 +738,124 @@ export function useRecurringData(): RecurringState {
       console.log("Editing recurring transaction:", id, updatedTransaction);
       
       // Get the existing transaction
-      const existingTransaction = displayTransactions.find(t => t.id === id);
+      const existingTransaction = localTransactions.find(t => t.id === id);
       if (!existingTransaction) {
         console.error("Transaction not found for editing");
         return;
       }
       
-      // Try to update in Supabase
-      const { data, error } = await supabase
-        .from("recurring_transactions")
-        .update({
-          name: updatedTransaction.name,
-          amount: updatedTransaction.amount,
-          type: updatedTransaction.type,
-          frequency: updatedTransaction.frequency,
-          startDate: updatedTransaction.startDate,
-          nextDate: updatedTransaction.nextDate,
-          description: updatedTransaction.description || "",
-          status: updatedTransaction.status || "active",
-          category: updatedTransaction.category,
-          paymentMethod: updatedTransaction.paymentMethod,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', id)
-        .select();
-
-      if (error) {
-        console.error("Error updating recurring transaction:", error);
+      // Special handling for debt-related transactions
+      if (existingTransaction.debtId) {
+        console.log("Editing debt-related transaction");
         
-        // Update in local state even if database update fails
-        const updatedLocalTransactions = localTransactions.map(tx => {
-          if (tx.id === id) {
+        // For debt transactions, only allow editing certain fields
+        const { data, error } = await supabase
+          .from("recurring_transactions")
+          .update({
+            next_date: updatedTransaction.nextDate,
+            amount: updatedTransaction.amount,
+            status: updatedTransaction.status || "active",
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', id)
+          .select();
+
+        if (error) {
+          console.error("Error updating debt recurring transaction:", error);
+        } else {
+          console.log("Successfully updated debt transaction in database:", data);
+          
+          // If amount changed, update the debt information
+          if (Math.abs(existingTransaction.amount) !== Math.abs(updatedTransaction.amount)) {
+            try {
+              // Find the debt
+              const { data: debtData, error: debtFetchError } = await supabase
+                .from("debts")
+                .select("*")
+                .eq("id", existingTransaction.debtId)
+                .single();
+                
+              if (debtFetchError) {
+                console.error("Error fetching related debt:", debtFetchError);
+              } else if (debtData) {
+                // Update the debt's minimum payment
+                const { error: debtUpdateError } = await supabase
+                  .from("debts")
+                  .update({
+                    minimumPayment: Math.abs(updatedTransaction.amount),
+                    updated_at: new Date().toISOString()
+                  })
+                  .eq("id", existingTransaction.debtId);
+                  
+                if (debtUpdateError) {
+                  console.error("Error updating related debt:", debtUpdateError);
+                } else {
+                  console.log("Updated minimum payment for debt:", existingTransaction.debtId);
+                }
+              }
+            } catch (err) {
+              console.error("Error syncing transaction update with debt:", err);
+            }
+          }
+        }
+      } else {
+        // Normal editing for non-debt transactions - allow editing all fields
+        const { data, error } = await supabase
+          .from("recurring_transactions")
+          .update({
+            name: updatedTransaction.name,
+            amount: updatedTransaction.amount,
+            type: updatedTransaction.type,
+            frequency: updatedTransaction.frequency,
+            start_date: updatedTransaction.startDate,
+            next_date: updatedTransaction.nextDate,
+            description: updatedTransaction.description || "",
+            status: updatedTransaction.status || "active",
+            category: updatedTransaction.category,
+            payment_method: updatedTransaction.paymentMethod,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', id)
+          .select();
+
+        if (error) {
+          console.error("Error updating recurring transaction:", error);
+        } else {
+          console.log("Successfully updated transaction in database:", data);
+        }
+      }
+      
+      // Update in local state regardless of database result
+      const updatedLocalTransactions = localTransactions.map(tx => {
+        if (tx.id === id) {
+          // For debt transactions, only update allowed fields
+          if (existingTransaction.debtId) {
             return {
               ...tx,
-              ...updatedTransaction,
+              amount: updatedTransaction.amount,
+              nextDate: updatedTransaction.nextDate,
+              status: updatedTransaction.status || tx.status,
               updatedAt: new Date().toISOString(),
             };
           }
-          return tx;
-        });
-        
-        setLocalTransactions(updatedLocalTransactions);
-        
-        // Save to localStorage for persistence
-        try {
-          localStorage.setItem('recurring_transactions', JSON.stringify(updatedLocalTransactions));
-          console.log("Saved updated transactions to localStorage");
-        } catch (err) {
-          console.error("Error saving to localStorage:", err);
+          // For normal transactions, update all fields
+          return {
+            ...tx,
+            ...updatedTransaction,
+            updatedAt: new Date().toISOString(),
+          };
         }
-      } else {
-        console.log("Successfully updated transaction in database:", data);
-        
-        // If this is a debt-related transaction, update the debt information if amount changed
-        if (existingTransaction.debtId && Math.abs(existingTransaction.amount) !== Math.abs(updatedTransaction.amount)) {
-          try {
-            // Find the debt
-            const { data: debtData, error: debtFetchError } = await supabase
-              .from("debts")
-              .select("*")
-              .eq("id", existingTransaction.debtId)
-              .single();
-              
-            if (debtFetchError) {
-              console.error("Error fetching related debt:", debtFetchError);
-            } else if (debtData) {
-              // Update the debt's minimum payment
-              const { error: debtUpdateError } = await supabase
-                .from("debts")
-                .update({
-                  minimumPayment: Math.abs(updatedTransaction.amount),
-                  updated_at: new Date().toISOString()
-                })
-                .eq("id", existingTransaction.debtId);
-                
-              if (debtUpdateError) {
-                console.error("Error updating related debt:", debtUpdateError);
-              } else {
-                console.log("Updated minimum payment for debt:", existingTransaction.debtId);
-              }
-            }
-          } catch (err) {
-            console.error("Error syncing transaction update with debt:", err);
-          }
-        }
+        return tx;
+      });
+      
+      setLocalTransactions(updatedLocalTransactions);
+      
+      // Save to localStorage for persistence
+      try {
+        localStorage.setItem('recurring_transactions', JSON.stringify(updatedLocalTransactions));
+        console.log("Saved updated transactions to localStorage");
+      } catch (err) {
+        console.error("Error saving to localStorage:", err);
       }
 
       // Force refresh data
@@ -740,24 +891,38 @@ export function useRecurringData(): RecurringState {
 
       if (error) {
         console.error("Error deleting recurring transaction:", error);
-        
-        // Delete from local state even if database delete fails
-        const updatedLocalTransactions = localTransactions.filter(tx => tx.id !== id);
-        setLocalTransactions(updatedLocalTransactions);
-        
-        // Save to localStorage for persistence
-        try {
-          localStorage.setItem('recurring_transactions', JSON.stringify(updatedLocalTransactions));
-          console.log("Saved updated transactions to localStorage after delete");
-        } catch (err) {
-          console.error("Error saving to localStorage:", err);
-        }
       } else {
         console.log("Successfully deleted transaction from database");
       }
+      
+      // Always update local state regardless of database result
+      const updatedLocalTransactions = localTransactions.filter(tx => tx.id !== id);
+      setLocalTransactions(updatedLocalTransactions);
+      
+      // Save to localStorage for persistence
+      try {
+        localStorage.setItem('recurring_transactions', JSON.stringify(updatedLocalTransactions));
+        console.log("Saved updated transactions to localStorage after delete");
+      } catch (err) {
+        console.error("Error saving to localStorage:", err);
+      }
 
-      // Force refresh data
+      // Force refresh data - this is a complete refresh from the database
       await mutate();
+      
+      // Additional step to ensure cache is cleared
+      try {
+        // Clear the localStorage cache and reload from server
+        localStorage.removeItem('recurring_transactions');
+        console.log("Cleared localStorage cache for recurring transactions");
+        
+        // Force a refresh from the server with a small delay
+        setTimeout(() => {
+          mutate();
+        }, 300);
+      } catch (err) {
+        console.error("Error clearing cache:", err);
+      }
     } catch (err) {
       console.error("Unexpected error deleting transaction:", err);
     }

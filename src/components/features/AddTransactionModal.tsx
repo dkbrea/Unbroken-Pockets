@@ -20,6 +20,20 @@ import {
 import { useTransactionsData } from '@/hooks/useTransactionsData'
 import { useAccountsData } from '@/hooks/useAccountsData'
 import { useDebtData } from '@/hooks/useDebtData'
+import { useBudgetData } from '@/hooks/useBudgetData'
+import { useFinancialGoalsData } from '@/hooks/useFinancialGoalsData'
+import { useFixedExpensesData } from '@/hooks/useFixedExpensesData'
+import { useIncomeSourcesData } from '@/hooks/useIncomeSourcesData'
+import { Transaction as TransactionData, TransactionType } from '../../types/transaction'
+
+// Define constants for transaction types to ensure type safety
+const TRANSACTION_TYPES = {
+  VARIABLE_EXPENSE: 'Variable Expense' as const,
+  FIXED_EXPENSE: 'Fixed Expense' as const,
+  INCOME: 'Income' as const,
+  DEBT_PAYMENT: 'Debt Payment' as const,
+  GOAL_CONTRIBUTION: 'Goal Contribution' as const
+};
 
 // Define interfaces for budget and recurring transactions
 interface BudgetCategory {
@@ -38,69 +52,102 @@ interface RecurringTransaction {
   frequency: string;
 }
 
-// Define transaction interface
-interface Transaction {
-  date: string;
-  name: string;
-  category: string;
-  amount: number;
-  account: string;
-  notes: string;
-  tags: string[];
-  transaction_type: 'Fixed Expense' | 'Variable Expense' | 'Income' | 'Debt' | 'Savings';
-  // Optional fields for different transaction types
-  recurring_id?: number;
-  debt_id?: number;
-  debt_account_id?: number;
-  is_debt_payment?: boolean;
-  budget_category_id?: number;
-  is_budget_expense?: boolean;
-}
-
 // Transaction source types
 type TransactionSource = 'new' | 'recurring' | 'debt_payment' | 'budget_expense';
 
 type AddTransactionModalProps = {
   isOpen: boolean;
   onClose: () => void;
+  onTransactionAdded?: (transaction: any) => void;
+  preselectedAccountId?: string | null;
 }
 
-const AddTransactionModal = ({ isOpen, onClose }: AddTransactionModalProps) => {
+const AddTransactionModal = ({ 
+  isOpen, 
+  onClose, 
+  onTransactionAdded,
+  preselectedAccountId
+}: AddTransactionModalProps) => {
+  // Early exit if the modal is not open
+  if (!isOpen) return null;
+  
   // Basic transaction fields
   const [name, setName] = useState('')
   const [amount, setAmount] = useState('')
   const [date, setDate] = useState('')
   const [category, setCategory] = useState('')
   const [sourceAccount, setSourceAccount] = useState('')
+  const [destinationAccount, setDestinationAccount] = useState('')
   const [notes, setNotes] = useState('')
   const [tags, setTags] = useState('')
   
   // Transaction configuration
-  const [transactionType, setTransactionType] = useState<'Fixed Expense' | 'Variable Expense' | 'Income' | 'Debt' | 'Savings'>('Variable Expense')
+  const [transactionType, setTransactionType] = useState<TransactionType>(TRANSACTION_TYPES.VARIABLE_EXPENSE)
   const [isExpense, setIsExpense] = useState(true)
   const [selectedRecurringId, setSelectedRecurringId] = useState<number | undefined>(undefined)
+  const [selectedFixedExpensesId, setSelectedFixedExpensesId] = useState<number | undefined>(undefined)
+  const [selectedIncomeSourcesId, setSelectedIncomeSourcesId] = useState<number | undefined>(undefined)
   const [selectedDebtId, setSelectedDebtId] = useState<number | undefined>(undefined)
   const [selectedBudgetCategoryId, setSelectedBudgetCategoryId] = useState<number | undefined>(undefined)
+  const [selectedGoalId, setSelectedGoalId] = useState<number | undefined>(undefined) 
+  
+  // Force a refresh when the modal opens
+  useEffect(() => {
+    if (isOpen) {
+      // Reset all selections
+      setSelectedRecurringId(undefined);
+      setSelectedFixedExpensesId(undefined);
+      setSelectedIncomeSourcesId(undefined);
+      setSelectedDebtId(undefined);
+      setSelectedBudgetCategoryId(undefined);
+      setSelectedGoalId(undefined);
+      
+      // Reset form fields
+      setName('');
+      setAmount('');
+      setCategory('');
+      setDestinationAccount('');
+      
+      // Set date to today
+      const today = new Date();
+      const formattedDate = today.toISOString().split('T')[0];
+      setDate(formattedDate);
+      
+      // If a preselected account ID is provided, set it as the source account
+      if (preselectedAccountId) {
+        setSourceAccount(preselectedAccountId);
+      }
+    }
+  }, [isOpen, preselectedAccountId]);
   
   // Get accounts from custom hook - only those that are defined in the Accounts page
   const { accounts = [] } = useAccountsData();
   
   // Get debts from custom hook
   const { debts = [] } = useDebtData();
+
+  // Get budget categories from custom hook
+  const { budgetCategories = [] } = useBudgetData();
   
+  // Get fixed expenses from custom hook
+  const fixedExpensesResponse = useFixedExpensesData();
+  console.log('DIRECT HOOK OUTPUT - Fixed Expenses Response:', fixedExpensesResponse);
+  const { fixedExpenses = [], isLoading: isLoadingFixedExpenses } = fixedExpensesResponse;
+
+  // Get income sources from custom hook
+  const incomeSourcesResponse = useIncomeSourcesData();
+  console.log('DIRECT HOOK OUTPUT - Income Sources Response:', incomeSourcesResponse);
+  const { incomeSources = [], isLoading: isLoadingIncomeSources } = incomeSourcesResponse;
+
+  // Get financial goals from custom hook
+  const { financialGoals = [], isLoading } = useFinancialGoalsData();
+
   // Get transaction functions from custom hook
   const { addTransaction } = useTransactionsData();
   
-  // For demonstration purposes, let's define hardcoded categories and recurring transactions
+
+  // For demonstration purposes, let's define hardcoded recurring transactions
   // In a real implementation, you would fetch these from your API
-  const budgetCategories: BudgetCategory[] = [
-    { id: 1, name: 'Food & Dining', allocated: 500, spent: 200 },
-    { id: 2, name: 'Housing', allocated: 1200, spent: 1200 },
-    { id: 3, name: 'Transportation', allocated: 300, spent: 150 },
-    { id: 4, name: 'Entertainment', allocated: 200, spent: 50 },
-    { id: 5, name: 'Utilities', allocated: 250, spent: 180 }
-  ];
-  
   const recurringTransactions: RecurringTransaction[] = [
     { id: 1, name: 'Rent', amount: 1200, category: 'Housing', next_date: '2025-04-01', frequency: 'Monthly' },
     { id: 2, name: 'Internet', amount: 60, category: 'Utilities', next_date: '2025-04-15', frequency: 'Monthly' },
@@ -133,21 +180,35 @@ const AddTransactionModal = ({ isOpen, onClose }: AddTransactionModalProps) => {
     );
   }, [accounts]);
 
-  // Initialize date to today's date
-  useEffect(() => {
-    const today = new Date();
-    const formattedDate = today.toISOString().split('T')[0];
-    setDate(formattedDate);
-  }, []);
-  
   // Set appropriate transaction type when changing between expense/income
   useEffect(() => {
-    if (!isExpense && transactionType !== 'Income') {
-      setTransactionType('Income');
-    } else if (isExpense && transactionType === 'Income') {
-      setTransactionType('Variable Expense');
+    if (!isExpense && transactionType !== TRANSACTION_TYPES.INCOME) {
+      setTransactionType(TRANSACTION_TYPES.INCOME);
+    } else if (isExpense && transactionType === TRANSACTION_TYPES.INCOME) {
+      setTransactionType(TRANSACTION_TYPES.VARIABLE_EXPENSE);
     }
   }, [isExpense, transactionType]);
+  
+  // Reset fields when transaction type changes
+  useEffect(() => {
+    // Reset selection IDs
+    setSelectedRecurringId(undefined);
+    setSelectedFixedExpensesId(undefined);
+    setSelectedIncomeSourcesId(undefined);
+    setSelectedDebtId(undefined);
+    setSelectedBudgetCategoryId(undefined);
+    setSelectedGoalId(undefined);
+    
+    // Reset form fields
+    setName('');
+    setAmount('');
+    setCategory('');
+    setDestinationAccount('');
+    setNotes('');
+    setTags('');
+    
+    // Keep date and account as they likely remain the same across transaction types
+  }, [transactionType]);
   
   // Handle selecting a recurring transaction
   const handleRecurringSelect = (id: number) => {
@@ -165,33 +226,183 @@ const AddTransactionModal = ({ isOpen, onClose }: AddTransactionModalProps) => {
     }
   };
   
-  // Handle selecting a debt account for payment
-  const handleDebtSelect = (id: number) => {
-    const selected = accounts.find(acc => acc.id === id);
+  // Create safe references to the fixed expenses and income sources arrays
+  const safeFixedExpenses = useMemo(() => {
+    console.log('Creating safeFixedExpenses with data:', fixedExpenses);
+    return Array.isArray(fixedExpenses) ? fixedExpenses : [];
+  }, [fixedExpenses]);
+
+  const safeIncomeSources = useMemo(() => {
+    console.log('Creating safeIncomeSources with data:', incomeSources);
+    return Array.isArray(incomeSources) ? incomeSources : [];
+  }, [incomeSources]);
+  
+  // Create safe reference to financial goals array
+  const safeFinancialGoals = useMemo(() => {
+    console.log('Creating safeFinancialGoals with data:', financialGoals);
+    return Array.isArray(financialGoals) ? financialGoals : [];
+  }, [financialGoals]);
+
+  // Handle name and description fields based on transaction type
+  useEffect(() => {
+    if (transactionType === TRANSACTION_TYPES.INCOME) {
+      setName('Income');
+    } else if (transactionType === TRANSACTION_TYPES.DEBT_PAYMENT) {
+      setName('Debt Payment');
+    } else if (transactionType === TRANSACTION_TYPES.FIXED_EXPENSE) {
+      setName('Fixed Expense');
+    } else if (transactionType === TRANSACTION_TYPES.GOAL_CONTRIBUTION) {
+      setName('Goal Contribution');
+    }
+  }, [transactionType]);
+
+  // Handle selecting a fixed expense
+  const handleFixedExpenseSelect = (id: string) => {
+    // Add debug logging
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`Attempting to select fixed expense with ID: ${id} (type: ${typeof id})`);
+      console.log('Available fixed expenses:', safeFixedExpenses);
+    }
+    
+    const numericId = parseInt(id, 10);
+    if (isNaN(numericId)) {
+      console.error(`Invalid fixed expense ID: ${id}`);
+      return;
+    }
+    
+    const selected = safeFixedExpenses.find(fe => {
+      // Convert both to strings for comparison to avoid type mismatches
+      return fe.id.toString() === numericId.toString();
+    });
+    
     if (selected) {
-      setSelectedDebtId(id);
-      setName(`Payment to ${selected.name}`);
-      setCategory('Debt Payment');
-      setTransactionType('Debt');
+      setSelectedFixedExpensesId(numericId);
+      setSelectedRecurringId(selected.recurring_transaction_id);// Keep for compatibility
+      setName(selected.name);
+      setCategory(selected.category);
+      setAmount(Math.abs(selected.amount).toString());
       
-      // Default amount to minimum payment if debt record exists
-      const matchingDebt = debts.find(debt => selected && debt.name.toLowerCase().includes(selected.name.toLowerCase()));
-      if (matchingDebt) {
-        setAmount(matchingDebt.minimumPayment.toString());
-      } else {
-        setAmount('');
+      if (selected.next_date) {
+        setDate(selected.next_date);
       }
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`Selected fixed expense: ${selected.name} with amount ${selected.amount}`);
+      }
+    } else {
+      console.warn(`Could not find fixed expense with ID: ${id}`);
+    }
+  };
+
+  // Handle selecting an income source
+  const handleIncomeSourceSelect = (id: string) => {
+    // Add debug logging
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`Attempting to select income source with ID: ${id} (type: ${typeof id})`);
+      console.log('Available income sources:', safeIncomeSources);
+    }
+    
+    const numericId = parseInt(id, 10);
+    if (isNaN(numericId)) {
+      console.error(`Invalid income source ID: ${id}`);
+      return;
+    }
+    
+    const selected = safeIncomeSources.find(is => {
+      // Convert both to strings for comparison to avoid type mismatches
+      return is.id.toString() === numericId.toString();
+    });
+    
+    if (selected) {
+      setSelectedIncomeSourcesId(numericId);
+      setSelectedRecurringId(selected.recurring_transaction_id); // Keep for compatibility
+      setName(selected.name);
+      setCategory(selected.category);
+      setAmount(Math.abs(selected.amount).toString());
+      
+      if (selected.next_date) {
+        setDate(selected.next_date);
+      }
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`Selected income source: ${selected.name} with amount ${selected.amount}`);
+      }
+    } else {
+      console.warn(`Could not find income source with ID: ${id}`);
     }
   };
   
-  // Handle selecting a budget category
+  // Handle selecting a debt for debt payment
+  const handleDebtSelect = (id: number | string) => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`Selecting debt with ID: ${id} (type: ${typeof id})`);
+    }
+    
+    // Convert the ID to string for comparison to avoid type mismatches
+    const idStr = id.toString();
+    const selected = debts.find(debt => debt.id.toString() === idStr);
+    
+    if (selected) {
+      // Process the ID as a number for database compatibility
+      const numericId = typeof selected.id === 'string' ? parseInt(selected.id, 10) : selected.id;
+      
+      setSelectedDebtId(numericId);
+      setName(`Payment to ${selected.name}`);
+      setCategory('Debt Payment');
+      setAmount(selected.minimumPayment.toString());
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`Selected debt: ${selected.name} (ID: ${numericId}, type: ${typeof numericId})`);
+      }
+    } else {
+      console.warn(`Could not find debt with ID: ${id}`);
+    }
+  };
+
+  // Handle selecting a financial goal for goal contribution
+  const handleGoalSelect = (id: number | string) => {
+    // Add debug logging
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`Attempting to select financial goal with ID: ${id} (type: ${typeof id})`);
+      console.log('Available financial goals:', safeFinancialGoals);
+    }
+    
+    // Convert to numeric ID if string
+    const numericId = typeof id === 'string' ? parseInt(id, 10) : id;
+    if (isNaN(numericId)) {
+      console.error(`Invalid financial goal ID: ${id}`);
+      return;
+    }
+    
+    const selected = safeFinancialGoals.find(goal => {
+      // Convert both to strings for comparison to avoid type mismatches
+      return goal.id.toString() === numericId.toString();
+    });
+    
+    if (selected) {
+      setSelectedGoalId(numericId);
+      setName(`Contribution to ${selected.name}`);
+      setCategory('Goal Contribution');
+      // Don't set amount - user will input the contribution amount
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`Selected financial goal: ${selected.name} with target amount ${selected.target_amount}`);
+      }
+    } else {
+      console.warn(`Could not find financial goal with ID: ${id}`);
+    }
+  }
+
+  // Handle selecting a budget category for variable expense
   const handleBudgetCategorySelect = (id: number) => {
-    const selected = budgetCategories.find(cat => cat.id === parseInt(id.toString()));
+    const selected = budgetCategories.find(cat => cat.id === id);
     if (selected) {
       setSelectedBudgetCategoryId(id);
       setCategory(selected.name);
-      // Don't set amount - user will input the actual expense amount
-      // Don't set name - user will input the specific expense name
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`Selected budget category: ${selected.name} (ID: ${id})`);
+      }
     }
   };
 
@@ -203,78 +414,103 @@ const AddTransactionModal = ({ isOpen, onClose }: AddTransactionModalProps) => {
       return;
     }
     
-    // Format amount with correct sign based on transaction type
-    const numericAmount = parseFloat(amount);
-    const finalAmount = isExpense ? -Math.abs(numericAmount) : Math.abs(numericAmount);
-    
-    let transaction: Transaction = {
-      date,
-      name,
-      category,
-      amount: finalAmount,
-      account: sourceAccount,
-      notes,
-      tags: tags ? tags.split(',').map(tag => tag.trim()) : [],
-      transaction_type: transactionType
-    };
-    
-    // Add specific fields based on transaction type
-    if (transactionType === 'Fixed Expense') {
-      transaction = {
-        ...transaction,
-        recurring_id: selectedRecurringId,
-        is_debt_payment: false,
-        is_budget_expense: false
-      };
-    } else if (transactionType === 'Debt') {
-      const debtAccount = accounts.find(acc => acc.id === selectedDebtId);
-      const matchingDebt = debts.find(debt => 
-        debtAccount && debt.name.toLowerCase().includes(debtAccount.name.toLowerCase())
-      );
+    try {
+      // Get the account from the selected account ID without forcing number conversion
+      const selectedAccount = accounts.find(acc => acc.id.toString() === sourceAccount.toString());
       
-      transaction = {
-        ...transaction,
-        debt_id: matchingDebt ? matchingDebt.id : undefined,
-        debt_account_id: selectedDebtId,
-        is_debt_payment: true,
-        is_budget_expense: false
+      if (!selectedAccount) {
+        alert('Please select a valid account');
+        return;
+      }
+      
+      // Format amount with correct sign based on transaction type
+      const numericAmount = parseFloat(amount);
+      const finalAmount = transactionType === TRANSACTION_TYPES.INCOME 
+        ? Math.abs(numericAmount) 
+        : -Math.abs(numericAmount);
+      
+      // Create transaction object with both account name (for display) and account_id (for database relations)
+      let transaction: TransactionData = {
+        date,
+        name,
+        category,
+        amount: finalAmount,
+        account: selectedAccount.name, // The account name is used for display purposes
+        account_id: String(selectedAccount.id), // Convert ID to string for database compatibility
+        notes,
+        tags: tags ? tags.split(',').map(tag => tag.trim()) : [],
+        transaction_type: transactionType
       };
-    } else if (transactionType === 'Variable Expense') {
-      transaction = {
-        ...transaction,
-        budget_category_id: selectedBudgetCategoryId,
-        is_budget_expense: true,
-        is_debt_payment: false
-      };
-    } else {
-      // Income and Savings cases
-      transaction = {
-        ...transaction,
-        is_debt_payment: false,
-        is_budget_expense: false
-      };
+      
+      // Add specific fields based on transaction type
+      if (transactionType === TRANSACTION_TYPES.FIXED_EXPENSE) {
+        transaction = {
+          ...transaction,
+          recurring_id: selectedRecurringId,
+          is_debt_payment: false,
+          is_budget_expense: false
+        };
+      } else if (transactionType === TRANSACTION_TYPES.DEBT_PAYMENT) {
+        if (!selectedDebtId) {
+          alert('Please select a debt to make a payment');
+          return;
+        }
+        
+        transaction = {
+          ...transaction,
+          debt_id: selectedDebtId,
+          is_debt_payment: true,
+          is_budget_expense: false
+        };
+      } else if (transactionType === TRANSACTION_TYPES.VARIABLE_EXPENSE) {
+        transaction = {
+          ...transaction,
+          budget_category_id: selectedBudgetCategoryId,
+          is_budget_expense: true,
+          is_debt_payment: false
+        };
+      } else if (transactionType === TRANSACTION_TYPES.GOAL_CONTRIBUTION) {
+        if (!destinationAccount) {
+          alert('Please select a destination account for the goal contribution');
+          return;
+        }
+        
+        transaction = {
+          ...transaction,
+          goal_id: selectedGoalId,
+          destination_account_id: destinationAccount,
+          is_transfer: true,
+          is_debt_payment: false,
+          is_budget_expense: false
+        };
+      } else {
+        // Income case
+        transaction = {
+          ...transaction,
+          recurring_id: selectedRecurringId,
+          is_debt_payment: false,
+          is_budget_expense: false
+        };
+      }
+      
+      console.log('Adding transaction:', transaction);
+      
+      // Wait for the transaction to be added
+      const newTransaction = await addTransaction(transaction);
+      console.log('Transaction added successfully:', newTransaction);
+      
+      // CRITICAL: Call onTransactionAdded BEFORE closing the modal
+      if (onTransactionAdded && newTransaction) {
+        await onTransactionAdded(newTransaction);
+      }
+      
+      // Only close the modal after everything is done
+      onClose();
+    } catch (error) {
+      console.error('Error creating transaction:', error);
+      alert('Failed to create transaction. Please try again.');
     }
-    
-    await addTransaction(transaction);
-    
-    // Reset form
-    setName('');
-    setAmount('');
-    setCategory('');
-    setSourceAccount('');
-    setNotes('');
-    setTags('');
-    setIsExpense(true);
-    setTransactionType('Variable Expense');
-    setSelectedRecurringId(undefined);
-    setSelectedDebtId(undefined);
-    setSelectedBudgetCategoryId(undefined);
-    
-    // Close modal
-    onClose();
   };
-
-  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
@@ -290,19 +526,34 @@ const AddTransactionModal = ({ isOpen, onClose }: AddTransactionModalProps) => {
         </div>
         
         <form onSubmit={handleSubmit} className="p-4">
+          {/* Date First */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+            <div className="relative">
+              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="date"
+                className="pl-10 pr-4 py-2 border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                required
+              />
+            </div>
+          </div>
+          
           {/* Transaction Type Selector */}
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1">Transaction Type</label>
-            <div className="grid grid-cols-3 gap-2 mb-2">
+            <div className="grid grid-cols-2 gap-2 mb-2">
               <button
                 type="button"
                 className={`flex items-center justify-center py-2 px-2 rounded-md text-sm ${
-                  transactionType === 'Variable Expense' 
+                  transactionType === TRANSACTION_TYPES.VARIABLE_EXPENSE 
                     ? 'bg-blue-100 text-blue-700 border border-blue-200' 
                     : 'bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200'
                 }`}
                 onClick={() => {
-                  setTransactionType('Variable Expense');
+                  setTransactionType(TRANSACTION_TYPES.VARIABLE_EXPENSE);
                   setIsExpense(true);
                 }}
               >
@@ -313,45 +564,45 @@ const AddTransactionModal = ({ isOpen, onClose }: AddTransactionModalProps) => {
               <button
                 type="button"
                 className={`flex items-center justify-center py-2 px-2 rounded-md text-sm ${
-                  transactionType === 'Fixed Expense' 
+                  transactionType === TRANSACTION_TYPES.FIXED_EXPENSE 
                     ? 'bg-teal-100 text-teal-700 border border-teal-200' 
                     : 'bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200'
                 }`}
                 onClick={() => {
-                  setTransactionType('Fixed Expense');
+                  setTransactionType(TRANSACTION_TYPES.FIXED_EXPENSE);
                   setIsExpense(true);
                 }}
               >
                 <Clock className="mr-1 h-4 w-4" />
                 Fixed Expense
               </button>
-
+            </div>
+            <div className="grid grid-cols-3 gap-2">
               <button
                 type="button"
                 className={`flex items-center justify-center py-2 px-2 rounded-md text-sm ${
-                  transactionType === 'Income' 
+                  transactionType === TRANSACTION_TYPES.INCOME 
                     ? 'bg-green-100 text-green-700 border border-green-200' 
                     : 'bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200'
                 }`}
                 onClick={() => {
-                  setTransactionType('Income');
+                  setTransactionType(TRANSACTION_TYPES.INCOME);
                   setIsExpense(false);
                 }}
               >
                 <Wallet className="mr-1 h-4 w-4" />
                 Income
               </button>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
+              
               <button
                 type="button"
-                className={`flex items-center justify-center py-2 px-3 rounded-md text-sm ${
-                  transactionType === 'Debt' 
+                className={`flex items-center justify-center py-2 px-2 rounded-md text-sm ${
+                  transactionType === TRANSACTION_TYPES.DEBT_PAYMENT 
                     ? 'bg-purple-100 text-purple-700 border border-purple-200' 
                     : 'bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200'
                 }`}
                 onClick={() => {
-                  setTransactionType('Debt');
+                  setTransactionType(TRANSACTION_TYPES.DEBT_PAYMENT);
                   setIsExpense(true);
                 }}
               >
@@ -361,163 +612,162 @@ const AddTransactionModal = ({ isOpen, onClose }: AddTransactionModalProps) => {
               
               <button
                 type="button"
-                className={`flex items-center justify-center py-2 px-3 rounded-md text-sm ${
-                  transactionType === 'Savings' 
+                className={`flex items-center justify-center py-2 px-2 rounded-md text-sm ${
+                  transactionType === TRANSACTION_TYPES.GOAL_CONTRIBUTION 
                     ? 'bg-amber-100 text-amber-700 border border-amber-200' 
                     : 'bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200'
                 }`}
                 onClick={() => {
-                  setTransactionType('Savings');
+                  setTransactionType(TRANSACTION_TYPES.GOAL_CONTRIBUTION);
                   setIsExpense(true);
                 }}
               >
                 <PiggyBank className="mr-1 h-4 w-4" />
-                Savings
+                Goal Contribution
               </button>
             </div>
           </div>
           
-          {/* Recurring Transaction Selector - only show when type is Fixed Expense */}
-          {transactionType === 'Fixed Expense' && (
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Select Recurring Transaction</label>
-              <div className="relative">
-                <select
-                  className="appearance-none pl-4 pr-10 py-2 border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  value={selectedRecurringId || ""}
-                  onChange={(e) => handleRecurringSelect(parseInt(e.target.value))}
-                  required
-                >
-                  <option value="">Select recurring transaction</option>
-                  {recurringTransactions.map(rt => (
-                    <option key={rt.id} value={rt.id}>
-                      {rt.name} - ${Math.abs(rt.amount)} 
-                      ({new Date(rt.next_date).toLocaleDateString()})
-                    </option>
-                  ))}
-                </select>
-                <ChevronsUpDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-              </div>
-            </div>
-          )}
-          
-          {/* Budget Category Selector - only show when type is Variable Expense */}
-          {transactionType === 'Variable Expense' && (
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Select Budget Category</label>
-              <div className="relative">
+          {/* Dynamic Dropdown based on Transaction Type */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {transactionType === TRANSACTION_TYPES.VARIABLE_EXPENSE ? 'Budget Category' :
+               transactionType === TRANSACTION_TYPES.FIXED_EXPENSE ? 'Recurring Expense' :
+               transactionType === TRANSACTION_TYPES.INCOME ? 'Income Source' :
+               transactionType === TRANSACTION_TYPES.DEBT_PAYMENT ? 'Debt Account' :
+               'Financial Goal'}
+            </label>
+            <div className="relative">
+              {transactionType === TRANSACTION_TYPES.VARIABLE_EXPENSE && (
                 <select
                   className="appearance-none pl-4 pr-10 py-2 border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   value={selectedBudgetCategoryId || ""}
                   onChange={(e) => handleBudgetCategorySelect(parseInt(e.target.value))}
                   required
                 >
-                  <option value="">Select budget category</option>
-                  {budgetCategoriesWithRemaining.map(cat => (
+                  <option value="">Select a budget category</option>
+                  {budgetCategories.map(cat => (
                     <option key={cat.id} value={cat.id}>
-                      {cat.name} - ${cat.remaining ? cat.remaining.toFixed(2) : '0.00'} remaining
+                      {cat.name}
                     </option>
                   ))}
                 </select>
-                <ChevronsUpDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-              </div>
-            </div>
-          )}
-          
-          {/* Debt Account Selector - only show when type is Debt */}
-          {transactionType === 'Debt' && (
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Select Debt Account</label>
-              <div className="relative">
+              )}
+              
+              {transactionType === TRANSACTION_TYPES.FIXED_EXPENSE && (
+                <select
+                  className="appearance-none pl-4 pr-10 py-2 border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  value={selectedFixedExpensesId || ""}
+                  onChange={(e) => handleFixedExpenseSelect(e.target.value)}
+                  required
+                >
+                  <option value="">Select a fixed expense</option>
+                  {safeFixedExpenses.length > 0 ? (
+                    safeFixedExpenses.map(fe => (
+                      <option key={fe.id} value={fe.id}>
+                        {fe.name} (${Math.abs(fe.amount).toFixed(2)})
+                      </option>
+                    ))
+                  ) : (
+                    <option value="" disabled>No fixed expenses available</option>
+                  )}
+                </select>
+              )}
+              
+              {transactionType === TRANSACTION_TYPES.INCOME && (
+                <select
+                  className="appearance-none pl-4 pr-10 py-2 border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  value={selectedIncomeSourcesId || ""}
+                  onChange={(e) => handleIncomeSourceSelect(e.target.value)}
+                  required
+                >
+                  <option value="">Select an income source</option>
+                  {safeIncomeSources.length > 0 ? (
+                    safeIncomeSources.map(is => (
+                      <option key={is.id} value={is.id}>
+                        {is.name} (${is.amount.toFixed(2)})
+                      </option>
+                    ))
+                  ) : (
+                    <option value="" disabled>No income sources available</option>
+                  )}
+                </select>
+              )}
+              
+              {transactionType === TRANSACTION_TYPES.DEBT_PAYMENT && (
                 <select
                   className="appearance-none pl-4 pr-10 py-2 border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   value={selectedDebtId || ""}
-                  onChange={(e) => handleDebtSelect(parseInt(e.target.value))}
+                  onChange={(e) => handleDebtSelect(e.target.value)}
                   required
                 >
-                  <option value="">Select debt account</option>
-                  {debtAccounts.map(acc => (
-                    <option key={acc.id} value={acc.id}>
-                      {acc.name} - ${Math.abs(acc.balance).toFixed(2)}
+                  <option value="">Select a debt</option>
+                  {debts.map(debt => (
+                    <option key={debt.id} value={debt.id}>
+                      {debt.name} (${debt.balance.toFixed(2)})
                     </option>
                   ))}
                 </select>
-                <ChevronsUpDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-              </div>
-            </div>
-          )}
-          
-          {/* Date & Amount Row */}
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  type="date"
-                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  required
-                />
-              </div>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Amount</label>
-              <div className="relative">
-                <CircleDollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="0.00"
-                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  required
-                />
-              </div>
+              )}
               
-              {/* Budget warning if over budget */}
-              {transactionType === 'Variable Expense' && 
-               selectedBudgetCategoryId && 
-               parseFloat(amount || '0') > 0 && 
-               (() => {
-                 const category = budgetCategoriesWithRemaining.find(c => c.id === selectedBudgetCategoryId);
-                 const remaining = category ? category.remaining : 0;
-                 return remaining < parseFloat(amount);
-               })() && (
-                <p className="mt-1 text-xs text-red-600">
-                  This expense exceeds your remaining budget for this category.
-                </p>
+              {transactionType === TRANSACTION_TYPES.GOAL_CONTRIBUTION && (
+                <div className="relative">
+                  <select
+                    className="appearance-none pl-4 pr-10 py-2 border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={selectedGoalId?.toString() || ""}
+                    onChange={(e) => handleGoalSelect(e.target.value)}
+                    required
+                    disabled={isLoading}
+                  >
+                    <option value="">
+                      {isLoading ? 'Loading financial goals...' : 'Select a financial goal'}
+                    </option>
+                    {safeFinancialGoals.length > 0 ? (
+                      safeFinancialGoals.map(goal => (
+                        <option key={goal.id} value={goal.id}>
+                          {goal.name} (${goal.current_amount.toFixed(2)} / ${goal.target_amount.toFixed(2)})
+                        </option>
+                      ))
+                    ) : (
+                      <option value="" disabled>
+                        {isLoading ? 'Loading...' : 'No financial goals available'}
+                      </option>
+                    )}
+                  </select>
+                  <ChevronsUpDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                </div>
               )}
             </div>
           </div>
           
-          {/* Name */}
+          {/* Amount */}
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-            <input
-              type="text"
-              placeholder="e.g., Grocery shopping, Salary payment"
-              className="px-4 py-2 border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-            />
+            <label className="block text-sm font-medium text-gray-700 mb-1">Amount</label>
+            <div className="relative">
+              <CircleDollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+                className="pl-10 pr-4 py-2 border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                required
+              />
+            </div>
           </div>
           
-          {/* Category - don't show for budget expenses as it's set from the budget category */}
-          {transactionType !== 'Variable Expense' && (
+          {/* Name */}
+          {transactionType === TRANSACTION_TYPES.VARIABLE_EXPENSE && (
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
               <input
                 type="text"
-                placeholder="e.g., Food & Dining, Income"
+                placeholder="e.g., Grocery shopping, Salary payment"
                 className="px-4 py-2 border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
                 required
               />
             </div>
@@ -526,9 +776,7 @@ const AddTransactionModal = ({ isOpen, onClose }: AddTransactionModalProps) => {
           {/* Account - always the source account */}
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              {transactionType === 'Debt' 
-                ? 'Pay From Account' 
-                : (transactionType === 'Income' ? 'To Account' : 'From Account')}
+              {transactionType === TRANSACTION_TYPES.INCOME ? 'To Account' : 'From Account'}
             </label>
             <div className="relative">
               <select
@@ -538,25 +786,176 @@ const AddTransactionModal = ({ isOpen, onClose }: AddTransactionModalProps) => {
                 required
               >
                 <option value="">Select account</option>
-                {/* Only show payment accounts for debt payments */}
-                {transactionType === 'Debt' ? (
-                  paymentAccounts.map(acc => (
-                    <option key={acc.id} value={acc.name}>
-                      {acc.name} (${acc.balance.toFixed(2)})
-                    </option>
-                  ))
+                
+                {/* Display accounts based on type */}
+                {accounts.length > 0 ? (
+                  <>
+                    {/* Checking accounts */}
+                    {accounts.filter(a => !a.isHidden && a.type === 'checking').length > 0 && (
+                      <optgroup label="Checking">
+                        {accounts
+                          .filter(a => !a.isHidden && a.type === 'checking')
+                          .map(acc => (
+                            <option key={acc.id} value={acc.id.toString()}>
+                              💳 {acc.name} - ${acc.balance.toFixed(2)}
+                            </option>
+                          ))}
+                      </optgroup>
+                    )}
+                    
+                    {/* Savings accounts */}
+                    {accounts.filter(a => !a.isHidden && a.type === 'savings').length > 0 && (
+                      <optgroup label="Savings">
+                        {accounts
+                          .filter(a => !a.isHidden && a.type === 'savings')
+                          .map(acc => (
+                            <option key={acc.id} value={acc.id.toString()}>
+                              🏦 {acc.name} - ${acc.balance.toFixed(2)}
+                            </option>
+                          ))}
+                      </optgroup>
+                    )}
+                    
+                    {/* Cash accounts */}
+                    {accounts.filter(a => !a.isHidden && a.type === 'cash').length > 0 && (
+                      <optgroup label="Cash">
+                        {accounts
+                          .filter(a => !a.isHidden && a.type === 'cash')
+                          .map(acc => (
+                            <option key={acc.id} value={acc.id.toString()}>
+                              💵 {acc.name} - ${acc.balance.toFixed(2)}
+                            </option>
+                          ))}
+                      </optgroup>
+                    )}
+                    
+                    {/* Credit accounts */}
+                    {accounts.filter(a => !a.isHidden && a.type === 'credit').length > 0 && (
+                      <optgroup label="Credit Cards">
+                        {accounts
+                          .filter(a => !a.isHidden && a.type === 'credit')
+                          .map(acc => (
+                            <option key={acc.id} value={acc.id.toString()}>
+                              💳 {acc.name} - ${acc.balance.toFixed(2)}
+                            </option>
+                          ))}
+                      </optgroup>
+                    )}
+                    
+                    {/* Investment accounts */}
+                    {accounts.filter(a => !a.isHidden && a.type === 'investment').length > 0 && (
+                      <optgroup label="Investments">
+                        {accounts
+                          .filter(a => !a.isHidden && a.type === 'investment')
+                          .map(acc => (
+                            <option key={acc.id} value={acc.id.toString()}>
+                              📈 {acc.name} - ${acc.balance.toFixed(2)}
+                            </option>
+                          ))}
+                      </optgroup>
+                    )}
+                    
+                    {/* Other account types */}
+                    {accounts.filter(a => !a.isHidden && a.type === 'other').length > 0 && (
+                      <optgroup label="Other">
+                        {accounts
+                          .filter(a => !a.isHidden && a.type === 'other')
+                          .map(acc => (
+                            <option key={acc.id} value={acc.id.toString()}>
+                              📝 {acc.name} - ${acc.balance.toFixed(2)}
+                            </option>
+                          ))}
+                      </optgroup>
+                    )}
+                  </>
                 ) : (
-                  accounts.filter(a => !a.isHidden).map(acc => (
-                    <option key={acc.id} value={acc.name}>
-                      {acc.name} (${acc.balance.toFixed(2)})
-                      {acc.type === 'credit' || acc.type === 'loan' ? ' - Credit/Debt' : ''}
-                    </option>
-                  ))
+                  <option value="" disabled>No accounts available</option>
                 )}
               </select>
               <Building className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
             </div>
           </div>
+          
+          {/* To Account - only for Goal Contribution */}
+          {transactionType === TRANSACTION_TYPES.GOAL_CONTRIBUTION && (
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                To Account
+              </label>
+              <div className="relative">
+                <select
+                  className="appearance-none pl-4 pr-10 py-2 border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  value={destinationAccount}
+                  onChange={(e) => setDestinationAccount(e.target.value)}
+                  required
+                >
+                  <option value="">Select destination account</option>
+                  
+                  {/* Display accounts based on type */}
+                  {accounts.length > 0 ? (
+                    <>
+                      {/* Checking accounts */}
+                      {accounts.filter(a => !a.isHidden && a.type === 'checking').length > 0 && (
+                        <optgroup label="Checking">
+                          {accounts
+                            .filter(a => !a.isHidden && a.type === 'checking')
+                            .map(acc => (
+                              <option 
+                                key={acc.id} 
+                                value={acc.id.toString()}
+                                disabled={acc.id.toString() === sourceAccount}
+                              >
+                                💳 {acc.name} - ${acc.balance.toFixed(2)}
+                              </option>
+                            ))}
+                        </optgroup>
+                      )}
+                      
+                      {/* Savings accounts */}
+                      {accounts.filter(a => !a.isHidden && a.type === 'savings').length > 0 && (
+                        <optgroup label="Savings">
+                          {accounts
+                            .filter(a => !a.isHidden && a.type === 'savings')
+                            .map(acc => (
+                              <option 
+                                key={acc.id} 
+                                value={acc.id.toString()}
+                                disabled={acc.id.toString() === sourceAccount}
+                              >
+                                🏦 {acc.name} - ${acc.balance.toFixed(2)}
+                              </option>
+                            ))}
+                        </optgroup>
+                      )}
+                      
+                      {/* Investment accounts */}
+                      {accounts.filter(a => !a.isHidden && a.type === 'investment').length > 0 && (
+                        <optgroup label="Investments">
+                          {accounts
+                            .filter(a => !a.isHidden && a.type === 'investment')
+                            .map(acc => (
+                              <option 
+                                key={acc.id} 
+                                value={acc.id.toString()}
+                                disabled={acc.id.toString() === sourceAccount}
+                              >
+                                📈 {acc.name} - ${acc.balance.toFixed(2)}
+                              </option>
+                            ))}
+                        </optgroup>
+                      )}
+                    </>
+                  ) : (
+                    <option value="" disabled>No accounts available</option>
+                  )}
+                </select>
+                <Building className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+              </div>
+              <p className="mt-1 text-xs text-gray-500">
+                Select the account where this goal contribution will be stored
+              </p>
+            </div>
+          )}
           
           {/* Notes */}
           <div className="mb-4">

@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In - Unbroken Pockets</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Reset and base styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            background-color: #f0f6ff;
+            color: #333;
+            overflow-x: hidden;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Navigation */
+        .nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            padding: 2rem;
+            z-index: 100;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            position: relative;
+            color: #4A6FA1;
+            text-decoration: none;
+        }
+
+        .logo::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 0;
+            width: 0;
+            height: 1px;
+            background-color: #4A6FA1;
+            transition: width 0.3s ease;
+        }
+
+        .logo:hover::after {
+            width: 100%;
+        }
+
+        /* Dynamic gradient background */
+        .dynamic-gradient {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            background: radial-gradient(at 50% 50%, rgba(74, 111, 161, 0.3), rgba(126, 180, 226, 0.1));
+            filter: blur(80px);
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        /* Particle canvas */
+        #particles-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* Noise texture overlay */
+        .noise-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAAAXNSR0IArs4c6QAAA9lJREFUaEPtmttx2zAMhmEn7QM7RofsXmWeOvGkizJDOkaHdJCOkd8PiRIJEaREvZI598BJYlEgPgIERVmO3KfrxykiHjOzbyLymdkdRHxn5mtEvDHzJSIuSqlzPtT8G8bGJhT8HhF/icgvIvrenLQA0Z5/EdGfWuvT8HljA0rANyL6JSJfphZFxDMzH7XWl6n7mnuG4LPWvxORL1rrQ57HEHwAfCOiXwN1U7f+FpGj1vp+6sbWfTF4RLwQ0TcR+VACHmKk5aV5JSLyUTLt5nkE5xLgw2CWoFIKeYCQ63V9PkG1lIBfgkop5QExPiKexptR2Ycl4HNQMUHwlCLyJCLvSqlLmtrwwIPgxSUUtDZ2sLlAQvBE9ElE3rTWf7IB3ASiBI+I9T5JRCWwm0FKDZeZq36yC8ScIfhkY6UkcVdEDPw68CGQHvhpnY3Bbw4yAD9WFbvbSHMGdJXNICPwy9qBiJjB3mopVQHfDWFmY8ajUrps3S97QKbgx0L4OYqr9qY9IB3wzc7tDM5Edw8Qaj0I13L97FtNZQzEw09DWEScnUSbQTrhu0F6KncTSBRPWut9DsnMVfbjnCGGrJr+UhBPzOxbBQhG6xxdIM7AWxCvInLSWh+XAE0gjnhiZuPpIJxFxAlgFoijtaaB+yoiJ6XUMfaXMZD8iHZuZBRgfx2KwBFqHQwYAsm3GCIaHKFsH1/+SQzEeeYwHFsOlnFvvbp9LAAKCzEEsk2TmTzCXP+YbY9Dk2wQYAhkrYE789jsQFP76JjPVd6RAkxrg+yBWHJZS/2kRH8Jn5pYXkS8EpGrIBnFSg9d+WVFAKu3rO3HrLXhMGPOYUWApVX88L5qCjnrcPCzltoNpJBPPbTfO9WDyoTpMgQYBJllCgEG94Dg/p5PrMJ08UDCAW0U+BIQRBx8RHKFCYP7cB8HCXHVG2wqCDdLGOFHecN1iY9sJA6Sxm7NfDyQQEbX+Mgxl+YIyKwVBgCuQc55tD4SXQlI8RQcADFx5eRdJK5UYZw5iMhJKVUFGWRRBjJbXFVOuGfTayDZK6Z9ztIuq/ZXa9W7xLvElYg8K6Xu5gC0ILv3vFLPnWMFl5jAErQU62vOgadnrgUxkHCrX/Jk/W6OuFr0MUAiB03OdbD0dFr0kbS7pJ+Iw+Ygy58VtzhrEMQ5FRucIkbXVoGhQafGXA1iRxHOcYQdF1jVHhYDmK2XvU9b9Uh6mF8J81vN1nnfBNJMxQ+vEfHoRnJNV9KxPCKyZ+ZL2oL4/89bYDZR/Ae5kAGf6AKmLQAAAABJRU5ErkJggg==');
+            opacity: 0.02;
+            pointer-events: none;
+            z-index: 9997;
+        }
+
+        /* Sign-in Form container */
+        .signin-container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+            z-index: 10;
+            position: relative;
+        }
+
+        .signin-card {
+            width: 100%;
+            max-width: 450px;
+            background-color: #ffffff;
+            border-radius: 20px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
+            padding: 3rem;
+            position: relative;
+            overflow: hidden;
+            transform: translateY(20px);
+            opacity: 0;
+            transition: transform 0.5s ease, box-shadow 0.3s ease, opacity 0.5s ease;
+        }
+
+        .signin-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.15);
+        }
+
+        .signin-header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .signin-logo {
+            width: 60px;
+            height: 60px;
+            margin-bottom: 1.5rem;
+        }
+
+        .signin-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #4A6FA1;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(to right, #4A6FA1, #7EB4E2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .signin-subtitle {
+            font-size: 1rem;
+            color: #555;
+        }
+
+        .signin-form {
+            width: 100%;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #333;
+            font-size: 0.9rem;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.8rem 1rem;
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            background-color: #f8f8f8;
+            color: #333;
+            transition: all 0.3s ease;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #4A6FA1;
+            background-color: #fff;
+            box-shadow: 0 0 0 3px rgba(74, 111, 161, 0.1);
+        }
+
+        .forgot-password {
+            display: block;
+            text-align: right;
+            font-size: 0.85rem;
+            margin-top: 0.5rem;
+            color: #4A6FA1;
+            text-decoration: none;
+        }
+
+        .forgot-password:hover {
+            text-decoration: underline;
+        }
+
+        .signin-button {
+            width: 100%;
+            padding: 1rem;
+            background: linear-gradient(135deg, #4A6FA1 0%, #7EB4E2 100%);
+            color: #fff;
+            border: none;
+            border-radius: 30px;
+            font-weight: 500;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            box-shadow: 0 4px 15px rgba(74, 111, 161, 0.2);
+            margin-top: 1rem;
+        }
+
+        .signin-button:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(74, 111, 161, 0.4);
+        }
+
+        .signin-button:active {
+            transform: translateY(0);
+        }
+
+        .signin-footer {
+            margin-top: 2rem;
+            text-align: center;
+            font-size: 0.9rem;
+            color: #555;
+        }
+
+        .signup-link {
+            color: #4A6FA1;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .signup-link:hover {
+            text-decoration: underline;
+        }
+
+        .error-message {
+            padding: 0.8rem;
+            margin-bottom: 1.5rem;
+            border-radius: 10px;
+            background-color: rgba(220, 53, 69, 0.1);
+            color: #dc3545;
+            font-size: 0.9rem;
+            display: none;
+        }
+
+        .error-message.visible {
+            display: block;
+        }
+
+        /* Decorative elements */
+        .shape {
+            position: absolute;
+            border-radius: 50%;
+            background: radial-gradient(circle at center, rgba(126, 180, 226, 0.1), transparent);
+            filter: blur(60px);
+        }
+
+        .shape-1 {
+            width: 400px;
+            height: 400px;
+            top: -200px;
+            right: -200px;
+            background: radial-gradient(circle at center, rgba(126, 180, 226, 0.2), transparent);
+        }
+
+        .shape-2 {
+            width: 300px;
+            height: 300px;
+            bottom: -150px;
+            left: -150px;
+            background: radial-gradient(circle at center, rgba(74, 111, 161, 0.15), transparent);
+        }
+
+        /* Responsive styles */
+        @media (max-width: 768px) {
+            .nav {
+                padding: 1.5rem;
+            }
+
+            .signin-card {
+                padding: 2rem;
+            }
+
+            .signin-title {
+                font-size: 1.8rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .signin-card {
+                padding: 1.5rem;
+            }
+
+            .signin-title {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Background elements -->
+    <div class="dynamic-gradient"></div>
+    <canvas id="particles-canvas"></canvas>
+    <div class="noise-overlay"></div>
+
+    <!-- Navigation -->
+    <nav class="nav">
+        <a href="/landing.html" class="logo">Unbroken Pockets</a>
+    </nav>
+
+    <!-- Sign-in container -->
+    <div class="signin-container">
+        <div class="signin-card">
+            <!-- Decorative shapes -->
+            <div class="shape shape-1"></div>
+            <div class="shape shape-2"></div>
+
+            <!-- Sign-in header -->
+            <div class="signin-header">
+                <img src="/logo.svg" alt="Unbroken Pockets Logo" class="signin-logo">
+                <h1 class="signin-title">Welcome Back</h1>
+                <p class="signin-subtitle">Sign in to manage your finances</p>
+            </div>
+
+            <!-- Error message -->
+            <div class="error-message" id="error-message">
+                Invalid email or password. Please try again.
+            </div>
+
+            <!-- Sign-in form -->
+            <form class="signin-form" id="signin-form">
+                <div class="form-group">
+                    <label for="email" class="form-label">Email</label>
+                    <input type="email" id="email" name="email" class="form-input" placeholder="your.email@example.com" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="password" class="form-label">Password</label>
+                    <input type="password" id="password" name="password" class="form-input" placeholder="••••••••" required>
+                    <a href="/landing.html" class="forgot-password">Forgot password?</a>
+                </div>
+
+                <button type="submit" class="signin-button" id="signin-button">Sign In</button>
+            </form>
+
+            <!-- Sign-in footer -->
+            <div class="signin-footer">
+                <p>Don't have an account? <a href="/landing.html" class="signup-link">Sign up</a></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Particles script -->
+    <script src="particles.js"></script>
+    
+    <!-- Additional JavaScript for the sign-in page -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Dynamic gradient effect
+            const dynamicGradient = document.querySelector('.dynamic-gradient');
+            
+            if (dynamicGradient) {
+                document.addEventListener('mousemove', (e) => {
+                    const windowWidth = window.innerWidth;
+                    const windowHeight = window.innerHeight;
+                    
+                    const mouseXpercentage = Math.round((e.pageX / windowWidth) * 100);
+                    const mouseYpercentage = Math.round((e.pageY / windowHeight) * 100);
+                    
+                    dynamicGradient.style.background = `radial-gradient(at ${mouseXpercentage}% ${mouseYpercentage}%, rgba(74, 111, 161, 0.3), rgba(126, 180, 226, 0.1))`;
+                });
+            }
+
+            // Handle form submission
+            const signinForm = document.getElementById('signin-form');
+            const errorMessage = document.getElementById('error-message');
+            const signinButton = document.getElementById('signin-button');
+
+            if (signinForm) {
+                signinForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    
+                    // Get form data
+                    const email = document.getElementById('email').value;
+                    
+                    // Show loading state on button
+                    signinButton.textContent = 'Signing in...';
+                    signinButton.disabled = true;
+                    
+                    // Simply redirect to the auth page with email prefilled
+                    // Let the real auth page handle the authentication
+                    window.location.href = `/auth/signin?email=${encodeURIComponent(email)}`;
+                });
+            }
+
+            // Animate sign-in card on load
+            const signinCard = document.querySelector('.signin-card');
+            if (signinCard) {
+                setTimeout(() => {
+                    signinCard.style.opacity = '1';
+                    signinCard.style.transform = 'translateY(0)';
+                }, 100);
+            }
+            
+            // Handle "Sign In" link in the navigation
+            const logoLink = document.querySelector('.logo');
+            if (logoLink) {
+                logoLink.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    window.location.href = '/landing.html';
+                });
+            }
+        });
+    </script>
+</body>
+</html> 

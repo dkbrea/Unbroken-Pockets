@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sync Debt Recurring Transactions</title>
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    h1 { color: #333; }
+    button {
+      background-color: #4CAF50;
+      border: none;
+      color: white;
+      padding: 10px 20px;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+      font-size: 16px;
+      margin: 10px 2px;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    button:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+    }
+    #log {
+      background-color: #f5f5f5;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 15px;
+      max-height: 400px;
+      overflow-y: auto;
+      margin-top: 20px;
+      white-space: pre-wrap;
+    }
+    .error { color: #D32F2F; }
+    .success { color: #388E3C; }
+    .info { color: #1976D2; }
+    .warning { color: #FFA000; }
+  </style>
+</head>
+<body>
+  <h1>Sync Debt Recurring Transactions</h1>
+  <p>This tool will create recurring transactions for all existing debts that don't have one yet.</p>
+  
+  <div>
+    <div>
+      <label for="supabase-url">Supabase URL:</label>
+      <input type="text" id="supabase-url" placeholder="https://your-project.supabase.co" style="width: 350px;">
+    </div>
+    <div style="margin-top: 10px;">
+      <label for="supabase-key">Supabase Anon Key:</label>
+      <input type="text" id="supabase-key" placeholder="eyJhbGciOiJIUzI..." style="width: 350px;">
+    </div>
+  </div>
+  
+  <div style="margin-top: 20px;">
+    <button id="sync-button">Sync Debt Recurring Transactions</button>
+    <button id="clear-log">Clear Log</button>
+  </div>
+  
+  <div id="log"></div>
+  
+  <script>
+    const logElement = document.getElementById('log');
+    const syncButton = document.getElementById('sync-button');
+    const clearLogButton = document.getElementById('clear-log');
+    const supabaseUrlInput = document.getElementById('supabase-url');
+    const supabaseKeyInput = document.getElementById('supabase-key');
+
+    // Try to load values from localStorage
+    if (localStorage.getItem('supabaseUrl')) {
+      supabaseUrlInput.value = localStorage.getItem('supabaseUrl');
+    }
+    if (localStorage.getItem('supabaseKey')) {
+      supabaseKeyInput.value = localStorage.getItem('supabaseKey');
+    }
+    
+    function log(message, type = 'info') {
+      const timestamp = new Date().toLocaleTimeString();
+      logElement.innerHTML += `<div class="${type}">[${timestamp}] ${message}</div>`;
+      logElement.scrollTop = logElement.scrollHeight;
+    }
+    
+    clearLogButton.addEventListener('click', () => {
+      logElement.innerHTML = '';
+    });
+    
+    syncButton.addEventListener('click', async () => {
+      const supabaseUrl = supabaseUrlInput.value.trim();
+      const supabaseKey = supabaseKeyInput.value.trim();
+      
+      if (!supabaseUrl || !supabaseKey) {
+        log('Please enter Supabase URL and Anon Key', 'error');
+        return;
+      }
+      
+      // Save values to localStorage
+      localStorage.setItem('supabaseUrl', supabaseUrl);
+      localStorage.setItem('supabaseKey', supabaseKey);
+      
+      syncButton.disabled = true;
+      log('Starting sync process...', 'info');
+      
+      try {
+        // Initialize Supabase client
+        const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
+        
+        // Get all debts
+        log('Fetching debts...', 'info');
+        const { data: debts, error: debtsError } = await supabaseClient
+          .from('debts')
+          .select('*');
+        
+        if (debtsError) {
+          throw new Error(`Error fetching debts: ${debtsError.message}`);
+        }
+        
+        log(`Found ${debts.length} debts to process`, 'info');
+        
+        // Iterate through each debt
+        let created = 0;
+        let skipped = 0;
+        
+        for (const debt of debts) {
+          log(`Processing debt: ${debt.name} (ID: ${debt.id})`, 'info');
+          
+          // Check if a recurring transaction already exists for this debt
+          const { data: existingTransactions, error: checkError } = await supabaseClient
+            .from('recurring_transactions')
+            .select('id')
+            .eq('debt_id', debt.id);
+          
+          if (checkError) {
+            log(`Error checking existing transactions for debt ${debt.id}: ${checkError.message}`, 'error');
+            continue;
+          }
+          
+          // Skip if a recurring transaction already exists
+          if (existingTransactions && existingTransactions.length > 0) {
+            log(`Skipping debt ${debt.id} (${debt.name}): Recurring transaction already exists`, 'warning');
+            skipped++;
+            continue;
+          }
+          
+          // Calculate the next payment date based on the due date
+          const today = new Date();
+          const nextDate = new Date();
+          
+          // Set day of month to the debt's due date (or default to 1st if not specified)
+          const dueDay = debt.due_date || 1;
+          nextDate.setDate(dueDay);
+          
+          // If the due date for this month has already passed, move to next month
+          if (nextDate < today) {
+            nextDate.setMonth(nextDate.getMonth() + 1);
+          }
+          
+          // Format to ISO string and take the date part only (YYYY-MM-DD)
+          const formattedDate = nextDate.toISOString().split('T')[0];
+          
+          log(`Creating recurring transaction with next payment date: ${formattedDate}`, 'info');
+          
+          // Insert the recurring transaction
+          const { data: result, error: insertError } = await supabaseClient
+            .from('recurring_transactions')
+            .insert([
+              {
+                name: `Payment for ${debt.name}`,
+                amount: -Math.abs(debt.minimum_payment),
+                frequency: 'Monthly',
+                category: 'Debt Payment',
+                next_date: formattedDate,
+                status: 'active',
+                payment_method: 'Default',
+                user_id: debt.user_id,
+                debt_id: debt.id,
+                type: 'debt_payment'
+              }
+            ]);
+          
+          if (insertError) {
+            log(`Error creating recurring transaction for debt ${debt.id}: ${insertError.message}`, 'error');
+            log(`Full error details: ${JSON.stringify(insertError, null, 2)}`, 'error');
+          } else {
+            log(`Created recurring transaction for debt ${debt.id} (${debt.name})`, 'success');
+            created++;
+          }
+        }
+        
+        log(`Sync completed! Results: ${created} recurring transactions created, ${skipped} already existed`, 'success');
+        
+        // Get count of debt-related recurring transactions
+        const { data: recurringCount, error: countError } = await supabaseClient
+          .from('recurring_transactions')
+          .select('id')
+          .not('debt_id', 'is', null);
+        
+        if (!countError) {
+          log(`Total debt-related recurring transactions in the system: ${recurringCount.length}`, 'info');
+        }
+        
+      } catch (error) {
+        log(`Error syncing debts to recurring transactions: ${error.message}`, 'error');
+      } finally {
+        syncButton.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html> 
