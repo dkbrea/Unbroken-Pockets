@@ -386,11 +386,19 @@ export default function Budget() {
   });
 
   // Add new handler functions for debt and goal updates
-  const handleUpdateDebtPayment = async (debtId: number, amount: number) => {
+  const handleUpdateDebtPayment = async (debtId: number, amount: number, monthIndex?: number) => {
     try {
       setIsSubmitting(true);
       // Call your API or service to update the debt payment
-      await updateDebtPayment(debtId, amount);
+      if (monthIndex !== undefined && viewMode === 'forecast') {
+        // For forecast view, use month-specific updates
+        const currentYear = new Date().getFullYear();
+        const monthStr = `${currentYear}-${String(monthIndex + 1).padStart(2, '0')}`;
+        await updateDebtPayment(debtId, amount, monthStr);
+      } else {
+        // For current view, use the regular update
+        await updateDebtPayment(debtId, amount);
+      }
       refreshData();
     } catch (err) {
       console.error('Error updating debt payment:', err);
@@ -461,7 +469,7 @@ export default function Budget() {
       if (type === 'expense' && entityType === 'category') {
         await handleUpdateAllocation(id, amount);
       } else if (type === 'debt' && entityType === 'debt') {
-        await handleUpdateDebtPayment(id, amount);
+        await handleUpdateDebtPayment(id, amount, editingCell?.month);
       } else if (type === 'goal' && entityType === 'goal') {
         await handleUpdateGoalContribution(id, amount, editingCell?.month || 0);
       }

@@ -48,8 +48,10 @@ const TransactionsList = ({
 
   // Function to format date
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(date)
+    // Create a date object directly from YYYY-MM-DD string
+    // By using the date string directly, we ensure the date remains as specified
+    const date = new Date(`${dateString}T12:00:00`); // Add noon time to avoid any date shifting
+    return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(date);
   }
 
   // Handle edit button click

@@ -71,7 +71,7 @@ const AddTransactionModal = ({
   // Basic transaction fields
   const [name, setName] = useState('')
   const [amount, setAmount] = useState('')
-  const [date, setDate] = useState('')
+  const [date, setDate] = useState<string | Date>('')
   const [category, setCategory] = useState('')
   const [sourceAccount, setSourceAccount] = useState('')
   const [destinationAccount, setDestinationAccount] = useState('')
@@ -246,9 +246,8 @@ const AddTransactionModal = ({
       setAmount(Math.abs(selected.amount).toString());
       setIsExpense(selected.amount < 0);
       
-      if (selected.next_date) {
-        setDate(selected.next_date);
-      }
+      // Keep user's selected date instead of using recurring transaction's next_date
+      // This allows users to pick their own date when creating a transaction
     }
   };
   
@@ -278,9 +277,8 @@ const AddTransactionModal = ({
       setCategory(selected.category);
       setAmount(Math.abs(selected.amount).toString());
       
-      if (selected.next_date) {
-        setDate(selected.next_date);
-      }
+      // Keep user's selected date instead of using recurring transaction's next_date
+      // This allows users to pick their own date when creating a transaction
       
       if (process.env.NODE_ENV === 'development') {
         console.log(`Selected fixed expense: ${selected.name} with amount ${selected.amount}`);
@@ -316,9 +314,8 @@ const AddTransactionModal = ({
       setCategory(selected.category);
       setAmount(Math.abs(selected.amount).toString());
       
-      if (selected.next_date) {
-        setDate(selected.next_date);
-      }
+      // Keep user's selected date instead of using recurring transaction's next_date
+      // This allows users to pick their own date when creating a transaction
       
       if (process.env.NODE_ENV === 'development') {
         console.log(`Selected income source: ${selected.name} with amount ${selected.amount}`);
@@ -425,9 +422,30 @@ const AddTransactionModal = ({
         ? Math.abs(numericAmount) 
         : -Math.abs(numericAmount);
 
-      // Format date to YYYY-MM-DD format
-      const [month, day, year] = date.split('/');
-      const formattedDate = date.includes('/') ? `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}` : date;
+      // Robustly format date to YYYY-MM-DD format
+      let formattedDate = date;
+      if (typeof date === 'string') {
+        // Try to parse MM/DD/YYYY or YYYY-MM-DD or other formats
+        let parsedDate;
+        if (date.includes('/')) {
+          // MM/DD/YYYY or M/D/YYYY
+          const [month, day, year] = date.split('/');
+          if (year && month && day) {
+            formattedDate = `${year.padStart(4, '0')}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+          }
+        } else if (date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+          // Already in YYYY-MM-DD format
+          formattedDate = date;
+        } else {
+          // Try to parse as Date
+          parsedDate = new Date(date);
+          if (!isNaN(parsedDate.getTime())) {
+            formattedDate = parsedDate.toISOString().slice(0, 10);
+          }
+        }
+      } else if (date instanceof Date && !isNaN(date.getTime())) {
+        formattedDate = date.toISOString().slice(0, 10);
+      }
       
       // Create transaction object with both account name (for display) and account_id (for database relations)
       let transaction: TransactionData = {

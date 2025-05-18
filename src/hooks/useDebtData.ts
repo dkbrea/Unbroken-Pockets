@@ -28,7 +28,7 @@ export type DebtState = {
   deleteDebt: (id: number) => Promise<void>;
   isLoading?: boolean;
   error?: Error | null;
-  updateDebtPayment: (debtId: number, amount: number) => Promise<boolean>;
+  updateDebtPayment: (debtId: number, amount: number, month?: string) => Promise<boolean>;
 };
 
 // Helper function to convert database snake_case to frontend camelCase
@@ -740,22 +740,58 @@ export function useDebtData(): DebtState {
     };
   }, [debts, totalDebt, totalMinPayment]);
 
-  const updateDebtPayment = async (debtId: number, amount: number) => {
+  const updateDebtPayment = async (debtId: number, amount: number, month?: string) => {
     try {
-      // Update the debt payment in your data store
-      const updatedDebts = debts.map(debt => 
-        debt.id === debtId 
-          ? { ...debt, minimumPayment: amount }
-          : debt
-      );
-      
-      // Update local state
-      setDebts(updatedDebts);
-      
-      // If you have an API call, make it here
-      // await api.updateDebtPayment(debtId, amount);
-      
-      return true;
+      // If month is provided, we're updating a forecast entry for a specific month
+      if (month) {
+        // First check if there's an existing entry for this month
+        const { data: existingEntry, error: fetchError } = await supabase
+          .from('debt_payments_forecast')
+          .select('*')
+          .eq('debt_id', debtId)
+          .eq('month', month)
+          .maybeSingle();
+
+        if (fetchError) throw fetchError;
+
+        if (existingEntry) {
+          // Update existing entry
+          const { error } = await supabase
+            .from('debt_payments_forecast')
+            .update({ amount: -Math.abs(amount) }) // Store as negative to represent payment
+            .eq('id', existingEntry.id);
+
+          if (error) throw error;
+        } else {
+          // Insert new entry
+          const { error } = await supabase
+            .from('debt_payments_forecast')
+            .insert({
+              debt_id: debtId,
+              month,
+              amount: -Math.abs(amount), // Store as negative to represent payment
+              user_id: userId
+            });
+
+          if (error) throw error;
+        }
+
+        // Only update the local state for the current view if needed
+        // This won't affect other months in the forecast view
+        return true;
+      } else {
+        // Regular update for the main debt data (used in current view)
+        const updatedDebts = debts.map(debt => 
+          debt.id === debtId 
+            ? { ...debt, minimumPayment: amount }
+            : debt
+        );
+        
+        // Update local state
+        setDebts(updatedDebts);
+        
+        return true;
+      }
     } catch (error) {
       console.error('Error updating debt payment:', error);
       return false;

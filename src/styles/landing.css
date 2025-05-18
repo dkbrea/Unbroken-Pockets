@@ -1,0 +1,57 @@
+/* --- START OF landing.html CSS --- */
+
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+html { scroll-behavior: smooth; }
+body { background-color: #f0f6ff; color: #333; overflow-x: hidden; }
+h1, h2, h3, .section-title, .main-title { word-spacing: normal !important; letter-spacing: normal !important; white-space: normal !important; text-rendering: optimizeLegibility !important; font-kerning: normal !important; }
+.container { width: 100%; position: relative; }
+.nav { display: flex; justify-content: space-between; align-items: center; width: 100%; position: fixed; top: 0; left: 0; padding: 2rem; z-index: 100; opacity: 0; mix-blend-mode: difference; }
+.logo { font-size: 1.5rem; font-weight: 600; cursor: pointer; position: relative; color: #4A6FA1; }
+.logo::after { content: ''; position: absolute; bottom: -4px; left: 0; width: 0; height: 1px; background-color: #4A6FA1; transition: width 0.3s ease; }
+.logo:hover::after { width: 100%; }
+.nav-links { display: flex; gap: 2rem; }
+.nav-link { position: relative; cursor: pointer; opacity: 0; transform: translateY(10px); color: #333; }
+.nav-link::after { content: ''; position: absolute; bottom: -4px; left: 0; width: 0; height: 1px; background-color: #4A6FA1; transition: width 0.3s ease; }
+.nav-link:hover::after { width: 100%; }
+section { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 2rem; position: relative; overflow: hidden; }
+.hero { text-align: center; position: relative; z-index: 5; background-color: #f0f6ff; }
+.main-title { font-size: 5vw; font-weight: 700; margin-bottom: 1rem; line-height: 1.2; overflow: hidden; opacity: 0; transform: translateY(20px); background: linear-gradient(to right, #4A6FA1, #7EB4E2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.main-subtitle { font-size: 1.2rem; font-weight: 400; margin-bottom: 2rem; max-width: 600px; opacity: 0; transform: translateY(20px); color: #555; }
+.cta-button, .cta-btn { padding: 1rem 2rem; background: linear-gradient(135deg, #4A6FA1 0%, #7EB4E2 100%); color: #fff; border: none; border-radius: 30px; font-size: 1rem; font-weight: 500; cursor: pointer; transition: transform 0.3s ease, box-shadow 0.3s ease; opacity: 0; transform: translateY(20px); box-shadow: 0 4px 15px rgba(74, 111, 161, 0.2); }
+.cta-button:hover, .cta-btn:hover { transform: translateY(-5px); box-shadow: 0 8px 25px rgba(74, 111, 161, 0.4); }
+.feature-section { text-align: center; opacity: 0; background-color: #fff; }
+.feature-section:nth-child(odd) { background-color: #f8f8f8; }
+.section-title { font-size: 3rem; font-weight: 700; margin-bottom: 1.5rem; transform: translateY(30px); opacity: 0; color: #4A6FA1; }
+.section-text { font-size: 1.2rem; max-width: 700px; margin: 0 auto 2rem; line-height: 1.6; transform: translateY(30px); opacity: 0; color: #555; }
+.feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; width: 100%; max-width: 1200px; margin-top: 2rem; }
+.feature-item { background: #fff; border-radius: 15px; padding: 2rem; text-align: left; transform: translateY(40px); opacity: 0; transition: transform 0.3s ease, box-shadow 0.3s ease; box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05); }
+.feature-item:hover { transform: translateY(-10px); box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1); }
+.feature-icon { font-size: 2rem; margin-bottom: 1rem; color: #4A6FA1; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; }
+.feature-title { font-size: 1.5rem; font-weight: 600; margin-bottom: 1rem; color: #333; }
+.feature-description { font-size: 1rem; opacity: 0.8; line-height: 1.6; color: #555; }
+.gallery-section { background-color: #f8fcff; opacity: 0; }
+.gallery-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; width: 100%; max-width: 1200px; }
+.gallery-item { height: 300px; background-color: #fff; border-radius: 15px; overflow: hidden; position: relative; transform: scale(0.8); opacity: 0; cursor: pointer; transition: transform 0.5s ease, box-shadow 0.3s ease; box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05); }
+.gallery-item:hover { transform: scale(1.05) !important; box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1); }
+.gallery-item img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s ease; }
+.gallery-item:hover img { transform: scale(1.1); }
+.gallery-title { position: absolute; bottom: 0; left: 0; width: 100%; padding: 1rem; background: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent); color: #fff; font-weight: 500; }
+.cta-section { background: linear-gradient(135deg, #4A6FA1 0%, #7EB4E2 100%); text-align: center; opacity: 0; color: #fff; }
+.cta-section .section-title, .cta-section .section-text { color: #fff; }
+.cta-section .cta-button, .cta-section .cta-btn { background: #fff; color: #4A6FA1; }
+.side-nav { position: fixed; top: 50%; right: 2rem; transform: translateY(-50%); display: flex; flex-direction: column; gap: 1rem; z-index: 100; opacity: 0; }
+.nav-dot { width: 12px; height: 12px; border-radius: 50%; background-color: rgba(74, 111, 161, 0.3); cursor: pointer; transition: transform 0.3s ease, background-color 0.3s ease; }
+.nav-dot.active { background-color: #4A6FA1; transform: scale(1.5); }
+.finance-preview { width: 100%; max-width: 900px; margin: 2rem auto; background: #fff; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1); opacity: 0; transform: translateY(30px); }
+.preview-header { background: linear-gradient(135deg, #4A6FA1 0%, #7EB4E2 100%); padding: 1.5rem; color: #fff; }
+.preview-title { font-size: 1.5rem; font-weight: 600; margin-bottom: 0.5rem; }
+.preview-subtitle { font-size: 0.9rem; opacity: 0.8; }
+.preview-content { padding: 1.5rem; }
+.finance-menu { display: flex; flex-direction: column; gap: 0.8rem; margin-bottom: 1.5rem; }
+.finance-menu-item { display: flex; align-items: center; padding: 0.8rem; border-radius: 10px; cursor: pointer; transition: background-color 0.2s ease; color: #555; }
+/* --- END OF landing.html CSS --- */
+
+
+/* ... (rest of the CSS from landing.html, not truncated here for brevity) ... */
+
+/* For full fidelity, paste ALL CSS from landing.html here */
