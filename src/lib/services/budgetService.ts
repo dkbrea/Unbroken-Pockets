@@ -146,11 +146,34 @@ export async function getBudgetTransactionsForMonth(month: Date, userId: string)
 }
 
 export async function saveBudgetEntry(entry: Omit<BudgetEntry, 'user_id'>, userId: string): Promise<void> {
-  const { error } = await supabase
-    .from('budget_entries')
-    .upsert([{ ...entry, user_id: userId }]);
+  console.log(`Saving budget entry for category ${entry.category_id}, month ${entry.month}, user ${userId}`);
+  
+  try {
+    // Ensure month is in YYYY-MM-DD format for the first day of the month
+    let monthStr = entry.month;
+    if (monthStr.includes('T')) {
+      // If it's an ISO string, extract just the date part
+      monthStr = monthStr.split('T')[0];
+    }
+    
+    const { error } = await supabase
+      .from('budget_entries')
+      .upsert([{ 
+        ...entry, 
+        month: monthStr, 
+        user_id: userId 
+      }]);
 
-  if (error) throw error;
+    if (error) {
+      console.error('Error saving budget entry:', error);
+      throw error;
+    }
+    
+    console.log(`Successfully saved budget entry for category ${entry.category_id}`);
+  } catch (error) {
+    console.error('Error in saveBudgetEntry:', error);
+    throw error;
+  }
 }
 
 export async function addBudgetTransaction(transaction: Omit<BudgetTransaction, 'user_id'>, userId: string): Promise<void> {

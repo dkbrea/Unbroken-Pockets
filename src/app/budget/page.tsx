@@ -43,6 +43,7 @@ import { TransactionForm } from '@/components/forms/TransactionForm'
 import { AllocationForm } from '@/components/forms/AllocationForm'
 import { supabase } from '@/lib/supabase'
 import { MonthlyFlowHeader } from '@/components/MonthlyFlowHeader'
+import { getAuthenticatedUserId } from '@/lib/auth/authUtils'
 
 // Add FinancialGoal type definition
 type FinancialGoal = {
@@ -51,7 +52,7 @@ type FinancialGoal = {
   targetAmount: number;
   currentAmount: number;
   monthlyContribution: number;
-  contribution_amount: number; // Change this to be required since it's used in the code
+  contribution_amount: number; 
   targetDate: string;
   status: string;
   description?: string;
@@ -133,16 +134,28 @@ export default function Budget() {
   const loadForecastData = async () => {
     setIsLoadingForecast(true);
     try {
+      // Get authenticated user ID
+      const userId = await getAuthenticatedUserId();
+      if (!userId) {
+        console.error('User not authenticated. Cannot load forecast data.');
+        throw new Error('User not authenticated');
+      }
+      
+      console.log('Loading forecast data for user:', userId);
+      
       const currentYear = new Date().getFullYear();
-      const months = Array.from({ length: 12 }, (_, i) => new Date(currentYear, i, 1));
+      // Create dates for the first day of each month
+      const months = Array.from({ length: 12 }, (_, i) => startOfMonth(new Date(currentYear, i, 1)));
       
       // First get the current month's budget entries to use as defaults
       const currentMonth = startOfMonth(new Date());
-      const currentMonthSummary = await getMonthlyBudgetSummary(currentMonth);
+      console.log('Loading current month summary for:', format(currentMonth, 'MMMM yyyy'));
+      const currentMonthSummary = await getMonthlyBudgetSummary(currentMonth, userId);
       
       // Get all monthly summaries
       const forecastPromises = months.map(async month => {
-        const summary = await getMonthlyBudgetSummary(month);
+        console.log('Loading forecast data for month:', format(month, 'MMMM yyyy'));
+        const summary = await getMonthlyBudgetSummary(month, userId);
         
         // For each category in the summary, if there's no allocation, use the current month's allocation
         summary.categories = summary.categories.map(cat => {

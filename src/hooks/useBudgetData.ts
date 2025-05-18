@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Home, ShoppingCart, Car, Utensils, Coffee, Briefcase, Film, Heart, ShoppingBag, MoreHorizontal } from 'lucide-react';
 import { LucideIcon } from 'lucide-react';
-import { useForecastData } from '@/hooks/useForecastData';
+
 import {
   getBudgetCategories as getServiceBudgetCategories,
   getMonthlyBudgetSummary,
@@ -107,9 +107,6 @@ export function useBudgetData(): ExtendedBudgetState {
   // Get goals data to access total monthly contributions
   const { totalMonthlyContribution, financialGoals } = useGoalsData();
 
-  // Get forecast data
-  const { forecastData } = useForecastData();
-  
   // Fetch authenticated user ID on mount
   useEffect(() => {
     const fetchUser = async () => {
@@ -165,64 +162,14 @@ export function useBudgetData(): ExtendedBudgetState {
   
   // Update total debt payments and goal contributions
   useEffect(() => {
-    // Get the current month index (0-based)
-    const currentMonthIndex = activeMonth.getMonth();
-    
-    // Load forecast data if not already loaded or if current month data is missing
-    if (!forecastData?.debtPaymentsByMonth?.[currentMonthIndex] || !forecastData?.savingsByMonth?.[currentMonthIndex]) {
-      // Create forecast data for the current month
-      const currentYear = activeMonth.getFullYear();
-      const monthStr = `${currentYear}-${String(currentMonthIndex + 1).padStart(2, '0')}`;
-      
-      // Fetch monthly contributions for the current month
-      supabase
-        .from('goal_monthly_contributions')
-        .select('*')
-        .eq('month', monthStr)
-        .then(({ data: monthlyContributions, error }) => {
-          if (error) {
-            console.error('Error fetching monthly contributions:', error);
-            return;
-          }
+    // Calculate debt payments from minimum payments
+    const totalDebt = debts.reduce((sum, debt) => sum + Math.abs(debt.minimumPayment || 0), 0);
+    setTotalDebtPayments(totalDebt);
 
-          // Calculate savings goals for the month using monthly contributions if available
-          const savingsForMonth = financialGoals.map(goal => {
-            const monthlyContribution = monthlyContributions?.find(mc => mc.goal_id === goal.id);
-            return {
-              id: goal.id,
-              amount: monthlyContribution?.amount ?? goal.monthlyContribution
-            };
-          });
-
-          // Calculate debt payments for the month
-          const debtPaymentsForMonth = debts.map(debt => ({
-            id: debt.id,
-            amount: -Math.abs(debt.minimumPayment)
-          }));
-
-          // Calculate totals
-          const forecastGoalsTotal = savingsForMonth
-            .reduce((sum, goal) => sum + (goal.amount || 0), 0);
-          const forecastDebtTotal = debtPaymentsForMonth
-            .reduce((sum, debt) => sum + Math.abs(debt.amount || 0), 0);
-
-          setTotalDebtPayments(forecastDebtTotal);
-          setTotalGoalContributions(forecastGoalsTotal);
-        });
-    } else {
-      // Use existing forecast data with null checks
-      const monthDebtPayments = forecastData.debtPaymentsByMonth[currentMonthIndex] || [];
-      const monthSavings = forecastData.savingsByMonth[currentMonthIndex] || [];
-
-      const forecastDebtTotal = monthDebtPayments
-        .reduce((sum, debt) => sum + Math.abs(debt?.amount || 0), 0);
-      const forecastGoalsTotal = monthSavings
-        .reduce((sum, goal) => sum + (goal?.amount || 0), 0);
-
-      setTotalDebtPayments(forecastDebtTotal);
-      setTotalGoalContributions(forecastGoalsTotal);
-    }
-  }, [activeMonth, forecastData, financialGoals, debts]);
+    // Calculate goal contributions from monthly contributions
+    const totalGoals = financialGoals.reduce((sum, goal) => sum + (goal.monthlyContribution || 0), 0);
+    setTotalGoalContributions(totalGoals);
+  }, [debts, financialGoals]);
   
   // Update monthly income for the active month and calculate left to allocate
   useEffect(() => {
@@ -258,10 +205,18 @@ export function useBudgetData(): ExtendedBudgetState {
   const checkAndCopyBudgetEntries = useCallback(async (targetMonth: Date, sourceMonth: Date) => {
     if (!userId) return;
     try {
-      const entries = await getBudgetEntriesForMonth(targetMonth, userId);
+      // Ensure we're using the first day of the month for both target and source
+      const firstDayOfTargetMonth = startOfMonth(targetMonth);
+      const firstDayOfSourceMonth = startOfMonth(sourceMonth);
+      
+      console.log(`Checking for budget entries for ${format(firstDayOfTargetMonth, 'MMMM yyyy')}`);
+      const entries = await getBudgetEntriesForMonth(firstDayOfTargetMonth, userId);
+      
       if (entries.length === 0) {
-        console.log(`No budget entries for ${format(targetMonth, 'MMMM yyyy')}, copying from ${format(sourceMonth, 'MMMM yyyy')}`);
-        await copyBudgetEntriesFromPreviousMonth(targetMonth, sourceMonth, userId);
+        console.log(`No budget entries for ${format(firstDayOfTargetMonth, 'MMMM yyyy')}, copying from ${format(firstDayOfSourceMonth, 'MMMM yyyy')}`);
+        await copyBudgetEntriesFromPreviousMonth(firstDayOfTargetMonth, firstDayOfSourceMonth, userId);
+      } else {
+        console.log(`Found ${entries.length} budget entries for ${format(firstDayOfTargetMonth, 'MMMM yyyy')}`);
       }
     } catch (err) {
       console.error("Error checking/copying budget entries:", err);
@@ -278,15 +233,22 @@ export function useBudgetData(): ExtendedBudgetState {
     setError(null);
     
     try {
-      const summary = await getMonthlyBudgetSummary(activeMonth, userId);
+      console.log(`Loading budget data for ${format(activeMonth, 'MMMM yyyy')} for user ${userId}`);
+      
+      // Ensure we're using the first day of the month
+      const firstDayOfMonth = startOfMonth(activeMonth);
+      const summary = await getMonthlyBudgetSummary(firstDayOfMonth, userId);
+      
+      console.log(`Loaded ${summary.categories.length} budget categories with total allocated: $${summary.totalAllocated}`);
+      
       setBudgetCategories(summary.categories.map(mapBudgetCategoryFromService));
       setTotalAllocated(summary.totalAllocated);
       setTotalSpent(summary.totalSpent);
       setRemainingBudget(summary.remainingBudget);
-      setActivePeriod(format(activeMonth, 'MMMM yyyy'));
+      setActivePeriod(format(firstDayOfMonth, 'MMMM yyyy'));
       
       // Update previous month to current month for next comparison
-      setPreviousMonth(activeMonth);
+      setPreviousMonth(firstDayOfMonth);
     } catch (err) {
       console.error('Error loading budget data:', err);
       setError(err instanceof Error ? err : new Error('Unknown error loading budget data'));
@@ -452,9 +414,16 @@ export function useBudgetData(): ExtendedBudgetState {
         throw new Error('Category not found');
       }
       
-      // Save budget entry
-      const monthStr = format(activeMonth, 'yyyy-MM-dd');
-      await saveBudgetEntry({ category_id: categoryId, month: monthStr, allocated: amount, spent: category.spent }, userId);
+      // Save budget entry - ensure we use the first day of the month in YYYY-MM-DD format
+      const monthStr = format(startOfMonth(activeMonth), 'yyyy-MM-dd');
+      console.log(`Setting allocation for category ${categoryId} to $${amount} for month ${monthStr}`);
+      
+      await saveBudgetEntry({ 
+        category_id: categoryId, 
+        month: monthStr, 
+        allocated: amount, 
+        spent: category.spent 
+      }, userId);
       
       // Refresh data
       await loadBudgetData();
@@ -475,8 +444,18 @@ export function useBudgetData(): ExtendedBudgetState {
     try {
       setIsLoading(true);
       
-      const dateStr = format(new Date(), 'yyyy-MM-dd');
-      await addBudgetTransaction({ category_id: categoryId, amount, date: dateStr, description }, userId);
+      // Use the current date in YYYY-MM-DD format
+      const today = new Date();
+      const dateStr = format(today, 'yyyy-MM-dd');
+      
+      console.log(`Adding transaction of $${amount} to category ${categoryId} on ${dateStr}`);
+      
+      await addBudgetTransaction({ 
+        category_id: categoryId, 
+        amount, 
+        date: dateStr, 
+        description 
+      }, userId);
       
       // Refresh data
       await loadBudgetData();
