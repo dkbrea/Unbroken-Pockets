@@ -424,10 +424,14 @@ const AddTransactionModal = ({
       const finalAmount = transactionType === TRANSACTION_TYPES.INCOME 
         ? Math.abs(numericAmount) 
         : -Math.abs(numericAmount);
+
+      // Format date to YYYY-MM-DD format
+      const [month, day, year] = date.split('/');
+      const formattedDate = date.includes('/') ? `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}` : date;
       
       // Create transaction object with both account name (for display) and account_id (for database relations)
       let transaction: TransactionData = {
-        date,
+        date: formattedDate,
         name,
         category,
         amount: finalAmount,
@@ -492,12 +496,12 @@ const AddTransactionModal = ({
       console.log('Adding transaction:', transaction);
       
       // Wait for the transaction to be added
-      const newTransaction = await addTransaction(transaction);
-      console.log('Transaction added successfully:', newTransaction);
+      await addTransaction(transaction);
+      console.log('Transaction added successfully:', transaction);
       
       // CRITICAL: Call onTransactionAdded BEFORE closing the modal
-      if (typeof onTransactionAdded === 'function' && newTransaction) {
-        onTransactionAdded(newTransaction);
+      if (typeof onTransactionAdded === 'function') {
+        onTransactionAdded(transaction);
       }
       
       // Only close the modal after everything is done
