@@ -1,0 +1,24 @@
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  reactStrictMode: false,
+  
+  // Completely disable ESLint during builds
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  
+  // Completely disable TypeScript type checking
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  
+  // Use the default output directory instead of custom one
+  // distDir is removed to use default
+
+  // Only include basic settings
+  experimental: {
+    forceSwcTransforms: true,
+  },
+};
+
+module.exports = nextConfig; 

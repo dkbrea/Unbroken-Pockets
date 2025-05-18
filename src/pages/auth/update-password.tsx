@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import Link from 'next/link'
 import Image from 'next/image'
-import { createClient } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase'
 
 export default function UpdatePassword() {
   const router = useRouter()
@@ -13,18 +13,25 @@ export default function UpdatePassword() {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    // Check if we have a hash in the URL (required for password update)
+    // This is a simplified way to get the access token if it's in the URL hash
+    // A more robust solution would handle this more securely, perhaps via server-side props or context.
     const hash = window.location.hash
-    if (!hash) {
-      setError('Invalid password reset link. Please request a new password reset link.')
+    const params = new URLSearchParams(hash.substring(1)) // Remove #
+    const accessToken = params.get('access_token')
+
+    if (accessToken) {
+      // If an access token is found, Supabase client might automatically pick it up
+      // or you might need to set the session explicitly if required by your setup.
+      // For this example, we assume the client handles it or it has been set.
+      console.log("Access token found in URL, Supabase client should be authenticated.")
     }
   }, [])
 
-  const handleUpdatePassword = async (e: React.FormEvent) => {
+  const handleUpdatePassword = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+    setLoading(true)
     setError(null)
     setMessage(null)
-    setLoading(true)
 
     try {
       // Validate passwords match
@@ -37,23 +44,19 @@ export default function UpdatePassword() {
         throw new Error('Password must be at least 8 characters long')
       }
 
-      const supabase = createClient()
-      
-      // Update the user's password
-      const { error } = await supabase.auth.updateUser({
-        password
-      })
+      const { error: updateError } = await supabase.auth.updateUser({ password })
 
-      if (error) {
-        throw error
+      if (updateError) {
+        console.error('Error updating password:', updateError)
+        throw updateError
       }
 
-      setMessage('Your password has been updated successfully')
+      setMessage('Password updated successfully! You can now sign in with your new password.')
       
       // Redirect to sign in page after a delay
       setTimeout(() => {
         router.push('/auth/signin')
-      }, 2000)
+      }, 3000)
     } catch (error: any) {
       setError(error.message || 'An error occurred while updating your password')
     } finally {

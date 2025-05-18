@@ -1,0 +1,1615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Financial Freedom | Personal Finance Management</title>
+  <!-- Add Google Fonts - Playfair Display for serif elegance -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Import Three.js for the sphere rendering -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      background-color: #0a0b0e;
+      color: #fff;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      position: relative;
+      height: 100vh;
+      margin: 0;
+      padding: 0;
+    }
+    
+    /* Overlay container for the masked image effect */
+    .entrance-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 100; /* Lower than content overlay initially */
+      pointer-events: none;
+      overflow: hidden;
+    }
+    
+    /* The main image layer - this will be divided into panels */
+    .entrance-image {
+      display: none; /* Hide the full image as we'll use panels instead */
+    }
+    
+    /* The mask container */
+    .mask-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 102;
+      display: flex;
+      flex-direction: row;
+      pointer-events: none;
+      transform-style: preserve-3d;
+      perspective: 1000px;
+      will-change: transform;
+      transition: transform 0.1s ease-out;
+    }
+    
+    /* The panels/masks - each containing part of the image */
+    .mask-left, .mask-center, .mask-right {
+      height: 100%;
+      transition: transform 0.8s cubic-bezier(0.19, 1, 0.22, 1), opacity 0.8s ease;
+      position: relative;
+      overflow: visible; /* Allow content to overflow */
+      background-color: #000; /* Solid black background */
+      z-index: 10; /* Base z-index for panels */
+    }
+    
+    /* Create a stacking context for proper z-index handling */
+    .mask-center {
+      isolation: isolate;
+    }
+    
+    /* Add the same background image to each panel */
+    .mask-left::before, .mask-center::before, .mask-right::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 300%; /* Full width of the image */
+      height: 100%;
+      background-image: url('https://images.unsplash.com/photo-1519681393784-d120267933ba?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80');
+      background-size: cover;
+      background-position: center;
+      z-index: 0; /* Behind the panel background */
+    }
+    
+    /* Fallback in case the image fails to load */
+    .mask-left.fallback::before, .mask-center.fallback::before, .mask-right.fallback::before {
+      background-image: linear-gradient(135deg, #0f172a, #1e293b, #0f172a);
+    }
+    
+    /* Position the background image correctly in each panel */
+    .mask-left::before {
+      left: 0; /* Left-aligned in left panel */
+      opacity: 1;
+    }
+    
+    .mask-center::before {
+      left: -100%; /* Center-aligned in center panel */
+      opacity: 0.7; /* Slightly visible in center panel */
+    }
+    
+    .mask-right::before {
+      left: -200%; /* Right-aligned in right panel */
+      opacity: 1;
+    }
+    
+    /* Black rectangle extensions for left and right panels */
+    .mask-left::after, .mask-right::after {
+      content: '';
+      position: absolute;
+      top: 100%; /* Start at bottom of panel */
+      left: 0;
+      width: 100%;
+      height: 300vh; /* Triple viewport height */
+      background-color: #000;
+      z-index: 9000; /* Very high to ensure it's on top */
+    }
+    
+    /* Panel widths and specific styles */
+    .mask-left {
+      width: 33.33%;
+      transform: translateY(0);
+      border-right: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .mask-center {
+      width: 33.34%;
+      position: relative;
+      overflow: hidden;
+      border-left: 1px solid rgba(255, 255, 255, 0.2);
+      border-right: 1px solid rgba(255, 255, 255, 0.2);
+      opacity: 1;
+      transition: opacity 0.8s ease;
+      background-color: black; /* Solid black background */
+      z-index: 11; /* Higher than side panels */
+    }
+    
+    /* Remove the peephole-active after pseudo-element */
+    
+    .mask-right {
+      width: 33.33%;
+      transform: translateY(0);
+      border-left: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    /* The peephole that will grow in the center */
+    .peephole {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 0;
+      height: 0;
+      border-radius: 50%; /* Start as circle, will become pill-shaped */
+      transform: translate(-50%, -50%);
+      background-color: transparent;
+      z-index: 999; /* Higher z-index to ensure it's on top */
+      transition: width 1.8s cubic-bezier(0.19, 1, 0.22, 1), 
+                  height 1.8s cubic-bezier(0.19, 1, 0.22, 1),
+                  border-radius 1.8s cubic-bezier(0.19, 1, 0.22, 1);
+      overflow: hidden; /* Hide content overflowing the peephole */
+    }
+    
+    /* Decorative spheres on the entrance image */
+    .landscape-sphere {
+      position: absolute;
+      background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.1));
+      border-radius: 50%;
+      box-shadow: 0 0 30px rgba(255, 255, 255, 0.2);
+      z-index: 105;
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      transform-style: preserve-3d;
+      will-change: transform;
+    }
+    
+    .landscape-sphere::before {
+      content: '';
+      position: absolute;
+      top: 20%;
+      left: 20%;
+      width: 30%;
+      height: 30%;
+      background: radial-gradient(circle at center, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0));
+      border-radius: 50%;
+      filter: blur(2px);
+    }
+    
+    .sphere-top {
+      width: 80px;
+      height: 80px;
+      top: 60px;
+      left: 50%;
+      transform: translateX(-50%) translateZ(20px);
+    }
+    
+    .sphere-left {
+      width: 160px;
+      height: 160px;
+      left: 100px;
+      top: 200px;
+      transform: translateZ(40px);
+    }
+    
+    .sphere-right {
+      width: 120px;
+      height: 120px;
+      right: 120px;
+      top: 180px;
+      transform: translateZ(30px);
+    }
+    
+    /* Position content overlay to be centered in the peephole */
+    .content-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 50; /* Between fixed-content and entrance-overlay */
+      opacity: 0;
+      transition: opacity 1.5s ease;
+    }
+    
+    /* Add CSS for full-viewport portal div */
+    .portal-content {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 5;
+      pointer-events: auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.5s ease;
+    }
+    
+    /* Tagline area on the bottom left */
+    .tagline-container {
+      position: absolute;
+      bottom: 40px;
+      left: 40px;
+      z-index: 106;
+      max-width: 340px;
+      transition: opacity 0.8s ease;
+    }
+    
+    .tagline-text {
+      font-size: 14px;
+      line-height: 1.4;
+      color: #ffffff;
+      margin-bottom: 20px;
+    }
+    
+    .waitlist-button {
+      display: inline-block;
+      background-color: white;
+      color: #000;
+      font-size: 14px;
+      font-weight: 500;
+      padding: 10px 20px;
+      border-radius: 30px;
+      text-decoration: none;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    }
+    
+    /* Brand name on the bottom right */
+    .brand-container {
+      position: absolute;
+      bottom: 40px;
+      right: 40px;
+      z-index: 106;
+      text-align: right;
+      transition: opacity 0.8s ease;
+    }
+    
+    .brand-name {
+      font-size: 64px;
+      font-weight: 700;
+      color: #ffffff;
+      line-height: 0.9;
+      letter-spacing: -0.02em;
+    }
+    
+    .brand-tagline {
+      font-size: 18px;
+      color: #ffffff;
+      margin-top: 10px;
+      font-style: italic;
+    }
+    
+    .fixed-content {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      perspective: 1500px;
+      overflow: hidden;
+      opacity: 0;
+      transform: translateY(100px);
+      transition: opacity 1.5s ease, transform 1.5s cubic-bezier(0.19, 1, 0.22, 1);
+      z-index: 20; /* Increased to ensure visibility through the peephole */
+      pointer-events: auto;
+    }
+    
+    /* Style for decorative spheres */
+    .sphere-decoration {
+      position: absolute;
+      background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.1));
+      border-radius: 50%;
+      pointer-events: none;
+      box-shadow: 0 0 30px rgba(255, 255, 255, 0.2);
+      z-index: 40;
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      transform-style: preserve-3d;
+      will-change: transform;
+      transition: transform 0.1s ease-out;
+    }
+    
+    .sphere-decoration::before {
+      content: '';
+      position: absolute;
+      top: 20%;
+      left: 20%;
+      width: 30%;
+      height: 30%;
+      background: radial-gradient(circle at center, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0));
+      border-radius: 50%;
+      filter: blur(2px);
+    }
+    
+    .sphere-1 {
+      width: 100px;
+      height: 100px;
+      top: 15%;
+      left: 15%;
+    }
+    
+    .sphere-2 {
+      width: 60px;
+      height: 60px;
+      top: 30%;
+      right: 20%;
+    }
+    
+    .sphere-3 {
+      width: 80px;
+      height: 80px;
+      bottom: 20%;
+      right: 15%;
+    }
+    
+    .sphere-4 {
+      width: 40px;
+      height: 40px;
+      top: 60%;
+      left: 25%;
+    }
+    
+    .container {
+      position: relative;
+      height: 700vh;
+      width: 100%;
+    }
+    
+    .heading {
+      text-align: center;
+      position: absolute;
+      top: 12%; /* Reduced from 15% to match the lower grid position */
+      left: 0;
+      width: 100%;
+      margin-bottom: 0;
+      transition: transform 0.8s cubic-bezier(0.19, 1, 0.22, 1), opacity 0.8s ease;
+      will-change: transform, opacity;
+      z-index: 30;
+      font-family: 'Playfair Display', serif;
+      padding: 0 20px;
+    }
+    
+    .heading h1 {
+      font-size: 7rem;
+      font-weight: 700;
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      margin: 0;
+      color: #ffffff;
+      text-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+    }
+    
+    .heading h2 {
+      font-size: 4.5rem;
+      font-weight: 400;
+      line-height: 1.2;
+      margin-top: 1rem;
+      color: rgba(255, 255, 255, 0.9);
+    }
+    
+    #sphereContainer {
+      width: 450px;
+      height: 450px;
+      margin: 0 auto;
+      position: absolute;
+      left: 50%;
+      top: 42%; /* Adjusted from 46% to align better with further lowered grid */
+      transform: translate(-50%, -50%);
+      transform-style: preserve-3d;
+      perspective: 1000px;
+      transition: transform 0.8s cubic-bezier(0.19, 1, 0.22, 1), opacity 0.8s ease;
+      will-change: transform, opacity;
+      z-index: 20;
+    }
+    
+    .grid {
+      position: relative;
+      transform-origin: center bottom;
+      transform: perspective(1000px) rotateX(35deg) scale(1.0);
+      z-index: 0;
+      display: grid;
+      grid-template-columns: repeat(5, 180px);
+      grid-template-rows: repeat(5, 180px);
+      opacity: 1; /* Start visible */
+      transition: transform 1.5s cubic-bezier(0.19, 1, 0.22, 1), opacity 0.4s ease;
+      padding: 15px;
+      transform-style: preserve-3d;
+      gap: 15px;
+      background-color: transparent;
+      width: auto;
+      height: auto;
+      max-width: 90vw;
+      pointer-events: auto;
+      margin-top: -350px; /* Further adjusted from -330px to -350px to move grid slightly more up */
+    }
+    
+    /* Ensure text elements in the grid have correct relative sizing */
+    .grid .card-title {
+      font-size: 14px;
+    }
+    
+    .grid .card-subtitle {
+      font-size: 11px;
+    }
+    
+    .grid .tag {
+      font-size: 10px;
+    }
+    
+    .grid .btn {
+      font-size: 12px;
+    }
+    
+    .grid.flat {
+      transform: perspective(1000px) rotateX(25deg) scale(1.0);
+    }
+    
+    .grid.upright {
+      transform: perspective(1000px) rotateX(0deg) scale(1.0);
+    }
+    
+    .grid-cell {
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      position: relative;
+      box-sizing: border-box;
+      transition: background-color 0.5s ease, box-shadow 0.5s ease, transform 0.3s ease;
+      background-color: rgba(15, 23, 42, 0.3);
+      border-radius: 10px;
+      backdrop-filter: blur(3px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      width: 180px;
+      height: 180px;
+      transform-style: preserve-3d;
+      transform: translateZ(0);
+    }
+    
+    .grid-cell:hover {
+      background-color: rgba(220, 180, 120, 0.1);
+      border-color: rgba(220, 180, 120, 0.3);
+      box-shadow: 0 0 20px rgba(201, 166, 103, 0.2);
+    }
+    
+    /* Add blue dot in top right corner like in reference */
+    .grid-cell::after {
+      content: '';
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: #38bdf8;
+      opacity: 0.8;
+    }
+    
+    .card {
+      position: absolute;
+      width: 162px;
+      height: 162px;
+      background-color: rgba(10, 15, 25, 0.85);
+      border: 1px solid rgba(71, 85, 105, 0.4);
+      border-radius: 8px;
+      padding: 14px;
+      opacity: 1;
+      transition: opacity 0.4s ease, transform 0.6s cubic-bezier(0.19, 1, 0.22, 1), box-shadow 0.3s ease, border-color 0.3s ease, background-color 0.4s ease;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+      backdrop-filter: blur(5px);
+      z-index: 20;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      overflow: visible;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+    }
+    
+    /* Add subtle gradient border glow */
+    .card::before {
+      content: '';
+      position: absolute;
+      inset: -1px;
+      border-radius: 9px;
+      background: linear-gradient(135deg, rgba(236, 211, 148, 0.05), rgba(201, 166, 103, 0.3), rgba(163, 133, 72, 0.05));
+      z-index: -1;
+      opacity: 1;
+      transition: opacity 0.3s ease;
+    }
+    
+    .card:hover::before {
+      opacity: 1;
+      background: linear-gradient(135deg, rgba(236, 211, 148, 0.1), rgba(201, 166, 103, 0.5), rgba(163, 133, 72, 0.1));
+    }
+    
+    .card.in-grid:hover {
+      box-shadow: 0 8px 30px rgba(220, 180, 120, 0.3);
+      transform: translate(-50%, -50%) scale(1.05);
+      border-color: rgba(220, 180, 120, 0.1);
+    }
+    
+    .card.in-grid:hover .card-title {
+      color: #ecd394;
+      transform: translateY(-2px);
+    }
+    
+    /* Profile card (bottom-left) */
+    .profile-card {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .avatar-container {
+      width: 100%;
+      height: 80px;
+      margin-bottom: 15px;
+      background: linear-gradient(135deg, #3b82f6 0%, #ef4444 100%);
+      border-radius: 6px;
+    }
+    
+    /* Meeting card (bottom-right) */
+    .meeting-card {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .meeting-header {
+      background: linear-gradient(135deg, #f97316 0%, #ec4899 100%);
+      height: 6px;
+      width: 30%;
+      border-radius: 3px;
+      margin-bottom: 15px;
+    }
+    
+    .card-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 6px;
+      letter-spacing: -0.01em;
+      color: #f8fafc;
+      white-space: normal;
+      overflow: visible;
+      text-overflow: clip;
+      line-height: 1.3;
+      max-width: 100%;
+      transition: color 0.3s ease, transform 0.3s ease;
+    }
+    
+    .card-subtitle {
+      font-size: 11px;
+      color: #94a3b8;
+      margin-bottom: 12px;
+      line-height: 1.4;
+      overflow: visible;
+      display: block;
+      max-width: 100%;
+    }
+    
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      background: rgba(201, 166, 103, 0.1);
+      color: #ecd394;
+      font-size: 10px;
+      padding: 3px 6px;
+      border-radius: 4px;
+      margin-right: 5px;
+    }
+    
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 6px 0;
+      background: rgba(201, 166, 103, 0.1);
+      color: #ecd394;
+      text-align: center;
+      border-radius: 6px;
+      border: 1px solid rgba(201, 166, 103, 0.2);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 12px;
+      margin-top: auto;
+    }
+    
+    .btn:hover {
+      background: rgba(201, 166, 103, 0.2);
+      border-color: rgba(201, 166, 103, 0.3);
+    }
+    
+    .grid-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      overflow: visible;
+      padding-top: 80px; /* Increased padding to push grid container down further */
+    }
+  </style>
+</head>
+<body>
+  <!-- New entrance overlay structure with panoramic landscape -->
+  <div class="entrance-overlay">
+    <div class="entrance-image"></div>
+    <div class="mask-container">
+      <div class="mask-left" id="maskLeft">
+        <!-- The left panel background image is applied via CSS ::before -->
+      </div>
+      <div class="mask-center" id="maskCenter">
+        <!-- The center panel background image is applied via CSS ::before -->
+        <div class="peephole" id="peephole">
+          <!-- The peephole will grow to reveal content behind it -->
+        </div>
+      </div>
+      <div class="mask-right" id="maskRight">
+        <!-- The right panel background image is applied via CSS ::before -->
+      </div>
+    </div>
+    
+    <!-- Add decorative spheres -->
+    <div class="landscape-sphere sphere-top"></div>
+    <div class="landscape-sphere sphere-left"></div>
+    <div class="landscape-sphere sphere-right"></div>
+    
+    <!-- Add tagline on bottom left -->
+    <div class="tagline-container">
+      <p class="tagline-text">Your complete personal finance solution with budgeting tools, investment tracking, financial goal setting, transaction management, and automated bill payments in one elegant platform.</p>
+      <a href="#" class="waitlist-button">Join the Waitlist</a>
+    </div>
+    
+    <!-- Add brand name on bottom right -->
+    <div class="brand-container">
+      <h1 class="brand-name">Unbroken Pockets.</h1>
+      <p class="brand-tagline">Master your money budget system</p>
+    </div>
+  </div>
+  
+  <div class="content-overlay" id="contentOverlay">
+    <div class="sphere-decoration sphere-1"></div>
+    <div class="sphere-decoration sphere-2"></div>
+    <div class="sphere-decoration sphere-3"></div>
+    <div class="sphere-decoration sphere-4"></div>
+  </div>
+  
+  <!-- Add portal content here -->
+  <div id="portal-content" class="portal-content">
+    <div id="fixed-content-clone" style="position: relative; opacity: 1; transform: none; width: 100%; height: 100%;">
+      <div class="heading">
+        <h1>financial freedom</h1>
+        <h2>at your fingertips</h2>
+      </div>
+      
+      <div style="width: 450px; height: 450px; margin: 0 auto; position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%);">
+        <div style="width: 300px; height: 300px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #ecd394, #c9a667); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3), inset 0 0 30px rgba(255, 255, 255, 0.3); margin: 0 auto;"></div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="container">
+    <div class="fixed-content" id="fixedContent">
+      <div class="heading" id="heading">
+        <h1>financial freedom</h1>
+        <h2>at your fingertips</h2>
+      </div>
+      
+      <div id="sphereContainer"></div>
+      
+      <div class="grid-container">
+        <div class="grid" id="grid">
+          <!-- Grid cells will be generated by JavaScript -->
+        </div>
+      </div>
+    </div>
+    <div style="height: 700vh;"></div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // Check if the image loads correctly and apply fallback if needed
+      const testImg = new Image();
+      testImg.onerror = () => {
+        // If the image fails to load, add fallback class to all panels
+        document.querySelector('.mask-left').classList.add('fallback');
+        document.querySelector('.mask-center').classList.add('fallback');
+        document.querySelector('.mask-right').classList.add('fallback');
+        console.log('Background image failed to load. Applied fallback gradient.');
+      };
+      testImg.src = 'https://images.unsplash.com/photo-1519681393784-d120267933ba?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80';
+      const grid = document.getElementById('grid');
+      const heading = document.getElementById('heading');
+      const sphereContainer = document.getElementById('sphereContainer');
+      const container = document.querySelector('.container');
+      const fixedContent = document.getElementById('fixedContent');
+      const maskLeft = document.getElementById('maskLeft');
+      const maskCenter = document.getElementById('maskCenter');
+      const maskRight = document.getElementById('maskRight');
+      const peephole = document.getElementById('peephole');
+      const contentOverlay = document.getElementById('contentOverlay');
+      
+      // Removed black rectangle references since we're using pseudo-elements
+      
+      // Generate grid cells dynamically
+      const gridCellCount = 25; // 5x5 grid
+      for (let i = 0; i < gridCellCount; i++) {
+        const cell = document.createElement('div');
+        cell.classList.add('grid-cell');
+        cell.setAttribute('data-index', i);
+        grid.appendChild(cell);
+      }
+      
+      // Create feature cards
+      const budgetCard = document.createElement('div');
+      budgetCard.classList.add('card', 'in-grid');
+      budgetCard.innerHTML = `
+        <div class="card-title">Budget Planner</div>
+        <div class="card-subtitle">Create and manage custom budgets with category tracking and spending analysis</div>
+        <div class="tags">
+          <span class="tag">Financial Planning</span>
+        </div>
+      `;
+      
+      const investmentCard = document.createElement('div');
+      investmentCard.classList.add('card', 'in-grid');
+      investmentCard.innerHTML = `
+        <div class="card-title">Investment Portfolio</div>
+        <div class="card-subtitle">Monitor your investments and track performance with detailed analytics</div>
+        <div class="tags">
+          <span class="tag">Wealth Building</span>
+        </div>
+      `;
+      
+      const goalCard = document.createElement('div');
+      goalCard.classList.add('card', 'in-grid');
+      goalCard.innerHTML = `
+        <div class="card-title">Financial Goals</div>
+        <div class="card-subtitle">Set personalized savings targets with detailed progress tracking</div>
+        <div class="tags">
+          <span class="tag">Goal Tracking</span>
+        </div>
+      `;
+      
+      const transactionCard = document.createElement('div');
+      transactionCard.classList.add('card', 'in-grid');
+      transactionCard.innerHTML = `
+        <div class="card-title">Transaction History</div>
+        <div class="card-subtitle">View and categorize all your financial transactions in one place</div>
+        <div class="tags">
+          <span class="tag">Expense Tracking</span>
+        </div>
+      `;
+      
+      const recurringCard = document.createElement('div');
+      recurringCard.classList.add('card', 'in-grid');
+      recurringCard.innerHTML = `
+        <div class="card-title">Recurring Payments</div>
+        <div class="card-subtitle">Manage subscriptions and automate bill tracking with reminders</div>
+        <div class="tags">
+          <span class="tag">Bill Management</span>
+        </div>
+      `;
+      
+      // New card: Debt Tracker
+      const debtCard = document.createElement('div');
+      debtCard.classList.add('card', 'in-grid');
+      debtCard.innerHTML = `
+        <div class="card-title">Debt Tracker</div>
+        <div class="card-subtitle">Track and optimize debt payoff strategies to become debt-free faster</div>
+        <div class="tags">
+          <span class="tag">Debt Management</span>
+        </div>
+      `;
+      
+      // New card: Net Worth Calculator
+      const netWorthCard = document.createElement('div');
+      netWorthCard.classList.add('card', 'in-grid');
+      netWorthCard.innerHTML = `
+        <div class="card-title">Net Worth Calculator</div>
+        <div class="card-subtitle">Calculate and visualize your total net worth across all assets and liabilities</div>
+        <div class="tags">
+          <span class="tag">Wealth Tracking</span>
+        </div>
+      `;
+      
+      // Place cards in fixed positions as specified
+      // Note: Grid is zero-indexed, so we adjust the row/column values
+      // Formula for position in a 5x5 grid: position = row*5 + column
+      // where row and column are both 0-indexed (0-4)
+      const cardPlacements = [
+        { card: budgetCard, position: 0 },       // Row 0, Column 0 (top-left)
+        { card: investmentCard, position: 3 },   // Row 0, Column 3
+        { card: goalCard, position: 9 },         // Row 1, Column 4
+        { card: transactionCard, position: 11 }, // Row 2, Column 1
+        { card: recurringCard, position: 19 },   // Row 3, Column 4
+        { card: debtCard, position: 22 },        // Row 4, Column 2
+        { card: netWorthCard, position: 6 }      // Row 1, Column 1
+      ];
+      
+      // Place each card in its designated position
+      cardPlacements.forEach(placement => {
+        const cell = grid.querySelector(`[data-index="${placement.position}"]`);
+        cell.appendChild(placement.card);
+      });
+      
+      // Initialize Three.js for the golden sphere
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+      
+      // Check if Three.js is available, and provide fallback if not
+      if (typeof THREE === 'undefined') {
+        console.error('Three.js library failed to load. Displaying fallback content.');
+        
+        // Create a fallback for the sphere container
+        const fallbackSphere = document.createElement('div');
+        fallbackSphere.style.width = '300px';
+        fallbackSphere.style.height = '300px';
+        fallbackSphere.style.borderRadius = '50%';
+        fallbackSphere.style.background = 'radial-gradient(circle at 30% 30%, #ecd394, #c9a667)';
+        fallbackSphere.style.boxShadow = '0 10px 30px rgba(0, 0, 0, 0.3), inset 0 0 30px rgba(255, 255, 255, 0.3)';
+        fallbackSphere.style.margin = '0 auto';
+        
+        // Replace the sphere container content
+        const sphereContainer = document.getElementById('sphereContainer');
+        if (sphereContainer) {
+          sphereContainer.innerHTML = '';
+          sphereContainer.appendChild(fallbackSphere);
+        }
+      }
+      
+      const renderer = new THREE.WebGLRenderer({ 
+        antialias: true,
+        alpha: true 
+      });
+      renderer.setSize(450, 450);
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      sphereContainer.appendChild(renderer.domElement);
+      
+      // Create a sphere with gold material
+      const geometry = new THREE.SphereGeometry(1, 64, 64);
+      
+      // Create gold material with enhanced reflection and depth
+      const material = new THREE.MeshPhysicalMaterial({
+        color: 0xc9a667,
+        metalness: 0.9,
+        roughness: 0.15,
+        reflectivity: 0.9,
+        clearcoat: 0.3, 
+        clearcoatRoughness: 0.2,
+        emissive: 0x7d694c,
+        emissiveIntensity: 0.2
+      });
+      
+      const sphere = new THREE.Mesh(geometry, material);
+      sphere.castShadow = true;
+      sphere.receiveShadow = true;
+      scene.add(sphere);
+      
+      // Add a subtle shadow blob beneath the sphere (fake shadow)
+      const shadowGeo = new THREE.CircleGeometry(1.2, 32);
+      const shadowMat = new THREE.MeshBasicMaterial({ 
+        color: 0x000000, 
+        transparent: true, 
+        opacity: 0.2,
+        depthWrite: false
+      });
+      const shadowMesh = new THREE.Mesh(shadowGeo, shadowMat);
+      shadowMesh.rotation.x = -Math.PI / 2;
+      shadowMesh.position.y = -1.05;
+      scene.add(shadowMesh);
+      
+      // Add directional light (top-left highlight)
+      const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
+      directionalLight.position.set(-1, 2, 1.5);
+      directionalLight.castShadow = true;
+      scene.add(directionalLight);
+      
+      // Add ambient light
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+      scene.add(ambientLight);
+      
+      // Add a soft point light from below for dramatic effect
+      const pointLight = new THREE.PointLight(0xf1c232, 0.7);
+      pointLight.position.set(0, -1.5, 0.5);
+      scene.add(pointLight);
+      
+      // Add rim light from behind
+      const rimLight = new THREE.DirectionalLight(0xffffff, 0.5);
+      rimLight.position.set(0, 0, -2);
+      scene.add(rimLight);
+      
+      // Position camera
+      camera.position.z = 2.5;
+      
+      // Animation loop with cleanup capability
+      let animationFrameId;
+      function animate() {
+        animationFrameId = requestAnimationFrame(animate);
+        sphere.rotation.y += 0.005;
+        renderer.render(scene, camera);
+      }
+      animate();
+      
+      // Cleanup function for animation loop when page is unloaded
+      window.addEventListener('beforeunload', () => {
+        if (animationFrameId) {
+          cancelAnimationFrame(animationFrameId);
+        }
+      });
+      
+      // Initialize states
+      maskLeft.style.transform = 'translateY(0)';
+      maskRight.style.transform = 'translateY(0)';
+      maskCenter.style.opacity = '1';
+      peephole.style.width = '0';
+      peephole.style.height = '0';
+      fixedContent.style.opacity = '0';
+      fixedContent.style.transform = 'translateY(100px)';
+      contentOverlay.style.opacity = '0';
+      
+      // Set initial z-indexes with proper stacking context
+      maskLeft.style.zIndex = '10';
+      maskRight.style.zIndex = '10';
+      maskCenter.style.zIndex = '11';
+      peephole.style.zIndex = '999';
+      document.querySelector('.entrance-overlay').style.zIndex = '100';
+      contentOverlay.style.zIndex = '50';
+      fixedContent.style.zIndex = '20'; // Increased z-index to ensure visibility through peephole
+      
+      // Make sure entrance overlay starts fully visible
+      document.querySelector('.entrance-overlay').style.opacity = '1';
+      
+      // Preload content overlay elements
+      document.querySelector('.content-overlay').style.visibility = 'visible';
+      document.querySelector('.content-overlay').style.opacity = '0';
+      
+      // Define isScrolling before it's used
+      let isScrolling = false;
+      let scrollTimeout;
+      
+      // Add some animation to the landscape spheres
+      const landscapeSpheres = document.querySelectorAll('.landscape-sphere');
+      landscapeSpheres.forEach((sphere, index) => {
+        // Random initial position offset
+        const xOffset = (Math.random() - 0.5) * 40;
+        const yOffset = (Math.random() - 0.5) * 40;
+        const zOffset = (Math.random() - 0.5) * 30;
+        const rotation = Math.random() * 360;
+        
+        // Store base positions in dataset for mouse movement calculations
+        sphere.dataset.baseX = xOffset;
+        sphere.dataset.baseY = yOffset;
+        sphere.dataset.baseZ = zOffset;
+        sphere.dataset.baseRotation = rotation;
+        
+        // Apply initial 3D transforms
+        sphere.style.transform = `translate3d(${xOffset}px, ${yOffset}px, ${zOffset}px) rotateY(${rotation}deg)`;
+        
+        // Create complex floating animation
+        const animateSphere = () => {
+          // Generate new random positions for smooth movement
+          const newXOffset = (Math.random() - 0.5) * 40;
+          const newYOffset = (Math.random() - 0.5) * 40;
+          const newZOffset = (Math.random() - 0.5) * 30;
+          const newRotation = Math.random() * 360;
+          
+          // Update base positions in dataset
+          sphere.dataset.baseX = newXOffset;
+          sphere.dataset.baseY = newYOffset;
+          sphere.dataset.baseZ = newZOffset;
+          sphere.dataset.baseRotation = newRotation;
+          
+          // Apply smooth transition if not scrolling
+          if (!isScrolling) {
+            sphere.style.transition = 'transform 8s cubic-bezier(0.19, 1, 0.22, 1)';
+            sphere.style.transform = `translate3d(${newXOffset}px, ${newYOffset}px, ${newZOffset}px) rotateY(${newRotation}deg)`;
+          }
+          
+          // Schedule next animation
+          setTimeout(animateSphere, 8000 + Math.random() * 4000);
+        };
+        
+        // Start the animation loop
+        setTimeout(animateSphere, 1000 + Math.random() * 2000);
+      });
+      
+      // Mouse movement parallax effect
+      // isScrolling and scrollTimeout are now defined above
+      const parallaxContainer = document.querySelector('.mask-container');
+      const parallaxSpheres = document.querySelectorAll('.landscape-sphere');
+      const contentSpheres = document.querySelectorAll('.sphere-decoration');
+      const parallaxStrength = 20; // Adjust this to control the effect intensity
+      let mouseX = 0;
+      let mouseY = 0;
+      
+      // Start continuous animation for content spheres
+      let contentAnimationFrameId;
+      function animateContentSpheres() {
+        // Continuously animate content spheres
+        contentSpheres.forEach((sphere, index) => {
+          const depth = 0.5 + (index * 0.3);
+          
+          // Calculate a unique floating movement for each sphere
+          const time = Date.now() * 0.001; // Convert to seconds
+          const floatX = Math.sin(time + index * 0.5) * 15; 
+          const floatY = Math.cos(time + index * 0.3) * 15;
+          const floatZ = Math.sin(time * 0.5 + index * 0.2) * 10;
+          const rotateY = Math.sin(time * 0.3) * 30;
+          
+          // Combine floating movement with mouse parallax
+          const moveX = floatX - mouseX * parallaxStrength * depth;
+          const moveY = floatY - mouseY * parallaxStrength * depth;
+          
+          // Apply the combined transformation
+          sphere.style.transform = `translate3d(${moveX}px, ${moveY}px, ${floatZ}px) rotateY(${rotateY}deg)`;
+        });
+        
+        // Continue animation loop with stored ID for cleanup
+        contentAnimationFrameId = requestAnimationFrame(animateContentSpheres);
+      }
+      
+      // Start the animation loop
+      animateContentSpheres();
+      
+      // Add to the beforeunload cleanup
+      window.addEventListener('beforeunload', () => {
+        if (contentAnimationFrameId) {
+          cancelAnimationFrame(contentAnimationFrameId);
+        }
+      });
+      
+      // Detect when user is scrolling
+      window.addEventListener('scroll', () => {
+        isScrolling = true;
+        
+        // Reset the scrolling flag after scrolling stops
+        clearTimeout(scrollTimeout);
+        scrollTimeout = setTimeout(() => {
+          isScrolling = false;
+          
+          // Reset spheres to their base positions after scrolling stops
+          parallaxSpheres.forEach(sphere => {
+            if (sphere.dataset.baseX) {
+              sphere.style.transition = 'transform 0.5s ease-out';
+              sphere.style.transform = `translate3d(${sphere.dataset.baseX}px, ${sphere.dataset.baseY}px, ${sphere.dataset.baseZ}px) rotateY(${sphere.dataset.baseRotation}deg)`;
+            }
+          });
+        }, 100);
+      });
+      
+      // Track mouse movement and apply parallax effect
+      document.addEventListener('mousemove', (e) => {
+        if (isScrolling) return; // Skip if user is scrolling
+        
+        mouseX = e.clientX / window.innerWidth - 0.5;
+        mouseY = e.clientY / window.innerHeight - 0.5;
+        
+        // Move background image container in opposite direction of mouse (subtle effect)
+        requestAnimationFrame(() => {
+          if (parallaxContainer) {
+            parallaxContainer.style.transform = `translate3d(${-mouseX * parallaxStrength}px, ${-mouseY * parallaxStrength}px, 0)`;
+          }
+          
+          // Move spheres with different depths for 3D effect
+          parallaxSpheres.forEach((sphere, index) => {
+            if (!sphere.dataset.baseX) return;
+            
+            const depth = 1 + (index * 0.5);
+            const baseX = parseFloat(sphere.dataset.baseX);
+            const baseY = parseFloat(sphere.dataset.baseY);
+            const baseZ = parseFloat(sphere.dataset.baseZ);
+            const baseRotation = parseFloat(sphere.dataset.baseRotation);
+            
+            // Apply mouse movement to base position
+            sphere.style.transition = 'transform 0.1s ease-out';
+            sphere.style.transform = `translate3d(${baseX - mouseX * parallaxStrength * depth}px, ${baseY - mouseY * parallaxStrength * depth}px, ${baseZ}px) rotateY(${baseRotation + mouseX * 20}deg)`;
+          });
+        });
+      });
+      
+      // Handle scrolling animations
+      window.addEventListener('scroll', () => {
+        const scrollPosition = window.scrollY;
+        const viewportHeight = window.innerHeight;
+        const totalHeight = container.clientHeight;
+        const scrollRatio = scrollPosition / (totalHeight - viewportHeight);
+        
+        // Animation timing constants
+        const introAnimStart = 0.01;
+        const introAnimMid = 0.1;
+        const introAnimEnd = 0.2;
+        const mainAnimStart = 0.15;
+        const mainAnimEnd = 0.4;
+        const cardsTransitionStart = mainAnimEnd + 0.05; // Start cards transition AFTER grid completes
+        const cardsTransitionEnd = cardsTransitionStart + 0.1; // Cards transition duration
+        
+        // Initial animation - move left and right panels up out of frame immediately on scroll
+        if (scrollRatio > introAnimStart) {
+          const initialProgress = Math.min(1, (scrollRatio - introAnimStart) / 0.05);
+          
+          // Move left and right masks up out of frame - faster animation
+          maskLeft.style.transition = 'transform 0.8s cubic-bezier(0.19, 1, 0.22, 1)';
+          maskRight.style.transition = 'transform 0.8s cubic-bezier(0.19, 1, 0.22, 1)';
+          
+          // Move the panels up proportionally to scroll
+          const moveUpAmount = Math.min(100, initialProgress * 100);
+          maskLeft.style.transform = `translateY(-${moveUpAmount}%)`;
+          maskRight.style.transform = `translateY(-${moveUpAmount}%)`;
+          
+          // Create a growing peephole
+          const peepholeProgress = initialProgress * 0.7;
+          const peepholeWidth = Math.min(60, peepholeProgress * 60); 
+          const peepholeHeight = Math.min(75, peepholeProgress * 75);
+          
+          // Set the peephole dimensions explicitly
+          peephole.style.width = `${peepholeWidth}%`;
+          peephole.style.height = `${peepholeHeight}%`;
+          peephole.style.borderRadius = `${40}% / ${60}%`; // Pill shape
+          
+          // Show the portal content through the peephole
+          const portalContent = document.getElementById('portal-content');
+          if (portalContent && peepholeProgress > 0.1) {
+            portalContent.style.opacity = "1";
+            
+            // Make the peephole act as a window to the portal
+            if (!peephole.hasAttribute('data-peephole-setup')) {
+              peephole.style.backgroundColor = 'transparent';
+              peephole.style.overflow = 'hidden';
+              peephole.setAttribute('data-peephole-setup', 'true');
+            }
+          }
+          
+          // Ensure the center mask shows the peephole correctly
+          maskCenter.style.zIndex = '11'; 
+          
+          // As peephole grows, we need to increase its z-index
+          if (peepholeProgress > 0.3) {
+            peephole.style.zIndex = '12';
+          }
+          
+          // Make sure fixed content and content overlay are visible behind the peephole
+          contentOverlay.style.opacity = Math.min(1, peepholeProgress * 1.5);
+          fixedContent.style.opacity = Math.min(1, peepholeProgress * 1.5);
+          
+          // Make sure the entrance-overlay has the proper z-index
+          document.querySelector('.entrance-overlay').style.zIndex = "100";
+          
+          // Show/hide the portal content based on peephole size
+          if (peepholeProgress > 0.1) {
+            document.getElementById('portal-content').style.zIndex = "6";
+          } else {
+            document.getElementById('portal-content').style.zIndex = "-1";
+          }
+          
+          // Get references to the tagline and brand containers
+          const taglineContainer = document.querySelector('.tagline-container');
+          const brandContainer = document.querySelector('.brand-container');
+          
+          // During the panels moving up, maintain full opacity of the tagline and brand text
+          if (taglineContainer && brandContainer) {
+            // Keep text fully visible throughout the animation
+            taglineContainer.style.opacity = 1;
+            brandContainer.style.opacity = 1;
+          }
+          
+          // Wait for side panels to completely exit the frame before starting zoom effect
+          if (initialProgress >= 1.0) {
+            // Calculate zoom progress based on additional scrolling after panels have exited
+            const postPanelScrollRatio = (scrollRatio - (introAnimStart + 0.05)) / 0.05;
+            const zoomProgress = Math.min(1, Math.max(0, postPanelScrollRatio));
+            
+            // Apply an extreme scaling transform to center panel
+            maskCenter.style.transform = `scale(${1 + zoomProgress * 2.5}) perspective(500px) translateZ(${zoomProgress * 200}px)`;
+            
+            // Make the center panel fade out as zoom progresses
+            maskCenter.style.opacity = Math.max(0, 1 - zoomProgress);
+            
+            // Scale the peephole dramatically to ensure it also overlaps the frame edges
+            peephole.style.transform = `translate(-50%, -50%) scale(${1 + zoomProgress * 0.8})`;
+            
+            // Content overlay should be fully visible
+            contentOverlay.style.opacity = "1";
+            contentOverlay.style.zIndex = "50";
+            
+            // Apply the same transform to the entire entrance overlay to keep all elements in sync
+            const entranceOverlay = document.querySelector('.entrance-overlay');
+            if (entranceOverlay) {
+              entranceOverlay.style.transformOrigin = "center center";
+              entranceOverlay.style.transform = `scale(${1 + zoomProgress * 2.5}) perspective(500px) translateZ(${zoomProgress * 200}px)`;
+              
+              // If zoom is complete, start fading out the entrance overlay
+              if (zoomProgress > 0.8) {
+                entranceOverlay.style.opacity = Math.max(0, 1 - (zoomProgress - 0.8) * 5);
+              }
+            }
+          }
+          
+          // Once we're 50% through the initial animation, start fading in main content
+          if (initialProgress > 0.5) {
+            const contentFadeIn = (initialProgress - 0.5) / 0.5;
+            fixedContent.style.opacity = Math.min(1, contentFadeIn * 1.5);
+            fixedContent.style.transform = `translateY(${Math.max(0, 50 - (contentFadeIn * 50))}px)`;
+          }
+        }
+        
+        // Handle the rest of the animations (grid, sphere, etc.) as scroll continues
+        if (scrollRatio > mainAnimStart) {
+          // Calculate animation progress - how far we are in the transition
+          const animationProgress = Math.min(1, (scrollRatio - mainAnimStart) / 
+                                           (mainAnimEnd - mainAnimStart));
+          
+          // Grid animation - transition from laying to forward-facing position
+          if (animationProgress > 0) {
+            // Keep scale at 1.0 instead of reducing
+            const scaleValue = 1.0; // No reduction
+            
+            // Rotation from 35deg to 0deg (fully upright)
+            const rotateValue = 35 - (animationProgress * 35);
+            
+            // Add vertical movement (moves down slightly as it becomes upright)
+            const verticalOffset = 140 * animationProgress; /* Increased from 120px for lower starting position */
+            
+            // Apply transformation with smooth easing
+            grid.style.transition = 'transform 1.5s cubic-bezier(0.19, 1, 0.22, 1)';
+            grid.style.transform = `perspective(1000px) rotateX(${rotateValue}deg) translateY(${verticalOffset}px) scale(${scaleValue})`;
+          }
+          
+          // Sphere animation - moves upward as grid tilts forward
+          if (animationProgress > 0) {
+            // Calculate upward movement while preserving initial -50% positioning
+            const sphereYPos = -50 - (300 * animationProgress); // Start from -50% and move up
+            const sphereScale = 1 - animationProgress * 0.3;
+            
+            // Apply sphere transformation with percentage for vertical position
+            sphereContainer.style.transform = `translate(-50%, ${sphereYPos}%) scale(${sphereScale})`;
+            sphereContainer.style.opacity = Math.max(0, 1 - animationProgress * 1.1);
+          }
+          
+          // Text animation - heading moves up and fades at same rate as grid tilts
+          if (animationProgress > 0) {
+            // Move heading up gradually, fully out of frame at end of animation
+            const headingYPos = -250 * animationProgress;
+            const headingScale = 1 - animationProgress * 0.1;
+            
+            // Apply transformations to heading
+            heading.style.transform = `translateY(${headingYPos}px) scale(${headingScale})`;
+            heading.style.opacity = Math.max(0, 1 - animationProgress * 1.1);
+          }
+          
+          // Feature cards transition from grid to horizontal line
+          if (scrollRatio >= cardsTransitionStart) {
+            // Calculate progress of the card transition animation
+            const cardsProgress = Math.min(1, (scrollRatio - cardsTransitionStart) / 
+                                         (cardsTransitionEnd - cardsTransitionStart));
+            
+            // Only move cards if the grid animation is complete
+            if (animationProgress >= 1) {
+              // Pre-calculate layout dimensions once for all cards
+              const cardWidth = 162; // Width of each card in pixels - updated to smaller size
+              const cardMargin = 25; // Margin between cards in horizontal layout - slightly reduced
+              const cardCount = cardPlacements.length;
+              const totalWidth = cardCount * (cardWidth + cardMargin) - cardMargin;
+              const startX = (window.innerWidth - totalWidth) / 2; // Center horizontally
+              
+              // Set a fixed vertical position for the horizontal line - centered in viewport
+              const targetY = window.innerHeight / 2;
+              
+              // Define cubic-bezier timing function outside the loop
+              const cubicBezier = (t) => {
+                const p0 = { x: 0, y: 0 }; 
+                const p1 = { x: 0.19, y: 1 };
+                const p2 = { x: 0.22, y: 1 };
+                const p3 = { x: 1, y: 1 };
+                
+                const u = 1 - t;
+                const uu = u * u;
+                const uuu = uu * u;
+                const tt = t * t;
+                const ttt = tt * t;
+                
+                return uuu * p0.y + 3 * uu * t * p1.y + 3 * u * tt * p2.y + ttt * p3.y;
+              };
+              
+              // Create a container for the horizontal line if it doesn't exist
+              let lineContainer = document.getElementById('horizontal-line-container');
+              if (!lineContainer && cardsProgress > 0) {
+                lineContainer = document.createElement('div');
+                lineContainer.id = 'horizontal-line-container';
+                lineContainer.style.position = 'fixed';
+                lineContainer.style.top = '0';
+                lineContainer.style.left = '0';
+                lineContainer.style.width = '100vw';
+                lineContainer.style.height = '100vh';
+                lineContainer.style.display = 'flex';
+                lineContainer.style.justifyContent = 'center';
+                lineContainer.style.alignItems = 'center';
+                lineContainer.style.zIndex = '50'; // Updated to be below content-overlay but above fixed-content
+                lineContainer.style.pointerEvents = 'none';
+                document.body.appendChild(lineContainer);
+              }
+              
+              // Only set up card positions once at the start
+              if (cardsProgress > 0 && cardsProgress <= 0.05 && !document.body.hasAttribute('data-cards-setup')) {
+                document.body.setAttribute('data-cards-setup', 'true');
+                
+                // Cache the initial positions of all cards
+                cardPlacements.forEach(placement => {
+                  const card = placement.card;
+                  if (!card) return;
+                  
+                  const rect = card.getBoundingClientRect();
+                  card.dataset.initialX = rect.left + rect.width / 2;
+                  card.dataset.initialY = rect.top + rect.height / 2;
+                  
+                  // Store original font sizes of text elements
+                  const cardTitle = card.querySelector('.card-title');
+                  const cardSubtitle = card.querySelector('.card-subtitle');
+                  const tag = card.querySelector('.tag');
+                  const btn = card.querySelector('.btn');
+                  
+                  if (cardTitle) card.dataset.titleSize = '14px';
+                  if (cardSubtitle) card.dataset.subtitleSize = '11px';
+                  if (tag) card.dataset.tagSize = '10px';
+                  if (btn) card.dataset.btnSize = '12px';
+                });
+              }
+              
+              // Clear positioning when scrolling back up
+              if (cardsProgress === 0 && document.body.hasAttribute('data-cards-setup')) {
+                document.body.removeAttribute('data-cards-setup');
+                const lineContainer = document.getElementById('horizontal-line-container');
+                if (lineContainer) document.body.removeChild(lineContainer);
+                
+                // Return all cards to their original positions
+                cardPlacements.forEach(placement => {
+                  const card = placement.card;
+                  if (!card) return;
+                  
+                  const cellIndex = placement.position;
+                  const cell = grid.querySelector(`[data-index="${cellIndex}"]`);
+                  if (!cell) return;
+                  
+                  // Reset styles and classes
+                  card.style.position = '';
+                  card.style.top = '';
+                  card.style.left = '';
+                  card.style.transform = 'translate(-50%, -50%)';
+                  card.style.transition = '';
+                  card.style.zIndex = '';
+                  card.style.opacity = '1';
+                  card.style.margin = '';
+                  card.style.width = '';
+                  card.style.height = '';
+                  card.classList.remove('in-line');
+                  card.classList.add('in-grid');
+                  
+                  // Reset font sizes to grid sizes
+                  const cardTitle = card.querySelector('.card-title');
+                  const cardSubtitle = card.querySelector('.card-subtitle');
+                  const tag = card.querySelector('.tag');
+                  const btn = card.querySelector('.btn');
+                  
+                  if (cardTitle) cardTitle.style.fontSize = '';
+                  if (cardSubtitle) cardSubtitle.style.fontSize = '';
+                  if (tag) tag.style.fontSize = '';
+                  if (btn) btn.style.fontSize = '';
+                  
+                  // Move back to original grid cell
+                  if (card.parentElement !== cell) {
+                    cell.appendChild(card);
+                  }
+                });
+              }
+              
+              // Apply transitions based on progress
+              if (cardsProgress > 0) {
+                const eased = cubicBezier(cardsProgress);
+                
+                // Apply transition to each card
+                cardPlacements.forEach((placement, index) => {
+                  const card = placement.card;
+                  if (!card) return;
+                  
+                  const initialX = parseFloat(card.dataset.initialX || 0);
+                  const initialY = parseFloat(card.dataset.initialY || 0);
+                  
+                  // Calculate final position in the horizontal line
+                  const finalX = startX + index * (cardWidth + cardMargin) + cardWidth / 2;
+                  
+                  // Get the line container
+                  const lineContainer = document.getElementById('horizontal-line-container');
+                  
+                  // If less than halfway through transition, apply the intermediate positioning
+                  if (eased < 0.5 && card.parentElement !== lineContainer) {
+                    // Add in-line class for styling
+                    card.classList.remove('in-grid');
+                    card.classList.add('in-line');
+                    
+                    // Get the current grid scale to calculate size
+                    const gridProgress = animationProgress >= 1 ? 1 : animationProgress;
+                    const gridScale = 1.0; // No reduction, use full size
+                    
+                    // Calculate the exact size of the card in the grid accounting for scale
+                    const cardSizeInGrid = cardWidth * gridScale;
+                    
+                    // Apply the exact grid size
+                    card.style.width = `${cardSizeInGrid}px`;
+                    card.style.height = `${cardSizeInGrid}px`;
+                    
+                    // Apply transform for centering
+                    card.style.transform = 'translate(-50%, -50%)';
+                    
+                    // Prepare styles for smooth transition
+                    card.style.position = 'fixed';
+                    card.style.top = `${initialY}px`;
+                    card.style.left = `${initialX}px`;
+                    card.style.transition = 'all 0.6s cubic-bezier(0.19, 1, 0.22, 1)';
+                    card.style.zIndex = '200';
+                    
+                    // Move card to line container
+                    if (lineContainer) {
+                      lineContainer.appendChild(card);
+                    }
+                  }
+                  
+                  // Update position based on eased progress
+                  if (card.classList.contains('in-line')) {
+                    // Interpolate between initial and final positions
+                    const currentX = initialX + (finalX - initialX) * eased;
+                    const currentY = initialY + (targetY - initialY) * eased;
+                    
+                    // Get the exact grid size - never change the size
+                    const gridProgress = animationProgress >= 1 ? 1 : animationProgress;
+                    const gridScale = 1.0; // No reduction, use full size
+                    const cardSizeInGrid = cardWidth * gridScale;
+                    
+                    // Apply the grid-sized card dimensions - no growth
+                    card.style.width = `${cardSizeInGrid}px`;
+                    card.style.height = `${cardSizeInGrid}px`;
+                    
+                    // Apply transform for centering
+                    card.style.transform = 'translate(-50%, -50%)';
+                    
+                    // Apply current position
+                    card.style.left = `${currentX}px`;
+                    card.style.top = `${currentY}px`;
+                    
+                    // Add enhancements for visual polish (no scaling)
+                    card.style.boxShadow = `0 ${5 + eased * 10}px ${10 + eased * 15}px rgba(0, 0, 0, ${0.2 + eased * 0.1})`;
+                  }
+                });
+              }
+            }
+          } else {
+            // Clean up when scrolling back above the transition point
+            const lineContainer = document.getElementById('horizontal-line-container');
+            if (lineContainer) {
+              // Return all cards to their original grid cells
+              cardPlacements.forEach(placement => {
+                const card = placement.card;
+                const cellIndex = placement.position;
+                const cell = grid.querySelector(`[data-index="${cellIndex}"]`);
+                
+                if (card && cell && card.classList.contains('in-line')) {
+                  // Reset all styles
+                  card.style.position = '';
+                  card.style.top = '';
+                  card.style.left = '';
+                  card.style.width = '';
+                  card.style.height = '';
+                  card.style.margin = '';
+                  card.style.transform = 'translate(-50%, -50%)';
+                  card.style.transition = '';
+                  card.style.boxShadow = '';
+                  card.style.zIndex = '';
+                  
+                  // Reset text sizes
+                  const cardTitle = card.querySelector('.card-title');
+                  const cardSubtitle = card.querySelector('.card-subtitle');
+                  const tag = card.querySelector('.tag');
+                  const btn = card.querySelector('.btn');
+                  
+                  if (cardTitle) cardTitle.style.fontSize = '';
+                  if (cardSubtitle) cardSubtitle.style.fontSize = '';
+                  if (tag) tag.style.fontSize = '';
+                  if (btn) btn.style.fontSize = '';
+                  
+                  // Reset classes
+                  card.classList.remove('in-line');
+                  card.classList.add('in-grid');
+                  
+                  // Move back to original grid cell
+                  cell.appendChild(card);
+                }
+              });
+              
+              // Remove the line container
+              document.body.removeChild(lineContainer);
+              document.body.removeAttribute('data-cards-setup');
+            }
+          }
+        }
+      });
+      
+      // Handle resize events properly
+      let resizeTimer;
+      window.addEventListener('resize', () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+          // Force recalculation if in the transition zone
+          const scrollPosition = window.scrollY;
+          const viewportHeight = window.innerHeight;
+          const totalHeight = container.clientHeight;
+          const scrollRatio = scrollPosition / (totalHeight - viewportHeight);
+          
+          if (scrollRatio >= cardsTransitionStart && document.body.hasAttribute('data-cards-setup')) {
+            // Reset the setup flag to force recalculation of positions
+            document.body.removeAttribute('data-cards-setup');
+            
+            // Trigger a small scroll to force update
+            window.scrollBy(0, 1);
+            setTimeout(() => window.scrollBy(0, -1), 10);
+          }
+        }, 150);
+      });
+      
+      // Add styles for card transition
+      const transitionStyles = document.createElement('style');
+      transitionStyles.textContent = `
+        .card.in-line {
+          transition: all 0.6s cubic-bezier(0.19, 1, 0.22, 1) !important;
+          pointer-events: auto !important;
+        }
+        #horizontal-line-container {
+          pointer-events: none;
+        }
+        #horizontal-line-container .card {
+          pointer-events: auto;
+        }
+      `;
+      document.head.appendChild(transitionStyles);
+      
+      // Trigger initial scroll events
+      setTimeout(() => {
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+        }, 50);
+      }, 200);
+    });
+  </script>
+</body>
+</html> 

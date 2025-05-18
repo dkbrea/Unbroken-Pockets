@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
-import { createClient } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase'
 
 export default function AuthCallback() {
   const router = useRouter()
@@ -16,12 +16,11 @@ export default function AuthCallback() {
           throw new Error('No code found in URL')
         }
         
-        // Create a Supabase client for browser
-        const supabase = createClient()
+        // const supabase = createClient() // REMOVED: Use imported supabase singleton
         
         // Exchange the code for a session if code is present
         if (code) {
-          const { error } = await supabase.auth.exchangeCodeForSession(code)
+          const { error } = await supabase.auth.exchangeCodeForSession(code) // MODIFIED
           
           if (error) {
             throw error
@@ -29,7 +28,7 @@ export default function AuthCallback() {
         }
         
         // Get the session to verify it's established
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession() // MODIFIED
         
         if (sessionError) {
           throw sessionError
@@ -51,7 +50,8 @@ export default function AuthCallback() {
         setError(err.message)
         // Redirect to the signin page after a brief delay to show the error
         setTimeout(() => {
-          router.push('/auth/signin')
+          // router.push('/auth/signin') // PAUSED
+          console.warn("AuthCallback: sign-in redirect on error paused by dev.")
         }, 2000)
       }
     }

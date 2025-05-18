@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: false, // Disabled strict mode to avoid potential issues
+  reactStrictMode: true,
+  swcMinify: true,
   
   // Completely disable ESLint during builds
   eslint: {
@@ -12,57 +13,21 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   
-  // Force using SWC compiler even if babel config exists
+  // Use the default output directory instead of custom one
+  // distDir is removed to use default
+
+  // Only include basic settings
   experimental: {
     forceSwcTransforms: true,
   },
-  
-  // Disable source maps in production for better performance
-  productionBrowserSourceMaps: false,
-  
-  // Redirects configuration
-  async redirects() {
-    // Base redirects
-    return [
-      {
-        source: '/cashflow',
-        destination: '/cash-flow',
-        permanent: true,
-      },
-    ];
-  },
-  
-  // Increase build output verbosity to help troubleshoot
-  onDemandEntries: {
-    // period (in ms) where the server will keep pages in the buffer
-    maxInactiveAge: 120 * 1000,
-    // number of pages that should be kept simultaneously without being disposed
-    pagesBufferLength: 5,
-  },
-  
-  // Development indicators position
-  devIndicators: {
-    position: 'bottom-right',
-  },
 
-  // Output directory
-  distDir: 'dist',
-
-  // Exclude accounts page from the build process
-  pageExtensions: ['tsx', 'ts', 'jsx', 'js'].filter(ext => {
-    // This function runs for each file extension
-    return true; // Include all extensions
-  }),
-
-  // Override webpack config to exclude accounts page
-  webpack: (config, { dev, isServer }) => {
-    if (!dev && !isServer) {
-      // Only apply this in production client-side build
-      // This creates an empty module for the accounts page
-      config.resolve.alias['@/app/accounts/page'] = require.resolve('./src/lib/empty-module.js');
-    }
-    return config;
+  transpilePackages: ['three', '@react-three/fiber', '@react-three/drei'],
+  webpack: (config) => {
+    config.externals = [...(config.externals || []), { canvas: 'canvas' }]
+    return config
   },
+  
+  // Removed the redirect to /unbroken-pockets-landing.html
 };
 
 module.exports = nextConfig; 

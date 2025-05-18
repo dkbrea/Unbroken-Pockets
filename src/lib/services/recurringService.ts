@@ -1,200 +1,74 @@
-import { createClient } from '@/lib/supabase/client';
-import { getUserData } from './userDataService';
+import { supabase } from '@/lib/supabase';
+import { getAuthenticatedUserId } from '@/lib/auth/authUtils';
 
-export interface RecurringTransaction {
-  id: number;
-  name: string;
-  amount: number;
-  category: string;
-  frequency: string;
-  next_date: string;
-  type: 'expense' | 'income' | 'debt';
-  description?: string;
-  user_id?: string;
-  created_at?: string;
-  updated_at?: string;
-}
-
+// Define the FixedExpense interface based on database schema
 export interface FixedExpense {
   id: number;
+  user_id: string | null;
   name: string;
   amount: number;
   category: string;
-  next_date: string;
   frequency: string;
-  recurring_transaction_id: number;
-  description?: string;
+  next_date: string;
+  notes: string | null;
+  payment_method: string | null;
+  recurring_transaction_id: number | null;
+  status: string | null;
+  type: string | null;
 }
+
+/**
+ * Fetches all fixed/recurring expenses for the authenticated user.
+ */
+export const getFixedExpenses = async (): Promise<FixedExpense[]> => {
+  const userId = await getAuthenticatedUserId();
+  if (!userId) {
+    console.error('User not authenticated');
+    throw new Error('User not authenticated');
+  }
+
+  const { data, error } = await supabase
+    .from('fixed_expenses') // Assuming your table is named 'fixed_expenses'
+    .select('*')
+    .eq('user_id', userId);
+
+  if (error) {
+    console.error('Error fetching fixed expenses:', error);
+    throw error;
+  }
+
+  return data || [];
+};
+
+// Add other CRUD operations for fixed expenses as needed:
+// export const createFixedExpense = async (expenseData: Omit<FixedExpense, 'id' | 'user_id' | 'created_at' | 'updated_at'>): Promise<FixedExpense | null> => { ... }
+// export const updateFixedExpense = async (id: string, updates: Partial<FixedExpense>): Promise<FixedExpense | null> => { ... }
+// export const deleteFixedExpense = async (id: string): Promise<void> => { ... }
 
 export interface IncomeSource {
-  id: number;
+  id: string;
   name: string;
   amount: number;
+  frequency: string;
   category: string;
   next_date: string;
-  frequency: string;
-  recurring_transaction_id: number;
-  description?: string;
+  recurring_transaction_id?: number; // Optional field for linking to recurring transactions
+  user_id: string; // Add user_id field as it's required for database operations
 }
 
-// Define the shape of joined data from Supabase
-interface FixedExpenseJoinRow {
-  id: number;
-  recurring_transaction_id: number;
-  r: {
-    name: string;
-    amount: number;
-    category: string;
-    next_date: string;
-    frequency: string;
-    description?: string;
-    type?: string;
-  } | null;
-}
-
-interface IncomeSourceJoinRow {
-  id: number;
-  recurring_transaction_id: number;
-  r: {
-    name: string;
-    amount: number;
-    category: string;
-    next_date: string;
-    frequency: string;
-    description?: string;
-    type?: string;
-  } | null;
-}
-
-const RECURRING_TABLE = 'recurring_transactions';
-const FIXED_EXPENSES_TABLE = 'fixed_expenses';
-const INCOME_TABLE = 'income_sources';
-
-/**
- * Get all recurring transactions for the current user
- * @param type Optional filter by type (expense, income, debt)
- * @returns Array of recurring transactions
- */
-export async function getRecurringTransactions(type?: 'expense' | 'income' | 'debt'): Promise<RecurringTransaction[]> {
-  try {
-    console.log(`Fetching recurring transactions ${type ? `of type: ${type}` : 'all types'}`);
-    
-    const filters: Record<string, any> = {};
-    if (type) {
-      filters.type = type;
-    }
-    
-    const data = await getUserData(RECURRING_TABLE, {
-      order: { column: 'next_date', ascending: true },
-      filters
-    });
-    
-    console.log(`Retrieved ${data.length} recurring transactions`);
-    return data as unknown as RecurringTransaction[];
-  } catch (error) {
-    console.error('Error fetching recurring transactions:', error);
-    return [];
-  }
-}
-
-/**
- * Get all fixed expenses with their recurring transaction data
- * @returns Array of fixed expenses
- */
-export async function getFixedExpenses(): Promise<FixedExpense[]> {
-    try {
-      const supabase = createClient();
-  
-      const { data, error } = await supabase
-        .from(FIXED_EXPENSES_TABLE)
-        .select(`
-          id,
-          recurring_transaction_id,
-          r:recurring_transactions (
-            name,
-            amount,
-            category,
-            next_date,
-            frequency,
-            description,
-            type
-          )
-        `);
-  
-      if (error) throw error;
-      if (!data || !Array.isArray(data)) return [];
-  
-      // 🧠 Filter manually in JS
-      const filtered = (data as unknown as FixedExpenseJoinRow[]).filter(item => item.r && item.r.type === 'expense');
-  
-      const formattedData: FixedExpense[] = filtered.map(item => ({
-        id: item.id,
-        recurring_transaction_id: item.recurring_transaction_id,
-        name: item.r?.name || 'Unknown',
-        amount: item.r?.amount || 0,
-        category: item.r?.category || 'Uncategorized',
-        next_date: item.r?.next_date || new Date().toISOString().split('T')[0],
-        frequency: item.r?.frequency || 'Monthly',
-        description: item.r?.description
-      }));
-  
-      console.log(`Retrieved ${formattedData.length} fixed expenses`);
-      return formattedData;
-    } catch (error) {
-      console.error('Error fetching fixed expenses:', error);
-      return [];
-    }
-  }
-  
-
-/**
- * Get all income sources with their recurring transaction data
- * @returns Array of income sources
- */
 export async function getIncomeSources(): Promise<IncomeSource[]> {
-    try {
-      console.log('Fetching income sources');
-      
-      const supabase = createClient();
-      
-      const { data, error } = await supabase
-        .from(INCOME_TABLE)
-        .select(`
-          id,
-          recurring_transaction_id,
-          r:recurring_transactions (
-            name,
-            amount,
-            category,
-            next_date,
-            frequency,
-            description,
-            type
-          )
-        `);
-  
-      if (error) throw error;
-      if (!data || !Array.isArray(data)) return [];
-  
-      // ✅ Manually filter on `type`
-      const filtered = (data as unknown as IncomeSourceJoinRow[]).filter(item => item.r && item.r.type === 'income');
-  
-      const formattedData: IncomeSource[] = filtered.map(item => ({
-        id: item.id,
-        recurring_transaction_id: item.recurring_transaction_id,
-        name: item.r?.name || 'Unknown',
-        amount: item.r?.amount || 0,
-        category: item.r?.category || 'Uncategorized',
-        next_date: item.r?.next_date || new Date().toISOString().split('T')[0],
-        frequency: item.r?.frequency || 'Monthly',
-        description: item.r?.description
-      }));
-  
-      console.log(`Retrieved ${formattedData.length} income sources`);
-      return formattedData;
-    } catch (error) {
-      console.error('Error fetching income sources:', error);
-      return [];
-    }
+  try {
+    const userId = await getAuthenticatedUserId();
+    const { data, error } = await supabase
+      .from('income_sources')
+      .select('*')
+      .eq('user_id', userId)
+      .order('name');
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error loading income sources:', error);
+    throw error;
   }
-  
+} 

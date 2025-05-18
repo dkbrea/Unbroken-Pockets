@@ -1,0 +1,482 @@
+      const transactionCard = document.createElement('div');
+      transactionCard.classList.add('card', 'in-grid');
+      transactionCard.innerHTML = `
+        <div class="card-title">Transaction History</div>
+        <div class="card-subtitle">View and categorize all your financial transactions in one place</div>
+        <div class="tags">
+          <span class="tag">Expense Tracking</span>
+        </div>
+      `;
+      
+      const recurringCard = document.createElement('div');
+      recurringCard.classList.add('card', 'in-grid');
+      recurringCard.innerHTML = `
+        <div class="card-title">Recurring Payments</div>
+        <div class="card-subtitle">Manage subscriptions and automate bill tracking with reminders</div>
+        <div class="tags">
+          <span class="tag">Bill Management</span>
+        </div>
+      `;
+      
+      // New card: Debt Tracker
+      const debtCard = document.createElement('div');
+      debtCard.classList.add('card', 'in-grid');
+      debtCard.innerHTML = `
+        <div class="card-title">Debt Tracker</div>
+        <div class="card-subtitle">Track and optimize debt payoff strategies to become debt-free faster</div>
+        <div class="tags">
+          <span class="tag">Debt Management</span>
+        </div>
+      `;
+      
+      // New card: Net Worth Calculator
+      const netWorthCard = document.createElement('div');
+      netWorthCard.classList.add('card', 'in-grid');
+      netWorthCard.innerHTML = `
+        <div class="card-title">Net Worth Calculator</div>
+        <div class="card-subtitle">Calculate and visualize your total net worth across all assets and liabilities</div>
+        <div class="tags">
+          <span class="tag">Wealth Tracking</span>
+        </div>
+      `;
+      
+      // Place cards in fixed positions as specified
+      // Note: Grid is zero-indexed, so we adjust the row/column values
+      // Formula for position in a 5x5 grid: position = row*5 + column
+      const cardPlacements = [
+        { card: budgetCard, position: 0 },       // Row 0, Column 0 (top-left)
+        { card: investmentCard, position: 3 },   // Row 0, Column 3
+        { card: goalCard, position: 9 },         // Row 1, Column 4
+        { card: transactionCard, position: 11 }, // Row 2, Column 1
+        { card: recurringCard, position: 19 },   // Row 3, Column 4
+        { card: debtCard, position: 22 },        // Row 4, Column 2
+        { card: netWorthCard, position: 6 }      // Row 1, Column 1
+      ];
+      
+      // Place each card in its designated position
+      cardPlacements.forEach(placement => {
+        const cell = grid.querySelector(`[data-index="${placement.position}"]`);
+        cell.appendChild(placement.card);
+      });
+      
+      // Initialize Three.js for the golden sphere
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+      
+      // Check if Three.js is available, and provide fallback if not
+      if (typeof THREE === 'undefined') {
+        console.error('Three.js library failed to load. Displaying fallback content.');
+        
+        // Create a fallback for the sphere container
+        const fallbackSphere = document.createElement('div');
+        fallbackSphere.style.width = '300px';
+        fallbackSphere.style.height = '300px';
+        fallbackSphere.style.borderRadius = '50%';
+        fallbackSphere.style.background = 'radial-gradient(circle at 30% 30%, #ecd394, #c9a667)';
+        fallbackSphere.style.boxShadow = '0 10px 30px rgba(0, 0, 0, 0.3), inset 0 0 30px rgba(255, 255, 255, 0.3)';
+        fallbackSphere.style.margin = '0 auto';
+        
+        // Replace the sphere container content
+        sphereContainer.innerHTML = '';
+        sphereContainer.appendChild(fallbackSphere);
+      } else {
+        const renderer = new THREE.WebGLRenderer({ 
+          antialias: true,
+          alpha: true 
+        });
+        renderer.setSize(450, 450);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        sphereContainer.appendChild(renderer.domElement);
+        
+        // Create a sphere with gold material
+        const geometry = new THREE.SphereGeometry(1, 64, 64);
+        
+        // Create gold material with enhanced reflection and depth
+        const material = new THREE.MeshPhysicalMaterial({
+          color: 0xc9a667,
+          metalness: 0.9,
+          roughness: 0.15,
+          reflectivity: 0.9,
+          clearcoat: 0.3, 
+          clearcoatRoughness: 0.2,
+          emissive: 0x7d694c,
+          emissiveIntensity: 0.2
+        });
+        
+        const sphere = new THREE.Mesh(geometry, material);
+        sphere.castShadow = true;
+        sphere.receiveShadow = true;
+        scene.add(sphere);
+        
+        // Add a subtle shadow blob beneath the sphere (fake shadow)
+        const shadowGeo = new THREE.CircleGeometry(1.2, 32);
+        const shadowMat = new THREE.MeshBasicMaterial({ 
+          color: 0x000000, 
+          transparent: true, 
+          opacity: 0.2,
+          depthWrite: false
+        });
+        const shadowMesh = new THREE.Mesh(shadowGeo, shadowMat);
+        shadowMesh.rotation.x = -Math.PI / 2;
+        shadowMesh.position.y = -1.05;
+        scene.add(shadowMesh);
+        
+        // Add directional light (top-left highlight)
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
+        directionalLight.position.set(-1, 2, 1.5);
+        directionalLight.castShadow = true;
+        scene.add(directionalLight);
+        
+        // Add ambient light
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        scene.add(ambientLight);
+        
+        // Add a soft point light from below for dramatic effect
+        const pointLight = new THREE.PointLight(0xf1c232, 0.7);
+        pointLight.position.set(0, -1.5, 0.5);
+        scene.add(pointLight);
+        
+        // Add rim light from behind
+        const rimLight = new THREE.DirectionalLight(0xffffff, 0.5);
+        rimLight.position.set(0, 0, -2);
+        scene.add(rimLight);
+        
+        // Position camera
+        camera.position.z = 2.5;
+        
+        // Animation loop with cleanup capability
+        let animationFrameId;
+        function animate() {
+          animationFrameId = requestAnimationFrame(animate);
+          sphere.rotation.y += 0.005;
+          renderer.render(scene, camera);
+        }
+        animate();
+        
+        // Cleanup function for animation loop when page is unloaded
+        window.addEventListener('beforeunload', () => {
+          if (animationFrameId) {
+            cancelAnimationFrame(animationFrameId);
+          }
+        });
+      }
+      
+      // Create GSAP animations with ScrollTrigger
+      // Define animation timing constants
+      const introStartPoint = 0.01;
+      const entranceAnimDuration = 0.2;
+      const gridAnimStart = 0.15;
+      const gridAnimDuration = 0.25;
+      const cardsTransitionStart = gridAnimStart + gridAnimDuration + 0.05;
+      const cardsTransitionDuration = 0.1;
+      
+      // Create a timeline for the entrance animation
+      const entranceTimeline = gsap.timeline({
+        scrollTrigger: {
+          trigger: container,
+          start: 'top top',
+          end: 'bottom bottom',
+          scrub: true,
+          markers: false // Set to true for debugging
+        }
+      });
+      
+      // Set initial states
+      gsap.set(maskLeft, { yPercent: 0 });
+      gsap.set(maskRight, { yPercent: 0 });
+      gsap.set(maskCenter, { opacity: 1 });
+      gsap.set(peephole, { width: 0, height: 0 });
+      gsap.set(fixedContent, { opacity: 0, y: 100 });
+      gsap.set(contentOverlay, { opacity: 0 });
+      gsap.set(portalContent, { opacity: 0 });
+      
+      // Add the panels animation to timeline
+      entranceTimeline
+        .to(maskLeft, { 
+          yPercent: -100, 
+          duration: entranceAnimDuration,
+          ease: 'power2.inOut' 
+        }, introStartPoint)
+        .to(maskRight, { 
+          yPercent: -100, 
+          duration: entranceAnimDuration,
+          ease: 'power2.inOut' 
+        }, introStartPoint)
+        .to(peephole, {
+          width: '60%',
+          height: '75%',
+          borderRadius: '40% / 60%',
+          duration: entranceAnimDuration * 0.7,
+          ease: 'power2.out'
+        }, introStartPoint)
+        .to(portalContent, {
+          opacity: 1,
+          duration: entranceAnimDuration * 0.1,
+          ease: 'power1.inOut'
+        }, introStartPoint + 0.05)
+        .to(maskCenter, {
+          scale: 3.5,
+          perspective: 500,
+          z: 200,
+          opacity: 0,
+          duration: entranceAnimDuration * 0.5,
+          ease: 'power2.inOut'
+        }, introStartPoint + entranceAnimDuration * 0.5)
+        .to(entranceOverlay, {
+          scale: 3.5,
+          perspective: 500,
+          z: 200,
+          opacity: 0,
+          duration: entranceAnimDuration * 0.5,
+          ease: 'power2.inOut'
+        }, introStartPoint + entranceAnimDuration * 0.5)
+        .to(contentOverlay, {
+          opacity: 1,
+          duration: entranceAnimDuration * 0.5,
+          ease: 'power1.inOut'
+        }, introStartPoint + entranceAnimDuration * 0.5)
+        .to(fixedContent, {
+          opacity: 1,
+          y: 0,
+          duration: entranceAnimDuration * 0.5,
+          ease: 'power2.out'
+        }, introStartPoint + entranceAnimDuration * 0.5);
+      
+      // Create a timeline for the grid and sphere animations
+      const gridTimeline = gsap.timeline({
+        scrollTrigger: {
+          trigger: container,
+          start: 'top top',
+          end: 'bottom bottom',
+          scrub: true,
+          markers: false // Set to true for debugging
+        }
+      });
+      
+      // Add the grid animation to timeline
+      gridTimeline
+        .to(grid, {
+          rotateX: 0,
+          y: 140,
+          duration: gridAnimDuration,
+          ease: 'power2.inOut'
+        }, gridAnimStart)
+        .to(sphereContainer, {
+          y: -300,
+          scale: 0.7,
+          opacity: 0,
+          duration: gridAnimDuration,
+          ease: 'power2.inOut'
+        }, gridAnimStart)
+        .to(heading, {
+          y: -250,
+          opacity: 0,
+          scale: 0.9,
+          duration: gridAnimDuration,
+          ease: 'power2.inOut'
+        }, gridAnimStart);
+      
+      // Add GSAP-powered mouse parallax for decorative spheres
+      const contentSpheres = document.querySelectorAll('.sphere-decoration');
+      const landscapeSpheres = document.querySelectorAll('.landscape-sphere');
+      const parallaxContainer = document.querySelector('.mask-container');
+      const parallaxStrength = 20; // Adjust this to control the effect intensity
+      
+      // Mouse movement handler for parallax
+      document.addEventListener('mousemove', (e) => {
+        const mouseX = e.clientX / window.innerWidth - 0.5;
+        const mouseY = e.clientY / window.innerHeight - 0.5;
+        
+        // Move spheres with different depths for 3D effect
+        gsap.to(contentSpheres, {
+          x: (i) => -mouseX * parallaxStrength * (1 + i * 0.3),
+          y: (i) => -mouseY * parallaxStrength * (1 + i * 0.3),
+          duration: 0.8,
+          ease: 'power1.out'
+        });
+        
+        // Animate landscape spheres with parallax
+        gsap.to(landscapeSpheres, {
+          x: (i) => -mouseX * parallaxStrength * (1 + i * 0.5),
+          y: (i) => -mouseY * parallaxStrength * (1 + i * 0.5),
+          rotateY: mouseX * 20,
+          duration: 0.5,
+          ease: 'power1.out'
+        });
+        
+        // Move background image container in opposite direction (subtle effect)
+        gsap.to(parallaxContainer, {
+          x: -mouseX * parallaxStrength,
+          y: -mouseY * parallaxStrength,
+          duration: 0.8,
+          ease: 'power1.out'
+        });
+      });
+      
+      // Create a timeline for the cards transition
+      let cardTimeline;
+      let lineContainer;
+      
+      // ScrollTrigger for the cards transition
+      ScrollTrigger.create({
+        trigger: container,
+        start: 'top top',
+        end: 'bottom bottom',
+        scrub: true,
+        onUpdate: (self) => {
+          const scrollRatio = self.progress;
+          
+          // Handle cards transition if we're in the right scroll range
+          if (scrollRatio >= cardsTransitionStart && scrollRatio <= cardsTransitionStart + cardsTransitionDuration) {
+            // Calculate progress within this section
+            const cardsProgress = (scrollRatio - cardsTransitionStart) / cardsTransitionDuration;
+            
+            // Only set up the horizontal line cards transition once
+            if (!lineContainer && cardsProgress > 0) {
+              lineContainer = document.createElement('div');
+              lineContainer.id = 'horizontal-line-container';
+              document.body.appendChild(lineContainer);
+              
+              // Pre-calculate card positions for horizontal layout
+              const cardWidth = 162;
+              const cardMargin = 25;
+              const targetY = window.innerHeight / 2;
+              
+              // Get all the cards and their starting positions
+              const cards = cardPlacements.map(placement => {
+                const card = placement.card;
+                const rect = card.getBoundingClientRect();
+                return {
+                  card,
+                  initialX: rect.left + rect.width / 2,
+                  initialY: rect.top + rect.height / 2
+                };
+              });
+              
+              // Create the card timeline
+              cardTimeline = gsap.timeline({ paused: true });
+              
+              // Add animations for each card to move to horizontal position
+              cards.forEach((cardInfo, index) => {
+                const finalX = (window.innerWidth - (cards.length * (cardWidth + cardMargin) - cardMargin)) / 2 + 
+                              index * (cardWidth + cardMargin) + cardWidth / 2;
+                
+                // Add card to the line container
+                lineContainer.appendChild(cardInfo.card);
+                cardInfo.card.classList.remove('in-grid');
+                cardInfo.card.classList.add('in-line');
+                
+                // Create the motion animation
+                cardTimeline.fromTo(cardInfo.card, 
+                  { 
+                    position: 'fixed',
+                    left: cardInfo.initialX,
+                    top: cardInfo.initialY,
+                    transform: 'translate(-50%, -50%)',
+                    zIndex: 200
+                  },
+                  {
+                    left: finalX,
+                    top: targetY,
+                    duration: 1,
+                    ease: 'power2.inOut'
+                  }, 
+                0);
+              });
+            }
+            
+            // Update the animation progress
+            if (cardTimeline) {
+              cardTimeline.progress(cardsProgress);
+            }
+          } else if (scrollRatio < cardsTransitionStart && lineContainer) {
+            // Clean up if scrolling back above the transition point
+            document.body.removeChild(lineContainer);
+            lineContainer = null;
+            
+            // Return cards to grid cells
+            cardPlacements.forEach(placement => {
+              const card = placement.card;
+              const cell = grid.querySelector(`[data-index="${placement.position}"]`);
+              
+              if (card.classList.contains('in-line')) {
+                // Reset styles
+                card.style.position = '';
+                card.style.top = '';
+                card.style.left = '';
+                card.style.transform = 'translate(-50%, -50%)';
+                card.style.zIndex = '';
+                
+                // Reset classes
+                card.classList.remove('in-line');
+                card.classList.add('in-grid');
+                
+                // Move back to grid cell
+                cell.appendChild(card);
+              }
+            });
+          }
+        }
+      });
+      
+      // Continuous animation for content spheres
+      const animateContentSpheres = () => {
+        contentSpheres.forEach((sphere, index) => {
+          // Create unique floating animation for each sphere
+          gsap.to(sphere, {
+            x: Math.sin(Date.now() * 0.001 + index * 0.5) * 15,
+            y: Math.cos(Date.now() * 0.001 + index * 0.3) * 15,
+            z: Math.sin(Date.now() * 0.0005 + index * 0.2) * 10,
+            rotateY: Math.sin(Date.now() * 0.0003) * 30,
+            duration: 2,
+            ease: 'power1.inOut',
+            repeat: -1,
+            yoyo: true
+          });
+        });
+      };
+      
+      // Start continuous animations
+      animateContentSpheres();
+      
+      // Handle resize events
+      window.addEventListener('resize', () => {
+        // Force recalculation of card positions if needed
+        if (lineContainer) {
+          document.body.removeChild(lineContainer);
+          lineContainer = null;
+          cardTimeline = null;
+          
+          // Reset cards and force small scroll to trigger update
+          cardPlacements.forEach(placement => {
+            const card = placement.card;
+            const cell = grid.querySelector(`[data-index="${placement.position}"]`);
+            
+            // Reset card
+            card.style.position = '';
+            card.style.top = '';
+            card.style.left = '';
+            card.style.transform = 'translate(-50%, -50%)';
+            card.style.zIndex = '';
+            card.classList.remove('in-line');
+            card.classList.add('in-grid');
+            
+            // Move back to grid cell
+            cell.appendChild(card);
+          });
+          
+          // Trigger scroll update
+          window.scrollBy(0, 1);
+          setTimeout(() => window.scrollBy(0, -1), 10);
+        }
+      });
+      
+      // Initial scroll reset
+      setTimeout(() => {
+        window.scrollTo(0, 0);
+      }, 200);
+    });
+  </script>
+</body>
+</html>

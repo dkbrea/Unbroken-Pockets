@@ -3,16 +3,16 @@
 import { useState, useEffect } from 'react'
 import { XCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { AccountType } from '@/lib/services/accountService'
+import type { AccountType } from '@/lib/types/states'
 
 interface Account {
-  id: string | number;
+  id: string;
   name: string;
   institution: string;
   balance: number;
   type: AccountType;
   account_type?: string; // For backward compatibility
-  last_updated: string;
+  updated_at: string;
   change?: {
     amount: number;
     percentage: number;
@@ -22,7 +22,7 @@ interface Account {
 type EditAccountModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (id: number, accountData: { name: string; institution: string; type: AccountType; balance: number }) => void;
+  onSubmit: (id: string, accountData: { name: string; institution: string; type: AccountType; balance: number }) => void;
   account: Account | null;
   isSubmitting?: boolean;
 }
@@ -42,7 +42,7 @@ export default function EditAccountModal({
     institution: account?.institution || '',
     balance: account?.balance?.toString() || '',
     account_type: account?.account_type || account?.type || 'checking',
-    last_updated: account?.last_updated || new Date().toISOString().split('T')[0]
+    updated_at: account?.updated_at || new Date().toISOString().split('T')[0]
   });
   
   // Update form data when account changes
@@ -53,7 +53,7 @@ export default function EditAccountModal({
         institution: account.institution || '',
         balance: account.balance?.toString() || '',
         account_type: account.account_type || account.type || 'checking',
-        last_updated: account.last_updated || new Date().toISOString().split('T')[0]
+        updated_at: account.updated_at || new Date().toISOString().split('T')[0]
       });
     }
   }, [account]);
@@ -94,10 +94,9 @@ export default function EditAccountModal({
           balance: parseFloat(formData.balance),
           account_type: formData.account_type,
           type: formData.account_type as AccountType, // Add type field to match both schemas
-          last_updated: formData.last_updated,
+          updated_at: formData.updated_at,
           change_amount: changeAmount,
           change_percentage: changePercentage,
-          updated_at: new Date().toISOString()
         })
         .eq('id', account.id);
       
@@ -109,7 +108,7 @@ export default function EditAccountModal({
       console.log('Account updated successfully');
       
       // Call the callback function
-      onSubmit(account.id as number, {
+      onSubmit(account.id, {
         name: formData.name,
         institution: formData.institution,
         type: formData.account_type as AccountType,
@@ -221,15 +220,15 @@ export default function EditAccountModal({
           
           {/* Last Updated Date */}
           <div>
-            <label htmlFor="last_updated" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="updated_at" className="block text-sm font-medium text-gray-700 mb-1">
               Last Updated
             </label>
             <input
-              id="last_updated"
-              name="last_updated"
+              id="updated_at"
+              name="updated_at"
               type="date"
               required
-              value={formData.last_updated}
+              value={formData.updated_at}
               onChange={handleChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#1F3A93] focus:border-[#1F3A93]"
             />

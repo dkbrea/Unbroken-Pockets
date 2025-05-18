@@ -1,0 +1,1625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unbroken Pockets - Master Your Money System</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Reset and base styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            background-color: #f0f6ff;
+            color: #333;
+            overflow-x: hidden;
+        }
+
+        /* Main container */
+        .container {
+            width: 100%;
+            position: relative;
+        }
+
+        /* Navigation */
+        .nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            position: fixed;
+            top: 0;
+            left: 0;
+            padding: 2rem;
+            z-index: 100;
+            opacity: 0;
+            mix-blend-mode: difference;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            position: relative;
+            color: #4A6FA1;
+        }
+
+        .logo::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 0;
+            width: 0;
+            height: 1px;
+            background-color: #4A6FA1;
+            transition: width 0.3s ease;
+        }
+
+        .logo:hover::after {
+            width: 100%;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+        }
+
+        .nav-link {
+            position: relative;
+            cursor: pointer;
+            opacity: 0;
+            transform: translateY(10px);
+            color: #333;
+        }
+
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 0;
+            width: 0;
+            height: 1px;
+            background-color: #4A6FA1;
+            transition: width 0.3s ease;
+        }
+
+        .nav-link:hover::after {
+            width: 100%;
+        }
+
+        /* Section styles */
+        section {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Hero section */
+        .hero {
+            text-align: center;
+            position: relative;
+            z-index: 5;
+            background-color: #f0f6ff;
+        }
+
+        .main-title {
+            font-size: 5vw;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            line-height: 1.2;
+            overflow: hidden;
+            opacity: 0;
+            transform: translateY(20px);
+            background: linear-gradient(to right, #4A6FA1, #7EB4E2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            font-weight: 400;
+            margin-bottom: 2rem;
+            max-width: 600px;
+            opacity: 0;
+            transform: translateY(20px);
+            color: #555;
+        }
+
+        .cta-button {
+            padding: 1rem 2rem;
+            background: linear-gradient(135deg, #4A6FA1 0%, #7EB4E2 100%);
+            color: #fff;
+            border: none;
+            border-radius: 30px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            opacity: 0;
+            transform: translateY(20px);
+            box-shadow: 0 4px 15px rgba(74, 111, 161, 0.2);
+        }
+
+        .cta-button:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(74, 111, 161, 0.4);
+        }
+
+        /* Feature sections */
+        .feature-section {
+            text-align: center;
+            opacity: 0;
+            background-color: #fff;
+        }
+
+        .feature-section:nth-child(odd) {
+            background-color: #f8f8f8;
+        }
+
+        .section-title {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            transform: translateY(30px);
+            opacity: 0;
+            color: #4A6FA1;
+        }
+
+        .section-text {
+            font-size: 1.2rem;
+            max-width: 700px;
+            margin: 0 auto 2rem;
+            line-height: 1.6;
+            transform: translateY(30px);
+            opacity: 0;
+            color: #555;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            width: 100%;
+            max-width: 1200px;
+            margin-top: 2rem;
+        }
+
+        .feature-item {
+            background: #fff;
+            border-radius: 15px;
+            padding: 2rem;
+            text-align: left;
+            transform: translateY(40px);
+            opacity: 0;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+        }
+
+        .feature-item:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .feature-icon {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            color: #4A6FA1;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .feature-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #333;
+        }
+
+        .feature-description {
+            font-size: 1rem;
+            opacity: 0.8;
+            line-height: 1.6;
+            color: #555;
+        }
+
+        /* Gallery section with finance app preview */
+        .gallery-section {
+            background-color: #f8fcff;
+            opacity: 0;
+        }
+
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        .gallery-item {
+            height: 300px;
+            background-color: #fff;
+            border-radius: 15px;
+            overflow: hidden;
+            position: relative;
+            transform: scale(0.8);
+            opacity: 0;
+            cursor: pointer;
+            transition: transform 0.5s ease, box-shadow 0.3s ease;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+        }
+
+        .gallery-item:hover {
+            transform: scale(1.05) !important;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .gallery-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.5s ease;
+        }
+
+        .gallery-item:hover img {
+            transform: scale(1.1);
+        }
+
+        .gallery-title {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            padding: 1rem;
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);
+            color: #fff;
+            font-weight: 500;
+        }
+
+        /* CTA section */
+        .cta-section {
+            background: linear-gradient(135deg, #4A6FA1 0%, #7EB4E2 100%);
+            text-align: center;
+            opacity: 0;
+            color: #fff;
+        }
+
+        .cta-section .section-title,
+        .cta-section .section-text {
+            color: #fff;
+        }
+
+        .cta-section .cta-button {
+            background: #fff;
+            color: #4A6FA1;
+        }
+
+        /* Side navigation for finance pages */
+        .side-nav {
+            position: fixed;
+            top: 50%;
+            right: 2rem;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            z-index: 100;
+            opacity: 0;
+        }
+
+        .nav-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: rgba(74, 111, 161, 0.3);
+            cursor: pointer;
+            transition: transform 0.3s ease, background-color 0.3s ease;
+        }
+
+        .nav-dot.active {
+            background-color: #4A6FA1;
+            transform: scale(1.5);
+        }
+
+        /* Finance page preview */
+        .finance-preview {
+            width: 100%;
+            max-width: 900px;
+            margin: 2rem auto;
+            background: #fff;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
+            opacity: 0;
+            transform: translateY(30px);
+        }
+
+        .preview-header {
+            background: linear-gradient(135deg, #4A6FA1 0%, #7EB4E2 100%);
+            padding: 1.5rem;
+            color: #fff;
+        }
+
+        .preview-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .preview-subtitle {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .preview-content {
+            padding: 1.5rem;
+        }
+
+        .finance-menu {
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .finance-menu-item {
+            display: flex;
+            align-items: center;
+            padding: 0.8rem;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            color: #555;
+        }
+
+        .finance-menu-item:hover {
+            background-color: rgba(74, 111, 161, 0.05);
+        }
+
+        .finance-menu-item.active {
+            background-color: rgba(74, 111, 161, 0.1);
+            color: #4A6FA1;
+            font-weight: 500;
+        }
+
+        .menu-icon {
+            width: 24px;
+            height: 24px;
+            margin-right: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: inherit;
+        }
+
+        /* Finance stats preview in gallery */
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .stat-card {
+            background-color: #f8f8f8;
+            border-radius: 10px;
+            padding: 1.2rem;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #4A6FA1;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        /* Footer */
+        .footer {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            font-size: 0.8rem;
+            padding: 3rem 2rem;
+            background-color: #333;
+            opacity: 0;
+            color: #fff;
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        .footer-link {
+            position: relative;
+            cursor: pointer;
+            color: #ddd;
+        }
+
+        .footer-link::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 0;
+            width: 0;
+            height: 1px;
+            background-color: #fff;
+            transition: width 0.3s ease;
+        }
+
+        .footer-link:hover::after {
+            width: 100%;
+        }
+
+        /* Scroll indicator */
+        .scroll-indicator {
+            position: absolute;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            cursor: pointer;
+            z-index: 10;
+            color: #4A6FA1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .mouse {
+            width: 26px;
+            height: 40px;
+            border: 2px solid #4A6FA1;
+            border-radius: 20px;
+            position: relative;
+        }
+
+        .wheel {
+            width: 4px;
+            height: 8px;
+            background-color: #4A6FA1;
+            border-radius: 2px;
+            position: absolute;
+            top: 6px;
+            left: 50%;
+            transform: translateX(-50%);
+            animation: wheel 1.5s infinite;
+        }
+
+        @keyframes wheel {
+            0% {
+                transform: translateX(-50%) translateY(0);
+                opacity: 1;
+            }
+            100% {
+                transform: translateX(-50%) translateY(15px);
+                opacity: 0;
+            }
+        }
+
+        .scroll-arrows {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+        }
+
+        .scroll-arrows span {
+            display: block;
+            width: 10px;
+            height: 10px;
+            border-right: 2px solid #4A6FA1;
+            border-bottom: 2px solid #4A6FA1;
+            transform: rotate(45deg);
+            animation: arrows 1.5s infinite;
+            opacity: 0;
+        }
+
+        .scroll-arrows span:nth-child(1) {
+            animation-delay: 0s;
+        }
+
+        .scroll-arrows span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .scroll-arrows span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes arrows {
+            0% {
+                opacity: 0;
+            }
+            50% {
+                opacity: 1;
+            }
+            100% {
+                opacity: 0;
+            }
+        }
+        
+        /* Zoom effect */
+        .zoom-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .zoom-element {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            transition: transform 0.5s ease;
+            will-change: transform;
+            min-height: 100vh;
+        }
+
+        /* Image zoom effect */
+        .image-zoom {
+            overflow: hidden;
+            border-radius: 20px;
+            margin: 2rem 0;
+            width: 100%;
+            max-width: 800px;
+            aspect-ratio: 16/9;
+            position: relative;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+        }
+
+        .image-zoom img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.5s ease;
+            will-change: transform;
+        }
+
+        /* Progress bar */
+        .progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: linear-gradient(to right, #4A6FA1, #7EB4E2);
+            width: 0;
+            z-index: 999;
+        }
+
+        /* Cursor */
+        .custom-cursor {
+            position: fixed;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background-color: rgba(74, 111, 161, 0.5);
+            pointer-events: none;
+            z-index: 9999;
+            mix-blend-mode: difference;
+            transform: translate(-50%, -50%);
+            opacity: 0;
+        }
+
+        .cursor-follower {
+            position: fixed;
+            width: 40px;
+            height: 40px;
+            border: 1px solid rgba(74, 111, 161, 0.3);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9998;
+            mix-blend-mode: difference;
+            transform: translate(-50%, -50%);
+            opacity: 0;
+        }
+
+        /* Background shapes for financial theme */
+        .background-shapes {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .shape {
+            position: absolute;
+            border-radius: 50%;
+            background: radial-gradient(circle at center, rgba(126, 180, 226, 0.1), transparent);
+            filter: blur(60px);
+        }
+
+        .shape-1 {
+            width: 40vw;
+            height: 40vw;
+            top: 10%;
+            left: -10%;
+            opacity: 0;
+        }
+
+        .shape-2 {
+            width: 60vw;
+            height: 60vw;
+            bottom: -30%;
+            right: -20%;
+            opacity: 0;
+        }
+
+        .shape-3 {
+            width: 20vw;
+            height: 20vw;
+            top: 40%;
+            right: 10%;
+            opacity: 0;
+        }
+
+        /* Finance-specific decorations */
+        .financial-symbols {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .financial-symbol {
+            position: absolute;
+            opacity: 0.03;
+            color: #4A6FA1;
+            font-weight: bold;
+            font-size: 5rem;
+        }
+
+        .symbol-dollar {
+            top: 15%;
+            left: 10%;
+        }
+
+        .symbol-euro {
+            bottom: 20%;
+            right: 15%;
+        }
+
+        .symbol-pound {
+            top: 60%;
+            left: 80%;
+        }
+
+        .symbol-chart {
+            bottom: 10%;
+            left: 25%;
+            font-size: 7rem;
+            transform: rotate(-15deg);
+        }
+
+        /* Responsive styles */
+        @media (max-width: 768px) {
+            .main-title {
+                font-size: 2.5rem;
+            }
+
+            .section-title {
+                font-size: 2rem;
+            }
+
+            .subtitle, .section-text {
+                font-size: 1rem;
+            }
+
+            .nav-links {
+                display: none;
+            }
+
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .gallery-grid {
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            }
+
+            .footer {
+                flex-direction: column;
+                gap: 1rem;
+                align-items: center;
+            }
+
+            .footer-links {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+
+            .side-nav {
+                display: none;
+            }
+        }
+
+        /* Dynamic gradient background */
+        .dynamic-gradient {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            background: radial-gradient(at 50% 50%, rgba(74, 111, 161, 0.3), rgba(126, 180, 226, 0.1));
+            filter: blur(80px);
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        /* Reveal on scroll animation */
+        .reveal-on-scroll {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.8s ease;
+        }
+
+        .reveal-on-scroll.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Text scramble effect */
+        .dud {
+            color: #4A6FA1;
+            opacity: 0.7;
+        }
+
+        /* Magnetic buttons */
+        .magnetic-button {
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        /* Word rotator */
+        .word-rotator {
+            display: inline-block;
+            color: #4A6FA1;
+            font-weight: 600;
+            transition: opacity 0.5s ease;
+        }
+
+        /* 3D hover effect for cards */
+        .feature-item, .gallery-item {
+            transform-style: preserve-3d;
+            transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            will-change: transform;
+        }
+
+        /* Noise texture overlay */
+        .noise-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAAAXNSR0IArs4c6QAAA9lJREFUaEPtmttx2zAMhmEn7QM7RofsXmWeOvGkizJDOkaHdJCOkd8PiRIJEaREvZI498BJYlEgPgIERVmO3KfrxykiHjOzbyLymdkdRHxn5mtEvDHzJSIuSqlzPtT8G8bGJhT8HhF/icgvIvrenLQA0Z5/EdGfWuvT8HljA0rANyL6JSJfphZFxDMzH7XWl6n7mnuG4LPWvxORL1rrQ57HEHwAfCOiXwN1U7f+FpGj1vp+6sbWfTF4RLwQ0TcR+VACHmKk5aV5JSLyUTLt5nkE5xLgw2CWoFIKeYCQ63V9PkG1lIBfgkop5QExPiKexptR2Ycl4HNQMUHwlCLyJCLvSqlLmtrwwIPgxSUUtDZ2sLlAQvBE9ElE3rTWf7IB3ASiBI+I9T5JRCWwm0FKDZeZq36yC8ScIfhkY6UkcVdEDPw68CGQHvhpnY3Bbw4yAD9WFbvbSHMGdJXNICPwy9qBiJjB3mopVQHfDWFmY8ajUrps3S97QKbgx0L4OYqr9qY9IB3wzc7tDM5Edw8Qaj0I13L97FtNZQzEw09DWEScnUSbQTrhu0F6KncTSBRPWut9DsnMVfbjnCGGrJr+UhBPzOxbBQhG6xxdIM7AWxCvInLSWh+XAE0gjnhiZuPpIJxFxAlgFoijtaaB+yoiJ6XUMfaXMZD8iHZuZBRgfx2KwBFqHQwYAsm3GCIaHKFsH1/+SQzEeeYwHFsOlnFvvbp9LAAKCzEEsk2TmTzCXP+YbY9Dk2wQYAhkrYE789jsQFP76JjPVd6RAkxrg+yBWHJZS/2kRH8Jn5pYXkS8EpGrIBnFSg9d+WVFAKu3rO3HrLXhMGPOYUWApVX88L5qCjnrcPCzltoNpJBPPbTfO9WDyoTpMgQYBJllCgEG94Dg/p5PrMJ08UDCAW0U+BIQRBx8RHKFCYP7cB8HCXHVG2wqCDdLGOFHecN1iY9sJA6Sxm7NfDyQQEbX+Mgxl+YIyKwVBgCuQc55tD4SXQlI8RQcADFx5eRdJK5UYZw5iMhJKVUFGWRRBjJbXFVOuGfTayDZK6Z9ztIuq/ZXa9W7xLvElYg8K6Xu5gC0ILv3vFLPnWMFl5jAErQU62vOgadnrgUxkHCrX/Jk/W6OuFr0MUAiB03OdbD0dFr0kbS7pJ+Iw+Ygy58VtzhrEMQ5FRucIkbXVoGhQafGXA1iRxHOcYQdF1jVHhYDmK2XvU9b9Uh6mF8J81vN1nnfBNJMxQ+vEfHoRnJNV9KxPCKyZ+ZL2oL4/89bYDZR/Ae5kAGf6AKmLQAAAABJRU5ErkJggg==');
+            opacity: 0.02;
+            pointer-events: none;
+            z-index: 9997;
+        }
+
+        /* Particle canvas */
+        #particles-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* Authentication buttons */
+        .auth-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-left: 2rem;
+        }
+
+        .sign-in-button, .sign-up-button {
+            padding: 0.6rem 1.2rem;
+            border-radius: 30px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .sign-in-button {
+            background-color: transparent;
+            color: #4A6FA1;
+            border: 1px solid #4A6FA1;
+        }
+
+        .sign-in-button:hover {
+            background-color: rgba(74, 111, 161, 0.1);
+        }
+
+        .sign-up-button {
+            background: linear-gradient(135deg, #4A6FA1 0%, #7EB4E2 100%);
+            color: #fff;
+            box-shadow: 0 4px 10px rgba(74, 111, 161, 0.2);
+        }
+
+        .sign-up-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(74, 111, 161, 0.3);
+        }
+
+        /* Update mobile responsive styles for navigation */
+        @media (max-width: 768px) {
+            .nav {
+                padding: 1.5rem;
+            }
+            
+            .nav-links {
+                position: fixed;
+                top: 0;
+                right: -100%;
+                height: 100vh;
+                width: 70%;
+                max-width: 300px;
+                background-color: #fff;
+                flex-direction: column;
+                padding: 5rem 2rem;
+                box-shadow: -5px 0 30px rgba(0, 0, 0, 0.1);
+                transition: right 0.3s ease;
+                z-index: 200;
+            }
+            
+            .nav-links.active {
+                right: 0;
+            }
+            
+            .auth-buttons {
+                margin-left: 0;
+                margin-top: 2rem;
+                width: 100%;
+            }
+            
+            .sign-in-button, .sign-up-button {
+                flex: 1;
+            }
+            
+            .mobile-menu-button {
+                display: block;
+                z-index: 201;
+                background: none;
+                border: none;
+                cursor: pointer;
+            }
+            
+            .mobile-menu-button span {
+                display: block;
+                width: 25px;
+                height: 3px;
+                background-color: #4A6FA1;
+                margin: 5px 0;
+                transition: all 0.3s ease;
+            }
+            
+            .mobile-menu-button.active span:nth-child(1) {
+                transform: rotate(-45deg) translate(-5px, 6px);
+            }
+            
+            .mobile-menu-button.active span:nth-child(2) {
+                opacity: 0;
+            }
+            
+            .mobile-menu-button.active span:nth-child(3) {
+                transform: rotate(45deg) translate(-5px, -6px);
+            }
+        }
+
+        /* Mobile menu button */
+        .mobile-menu-button {
+            display: none;
+            z-index: 201;
+            background: none;
+            border: none;
+            cursor: pointer;
+        }
+        
+        /* Style for body when mobile menu is open */
+        body.menu-open {
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+    <!-- Progress bar -->
+    <div class="progress-bar"></div>
+
+    <!-- Custom cursor elements -->
+    <div class="custom-cursor"></div>
+    <div class="cursor-follower"></div>
+
+    <!-- Dynamic gradient background -->
+    <div class="dynamic-gradient"></div>
+
+    <!-- Particle canvas -->
+    <canvas id="particles-canvas"></canvas>
+
+    <!-- Noise texture overlay -->
+    <div class="noise-overlay"></div>
+
+    <!-- Side navigation dots -->
+    <div class="side-nav">
+        <div class="nav-dot active" data-section="hero"></div>
+        <div class="nav-dot" data-section="features"></div>
+        <div class="nav-dot" data-section="gallery"></div>
+        <div class="nav-dot" data-section="cta"></div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="nav">
+        <div class="logo">Unbroken Pockets</div>
+        <button class="mobile-menu-button">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+        <div class="nav-links">
+            <div class="nav-link">Features</div>
+            <div class="nav-link">Screenshots</div>
+            <div class="nav-link">Pricing</div>
+            <div class="nav-link">Support</div>
+            <div class="auth-buttons">
+                <a href="/auth/signin" class="sign-in-button">Sign In</a>
+                <a href="/auth/signup" class="sign-up-button">Sign Up</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main container -->
+    <div class="container">
+        <!-- Hero section -->
+        <section class="hero" id="hero">
+            <div class="zoom-container">
+                <div class="zoom-element">
+                    <h1 class="main-title">Master Your Money System</h1>
+                    <p class="subtitle">Take control of your financial future with our all-in-one personal finance solution. Experience peace of mind knowing your finances are <span class="word-rotator" data-words='["unbroken", "organized", "optimized", "simplified"]'>unbroken</span>.</p>
+                    
+                    <div class="image-zoom reveal-on-scroll">
+                        <img src="dashboard-preview.svg" alt="Unbroken Pockets Dashboard Preview">
+                    </div>
+                    
+                    <a href="/auth/signin" class="cta-button magnetic-button">Start Your Financial Journey</a>
+                </div>
+            </div>
+            
+            <div class="scroll-indicator">
+                <div class="mouse">
+                    <div class="wheel"></div>
+                </div>
+                <div class="scroll-arrows">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            </div>
+            
+            <div class="financial-symbols">
+                <div class="financial-symbol symbol-dollar">$</div>
+                <div class="financial-symbol symbol-euro">€</div>
+                <div class="financial-symbol symbol-pound">£</div>
+                <div class="financial-symbol symbol-chart">📈</div>
+            </div>
+        </section>
+
+        <!-- Features section -->
+        <section class="feature-section" id="features">
+            <div class="zoom-container">
+                <div class="zoom-element">
+                    <h2 class="section-title reveal-on-scroll">Comprehensive Financial Tools</h2>
+                    <p class="section-text reveal-on-scroll">Everything you need to manage, track, and grow your wealth in one seamless platform.</p>
+                    
+                    <div class="feature-grid">
+                        <div class="feature-item reveal-on-scroll">
+                            <div class="feature-icon">
+                                <img src="dashboard-icon.svg" alt="Dashboard Icon" width="60" height="60">
+                            </div>
+                            <h3 class="feature-title">Intuitive Dashboard</h3>
+                            <p class="feature-description">Get a holistic view of your finances at a glance with our beautifully designed dashboard that highlights key metrics and insights.</p>
+                        </div>
+                        
+                        <div class="feature-item reveal-on-scroll">
+                            <div class="feature-icon">
+                                <img src="reports-icon.svg" alt="Reports Icon" width="60" height="60">
+                            </div>
+                            <h3 class="feature-title">Detailed Reports</h3>
+                            <p class="feature-description">Generate insightful financial reports that help you understand your spending patterns and make informed decisions.</p>
+                        </div>
+                        
+                        <div class="feature-item reveal-on-scroll">
+                            <div class="feature-icon">
+                                <img src="budget-icon.svg" alt="Budget Icon" width="60" height="60">
+                            </div>
+                            <h3 class="feature-title">Smart Budgeting</h3>
+                            <p class="feature-description">Create personalized budgets that adapt to your lifestyle and help you reach your financial goals without feeling restricted.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- App Preview Gallery section -->
+        <section class="gallery-section" id="gallery">
+            <div class="zoom-container">
+                <div class="zoom-element">
+                    <h2 class="section-title reveal-on-scroll">Experience Financial Peace</h2>
+                    <p class="section-text reveal-on-scroll">See how Unbroken Pockets transforms your financial life with these powerful features.</p>
+                    
+                    <div class="finance-preview reveal-on-scroll">
+                        <div class="preview-header">
+                            <div class="preview-title">Unbroken Pockets</div>
+                            <div class="preview-subtitle">Your All-in-One Financial Command Center</div>
+                        </div>
+                        <div class="preview-content">
+                            <div class="finance-menu">
+                                <div class="finance-menu-item active">
+                                    <div class="menu-icon">
+                                        <img src="dashboard-icon.svg" alt="Dashboard Icon" width="24" height="24">
+                                    </div>
+                                    Dashboard
+                                </div>
+                                <div class="finance-menu-item">
+                                    <div class="menu-icon">
+                                        <img src="tracking-icon.svg" alt="Accounts Icon" width="24" height="24">
+                                    </div>
+                                    Accounts
+                                </div>
+                                <div class="finance-menu-item">
+                                    <div class="menu-icon">
+                                        <img src="tracking-icon.svg" alt="Transactions Icon" width="24" height="24">
+                                    </div>
+                                    Transactions
+                                </div>
+                                <div class="finance-menu-item">
+                                    <div class="menu-icon">
+                                        <img src="reports-icon.svg" alt="Cash Flow Icon" width="24" height="24">
+                                    </div>
+                                    Cash Flow
+                                </div>
+                                <div class="finance-menu-item">
+                                    <div class="menu-icon">
+                                        <img src="budget-icon.svg" alt="Budget Icon" width="24" height="24">
+                                    </div>
+                                    Budget
+                                </div>
+                            </div>
+                            
+                            <div class="stats-container">
+                                <div class="stat-card">
+                                    <div class="stat-value">$24,532</div>
+                                    <div class="stat-label">Total Balance</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-value">+5.8%</div>
+                                    <div class="stat-label">Monthly Growth</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-value">$3,250</div>
+                                    <div class="stat-label">Saving Goal</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="gallery-grid">
+                        <div class="gallery-item reveal-on-scroll">
+                            <img src="dashboard-preview.svg" alt="Transaction Tracking">
+                            <div class="gallery-title">Transaction Tracking</div>
+                        </div>
+                        <div class="gallery-item reveal-on-scroll">
+                            <img src="dashboard-preview.svg" alt="Budget Management">
+                            <div class="gallery-title">Budget Management</div>
+                        </div>
+                        <div class="gallery-item reveal-on-scroll">
+                            <img src="dashboard-preview.svg" alt="Financial Goals">
+                            <div class="gallery-title">Financial Goals</div>
+                        </div>
+                        <div class="gallery-item reveal-on-scroll">
+                            <img src="dashboard-preview.svg" alt="Investment Portfolio">
+                            <div class="gallery-title">Investment Portfolio</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CTA section -->
+        <section class="cta-section" id="cta">
+            <div class="zoom-container">
+                <div class="zoom-element">
+                    <h2 class="section-title reveal-on-scroll">Start Your Financial Transformation</h2>
+                    <p class="section-text reveal-on-scroll">Join thousands of people who have found peace and success with their finances through Unbroken Pockets.</p>
+                    <a href="/auth/signin" class="cta-button magnetic-button reveal-on-scroll">Get Started Today</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div>© 2025 Unbroken Pockets. All rights reserved.</div>
+            <div class="footer-links">
+                <div class="footer-link">Privacy Policy</div>
+                <div class="footer-link">Terms of Service</div>
+                <div class="footer-link">Contact Us</div>
+                <div class="footer-link">Support</div>
+            </div>
+        </footer>
+
+        <!-- Background shapes -->
+        <div class="background-shapes">
+            <div class="shape shape-1"></div>
+            <div class="shape shape-2"></div>
+            <div class="shape shape-3"></div>
+        </div>
+    </div>
+    
+    <!-- GSAP animation library -->
+    <script src="gsap.min.js"></script>
+    <script src="ScrollTrigger.min.js"></script>
+    <script>
+        // Ensure GSAP is available before loading microInteractions
+        window.gsapReady = true;
+    </script>
+    <script src="microInteractions.js"></script>
+    <script src="particles.js"></script>
+    <script>
+        // Initialize GSAP animations
+        document.addEventListener('DOMContentLoaded', () => {
+            // Register ScrollTrigger plugin
+            gsap.registerPlugin(ScrollTrigger);
+            
+            // Custom cursor
+            const cursor = document.querySelector('.custom-cursor');
+            const cursorFollower = document.querySelector('.cursor-follower');
+
+            gsap.to([cursor, cursorFollower], { opacity: 1, duration: 1 });
+
+            document.addEventListener('mousemove', (e) => {
+                gsap.to(cursor, {
+                    x: e.clientX,
+                    y: e.clientY,
+                    duration: 0.1
+                });
+                
+                gsap.to(cursorFollower, {
+                    x: e.clientX,
+                    y: e.clientY,
+                    duration: 0.3
+                });
+            });
+
+            // Progress bar
+            gsap.to('.progress-bar', {
+                width: '100%',
+                ease: 'none',
+                scrollTrigger: { 
+                    trigger: 'body',
+                    start: 'top top', 
+                    end: 'bottom bottom',
+                    scrub: 0.3
+                }
+            });
+
+            // Hover effect for interactive elements
+            const interactiveElements = document.querySelectorAll('.logo, .nav-link, .cta-button, .footer-link, .feature-item, .gallery-item, .finance-menu-item');
+            
+            interactiveElements.forEach(element => {
+                element.addEventListener('mouseenter', () => {
+                    gsap.to(cursor, { scale: 1.5, duration: 0.3 });
+                    gsap.to(cursorFollower, { scale: 1.5, duration: 0.3 });
+                });
+                
+                element.addEventListener('mouseleave', () => {
+                    gsap.to(cursor, { scale: 1, duration: 0.3 });
+                    gsap.to(cursorFollower, { scale: 1, duration: 0.3 });
+                });
+            });
+
+            // Initial animations
+            const tl = gsap.timeline();
+            
+            // Fade in background shapes
+            tl.to('.shape-1', { opacity: 0.6, duration: 1.5, ease: 'power2.inOut' }, 0)
+              .to('.shape-2', { opacity: 0.4, duration: 1.5, ease: 'power2.inOut' }, 0.2)
+              .to('.shape-3', { opacity: 0.5, duration: 1.5, ease: 'power2.inOut' }, 0.4);
+            
+            // Fade in navigation
+            tl.to('.nav', { opacity: 1, duration: 1, ease: 'power2.out' }, 0.5);
+            
+            // Fade in side nav
+            tl.to('.side-nav', { opacity: 1, duration: 1, ease: 'power2.out' }, 0.5);
+            
+            // Stagger nav links
+            tl.to('.nav-link, .auth-buttons button', { 
+                opacity: 1, 
+                y: 0, 
+                duration: 0.8, 
+                stagger: 0.1,
+                ease: 'power2.out' 
+            }, 0.7);
+            
+            // Fade in hero content
+            tl.to('.main-title', { 
+                opacity: 1, 
+                y: 0, 
+                duration: 1,
+                ease: 'power2.out' 
+            }, 1);
+            
+            tl.to('.subtitle', { 
+                opacity: 1, 
+                y: 0, 
+                duration: 1,
+                ease: 'power2.out' 
+            }, 1.2);
+            
+            tl.to('.image-zoom', { 
+                opacity: 1, 
+                y: 0, 
+                duration: 1,
+                ease: 'power2.out' 
+            }, 1.4);
+            
+            // Fade in scroll indicator
+            tl.to('.scroll-indicator', { 
+                opacity: 1, 
+                duration: 1,
+                ease: 'power2.out' 
+            }, 1.8);
+
+            // Section animations triggered by scroll
+            
+            // Features section
+            gsap.to('.feature-section', {
+                opacity: 1,
+                duration: 1,
+                scrollTrigger: {
+                    trigger: '.feature-section',
+                    start: 'top 80%',
+                    end: 'top 50%',
+                    scrub: 1
+                }
+            });
+
+            gsap.to('.section-title', {
+                opacity: 1,
+                y: 0,
+                duration: 1,
+                scrollTrigger: {
+                    trigger: '.feature-section',
+                    start: 'top 80%',
+                    end: 'top 50%',
+                    scrub: 1
+                }
+            });
+
+            gsap.to('.section-text', {
+                opacity: 1,
+                y: 0,
+                duration: 1,
+                scrollTrigger: {
+                    trigger: '.feature-section',
+                    start: 'top 80%',
+                    end: 'top 50%',
+                    scrub: 1
+                }
+            });
+
+            // Stagger feature items
+            gsap.to('.feature-item', {
+                opacity: 1,
+                y: 0,
+                duration: 0.8,
+                stagger: 0.2,
+                scrollTrigger: {
+                    trigger: '.feature-grid',
+                    start: 'top 80%',
+                    end: 'top 30%',
+                    scrub: 1
+                }
+            });
+
+            // Animate finance preview
+            gsap.to('.finance-preview', {
+                opacity: 1,
+                y: 0,
+                duration: 1,
+                scrollTrigger: {
+                    trigger: '.gallery-section',
+                    start: 'top 70%',
+                    end: 'top 40%',
+                    scrub: 1
+                }
+            });
+
+            // Gallery section
+            gsap.to('.gallery-section', {
+                opacity: 1,
+                duration: 1,
+                scrollTrigger: {
+                    trigger: '.gallery-section',
+                    start: 'top 80%',
+                    end: 'top 50%',
+                    scrub: 1
+                }
+            });
+
+            // Stagger gallery items with scale effect
+            gsap.to('.gallery-item', {
+                opacity: 1,
+                scale: 1,
+                duration: 0.8,
+                stagger: 0.1,
+                scrollTrigger: {
+                    trigger: '.gallery-grid',
+                    start: 'top 80%',
+                    end: 'top 30%',
+                    scrub: 1
+                }
+            });
+
+            // CTA section
+            gsap.to('.cta-section', {
+                opacity: 1,
+                duration: 1,
+                scrollTrigger: {
+                    trigger: '.cta-section',
+                    start: 'top 80%',
+                    end: 'top 50%',
+                    scrub: 1
+                }
+            });
+
+            // Footer
+            gsap.to('.footer', {
+                opacity: 1,
+                duration: 1,
+                scrollTrigger: {
+                    trigger: '.footer',
+                    start: 'top 90%',
+                    end: 'top 70%',
+                    scrub: 1
+                }
+            });
+
+            // Zoom effect on scroll
+            gsap.utils.toArray('.zoom-element').forEach((element) => {
+                gsap.to(element, {
+                    scale: 0.8,
+                    ease: 'none',
+                    scrollTrigger: {
+                        trigger: element.parentElement,
+                        start: 'top top',
+                        end: 'bottom top',
+                        scrub: true
+                    }
+                });
+            });
+
+            // Image zoom effect on scroll
+            gsap.utils.toArray('.image-zoom img').forEach((img) => {
+                gsap.fromTo(img, 
+                    { scale: 1 },
+                    {
+                        scale: 1.2,
+                        ease: 'none',
+                        scrollTrigger: {
+                            trigger: img.parentElement,
+                            start: 'top bottom',
+                            end: 'bottom top',
+                            scrub: true
+                        }
+                    }
+                );
+            });
+
+            // Create a zoom-out effect for each section as it scrolls out of view
+            gsap.utils.toArray('section').forEach((section) => {
+                const zoomElement = section.querySelector('.zoom-element');
+                
+                if (zoomElement) {
+                    // Create depth effect with parallax
+                    gsap.to(zoomElement, {
+                        y: () => 100,
+                        ease: 'none',
+                        scrollTrigger: {
+                            trigger: section,
+                            start: 'top top',
+                            end: 'bottom top',
+                            scrub: true
+                        }
+                    });
+                }
+            });
+
+            // Mouse move parallax effect on shapes
+            document.addEventListener('mousemove', (e) => {
+                const xPos = (e.clientX / window.innerWidth) - 0.5;
+                const yPos = (e.clientY / window.innerHeight) - 0.5;
+                
+                gsap.to('.shape-1', {
+                    x: xPos * 40,
+                    y: yPos * 40,
+                    duration: 1
+                });
+                
+                gsap.to('.shape-2', {
+                    x: -xPos * 60,
+                    y: -yPos * 60,
+                    duration: 1
+                });
+                
+                gsap.to('.shape-3', {
+                    x: xPos * 30,
+                    y: yPos * 30,
+                    duration: 1
+                });
+
+                // Financial symbols parallax
+                gsap.to('.financial-symbol', {
+                    x: xPos * 20,
+                    y: yPos * 20,
+                    rotation: xPos * 5,
+                    duration: 1
+                });
+            });
+
+            // Side nav dots - section highlighting
+            const sections = document.querySelectorAll('section');
+            const navDots = document.querySelectorAll('.nav-dot');
+            
+            sections.forEach((section, i) => {
+                ScrollTrigger.create({
+                    trigger: section,
+                    start: 'top center',
+                    end: 'bottom center',
+                    onEnter: () => {
+                        navDots.forEach(dot => dot.classList.remove('active'));
+                        navDots[i].classList.add('active');
+                    },
+                    onEnterBack: () => {
+                        navDots.forEach(dot => dot.classList.remove('active'));
+                        navDots[i].classList.add('active');
+                    }
+                });
+            });
+            
+            // Click on nav dots to scroll to section
+            navDots.forEach((dot, i) => {
+                dot.addEventListener('click', () => {
+                    window.scrollTo({
+                        top: sections[i].offsetTop,
+                        behavior: 'smooth'
+                    });
+                });
+            });
+
+            // Scroll indicator click
+            document.querySelector('.scroll-indicator').addEventListener('click', () => {
+                window.scrollTo({
+                    top: document.querySelector('#features').offsetTop,
+                    behavior: 'smooth'
+                });
+            });
+
+            // Finance menu interaction
+            const menuItems = document.querySelectorAll('.finance-menu-item');
+            
+            menuItems.forEach(item => {
+                item.addEventListener('click', () => {
+                    menuItems.forEach(i => i.classList.remove('active'));
+                    item.classList.add('active');
+                });
+            });
+
+            // Staggered text reveal for section titles
+            document.querySelectorAll('.section-title').forEach(title => {
+                const text = title.textContent;
+                let html = '';
+                
+                for (let i = 0; i < text.length; i++) {
+                    if (text[i] === ' ') {
+                        html += ' ';
+                    } else {
+                        html += `<span style="display:inline-block; opacity: 0; transform: translateY(20px);">${text[i]}</span>`;
+                    }
+                }
+                
+                title.innerHTML = html;
+                
+                ScrollTrigger.create({
+                    trigger: title,
+                    start: 'top 80%',
+                    onEnter: () => {
+                        gsap.to(title.querySelectorAll('span'), {
+                            opacity: 1,
+                            y: 0,
+                            duration: 0.05,
+                            stagger: 0.02,
+                            ease: 'power2.out'
+                        });
+                    }
+                });
+            });
+            
+            // Add hover lift effect to interactive elements
+            const liftElements = document.querySelectorAll('.feature-item, .gallery-item');
+            
+            liftElements.forEach(el => {
+                el.addEventListener('mouseenter', () => {
+                    gsap.to(el, { 
+                        y: -10, 
+                        scale: 1.03, 
+                        boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)',
+                        duration: 0.3 
+                    });
+                });
+                
+                el.addEventListener('mouseleave', () => {
+                    gsap.to(el, { 
+                        y: 0, 
+                        scale: 1, 
+                        boxShadow: '0 5px 20px rgba(0, 0, 0, 0.05)',
+                        duration: 0.3 
+                    });
+                });
+            });
+            
+            // Activate reveal-on-scroll elements
+            const revealElements = document.querySelectorAll('.reveal-on-scroll');
+            
+            revealElements.forEach(el => {
+                ScrollTrigger.create({
+                    trigger: el,
+                    start: 'top 80%',
+                    onEnter: () => {
+                        el.classList.add('active');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html> 

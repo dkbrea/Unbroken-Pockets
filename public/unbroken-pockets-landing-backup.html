@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Financial Freedom | Personal Finance Management</title>
+  <!-- Add Google Fonts - Playfair Display for serif elegance -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Import Three.js for the sphere rendering -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      background-color: #0a0b0e;
+      color: #fff;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      position: relative;
+      height: 100vh;
+      margin: 0;
+      padding: 0;
+    }
+    
+    /* Overlay container for the masked image effect */
+    .entrance-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 100; /* Higher than everything else */
+      pointer-events: none;
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+      margin: 20px;
+      width: calc(100% - 40px);
+      height: calc(100% - 40px);
+      background-color: #000; /* Black background */
+    }
+    
+    /* The main image layer - this will be divided into panels */
+    .entrance-image {
+      display: none; /* Hide the full image as we'll use panels instead */
+    }
+    
+    /* The mask container */
+    .mask-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 102;
+      display: flex;
+      flex-direction: row;
+      pointer-events: none;
+    }
+    
+    /* The panels/masks - each containing part of the image */
+    .mask-left, .mask-center, .mask-right {
+      height: 100%;
+      transition: transform 0.8s cubic-bezier(0.19, 1, 0.22, 1), opacity 0.8s ease;
+      position: relative;
+      overflow: hidden;
+      background-color: transparent; /* Transparent to show the image */
+    }
+    
+    .mask-left {
+      width: 33.33%;
+      transform: translateY(0);
+      border-right: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .mask-center {
+      width: 33.34%;
+      position: relative;
+      overflow: hidden;
+      border-left: 1px solid rgba(255, 255, 255, 0.2);
+      border-right: 1px solid rgba(255, 255, 255, 0.2);
+      opacity: 1;
+      transition: opacity 0.8s ease;
+    }
+    
+    .mask-right {
+      width: 33.33%;
+      transform: translateY(0);
+      border-left: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    /* Add the same background image to each panel */
+    .mask-left::before, .mask-center::before, .mask-right::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 300%; /* Full width of the image */
+      height: 100%;
+      background-image: url('https://images.unsplash.com/photo-1519681393784-d120267933ba?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80');
+      background-size: cover;
+      background-position: center;
+      z-index: -1;
+    }
+    
+    /* Position the background image correctly in each panel */
+    .mask-left::before {
+      left: 0; /* Left-aligned in left panel */
+    }
+    
+    .mask-center::before {
+      left: -100%; /* Center-aligned in center panel */
+    }
+    
+    .mask-right::before {
+      left: -200%; /* Right-aligned in right panel */
+    }
+    
+    /* The peephole that will grow in the center */
+    .peephole {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 0;
+      height: 0;
+      border-radius: 50%; /* Start as circle, will become pill-shaped */
+      transform: translate(-50%, -50%);
+      background-color: #000;
+      transition: all 1.8s cubic-bezier(0.19, 1, 0.22, 1);
+      z-index: 104;
+      overflow: hidden;
+    }
+    
+    /* Decorative spheres on the entrance image */
+    .landscape-sphere {
+      position: absolute;
+      background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.6));
+      border-radius: 50%;
+      box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+      z-index: 105;
+    }
+    
+    .sphere-top {
+      width: 40px;
+      height: 40px;
+      top: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+    
+    .sphere-left {
+      width: 80px;
+      height: 80px;
+      left: 100px;
+      top: 200px;
+    }
+    
+    .sphere-right {
+      width: 60px;
+      height: 60px;
+      right: 120px;
+      top: 180px;
+    }
+    
+    .content-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 30;
+      opacity: 0;
+      transition: opacity 1.5s ease;
+    }
+    
+    /* Tagline area on the bottom left */
+    .tagline-container {
+      position: absolute;
+      bottom: 40px;
+      left: 40px;
+      z-index: 106;
+      max-width: 340px;
+      transition: opacity 0.8s ease;
+    }
+    
+    .tagline-text {
+      font-size: 14px;
+      line-height: 1.4;
+      color: #ffffff;
+      margin-bottom: 20px;
+    }
+    
+    .waitlist-button {
+      display: inline-block;
+      background-color: white;
+      color: #000;
+      font-size: 14px;
+      font-weight: 500;
+      padding: 10px 20px;
+      border-radius: 30px;
+      text-decoration: none;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    }
+    
+    /* Brand name on the bottom right */
+    .brand-container {
+      position: absolute;
+      bottom: 40px;
+      right: 40px;
+      z-index: 106;
+      text-align: right;
+      transition: opacity 0.8s ease;
+    }
+    
+    .brand-name {
+      font-size: 64px;
+      font-weight: 700;
+      color: #ffffff;
+      line-height: 0.9;
+      letter-spacing: -0.02em;
+    }
+    
+    .brand-tagline {
+      font-size: 18px;
+      color: #ffffff;
+      margin-top: 10px;
+      font-style: italic;
+    }
+    
+    .black-capsule {
+      width: 28%;
+      height: 70%;
+      background-color: #000;
+      border-radius: 80px;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 31;
+      background-image: radial-gradient(circle at 10% 10%, rgba(20, 20, 20, 1), rgba(0, 0, 0, 0.9));
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    }
+    
+    .black-capsule::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border-radius: 100px;
+      background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%233f3f3f' fill-opacity='0.1' fill-rule='evenodd'%3E%3Ccircle cx='1' cy='1' r='1'/%3E%3C/g%3E%3C/svg%3E");
+      opacity: 0.2;
+      pointer-events: none;
+    }
+    
+    .main-heading {
+      color: white;
+      font-family: 'Playfair Display', serif;
+      text-align: center;
+      position: absolute;
+      bottom: 25%;
+      width: 80%;
+      z-index: 32;
+      font-size: 2.5rem;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+    }
+    
+    .fixed-content {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      perspective: 1500px;
+      overflow: hidden;
+      opacity: 0;
+      transform: translateY(100px);
+      transition: opacity 1.5s ease, transform 1.5s cubic-bezier(0.19, 1, 0.22, 1);
+      z-index: 10;
+    }
+    
+    /* Style for decorative spheres */
+    .sphere-decoration {
+      position: absolute;
+      background: radial-gradient(circle at 30% 30%, white, #a0a0a0);
+      border-radius: 50%;
+      pointer-events: none;
+      box-shadow: inset -3px -3px 10px rgba(0, 0, 0, 0.2), 
+                  inset 3px 3px 10px rgba(255, 255, 255, 0.5);
+      z-index: 40;
+    }
+    
+    .sphere-1 {
+      width: 100px;
+      height: 100px;
+      top: 15%;
+      left: 15%;
+    }
+    
+    .sphere-2 {
+      width: 60px;
+      height: 60px;
+      top: 30%;
+      right: 20%;
+    }
+    
+    .sphere-3 {
+      width: 80px;
+      height: 80px;
+      bottom: 20%;
+      right: 15%;
+    }
+    
+    .sphere-4 {
+      width: 40px;
+      height: 40px;
+      top: 60%;
+      left: 25%;
+    }
+    
+    .container {
+      position: relative;
+      height: 700vh;
+      width: 100%;
+    }
+    
+    .heading {
+      text-align: center;
+      position: absolute;
+      top: 20%;
+      left: 0;
+      width: 100%;
+      margin-bottom: 0;
+      transition: transform 0.8s cubic-bezier(0.19, 1, 0.22, 1), opacity 0.8s ease;
+      will-change: transform, opacity;
+      z-index: 30;
+      font-family: 'Playfair Display', serif;
+      padding: 0 20px;
+    }
+    
+    .heading h1 {
+      font-size: 7rem;
+      font-weight: 700;
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      margin: 0;
+      color: #ffffff;
+      text-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+    }
+    
+    .heading h2 {
+      font-size: 4.5rem;
+      font-weight: 400;
+      line-height: 1.2;
+      margin-top: 1rem;
+      color: rgba(255, 255, 255, 0.9);
+    }
+    
+    #sphereContainer {
+      width: 450px;
+      height: 450px;
+      margin: 0 auto;
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      transform-style: preserve-3d;
+      perspective: 1000px;
+      transition: transform 0.8s cubic-bezier(0.19, 1, 0.22, 1), opacity 0.8s ease;
+      will-change: transform, opacity;
+      z-index: 20;
+    }
+    
+    .grid {
+      position: relative;
+      transform-origin: center bottom;
+      transform: perspective(1000px) rotateX(35deg) scale(0.7);
+      z-index: 0;
+      display: grid;
+      grid-template-columns: repeat(5, 250px);
+      grid-template-rows: repeat(5, 250px);
+      opacity: 1; /* Start visible */
+      transition: transform 1.5s cubic-bezier(0.19, 1, 0.22, 1), opacity 0.4s ease;
+      padding: 20px;
+      transform-style: preserve-3d;
+      gap: 20px;
+      background-color: transparent;
+      width: auto;
+      height: auto;
+      max-width: 90vw;
+      pointer-events: auto;
+      margin-top: -714px; /* Reduced by another 288px (3 inches) from previous -426px */
+    }
+    
+    .grid.flat {
+      transform: perspective(1000px) rotateX(25deg) scale(0.7);
+    }
+    
+    .grid.upright {
+      transform: perspective(1000px) rotateX(0deg) scale(0.85);
+    }
+    
+    .grid-cell {
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      position: relative;
+      box-sizing: border-box;
+      transition: background-color 0.5s ease, box-shadow 0.5s ease, transform 0.3s ease;
+      background-color: rgba(15, 23, 42, 0.3);
+      border-radius: 12px;
+      backdrop-filter: blur(3px);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      width: 250px;
+      height: 250px;
+      transform-style: preserve-3d;
+      transform: translateZ(0);
+    }
+    
+    .grid-cell:hover {
+      background-color: rgba(220, 180, 120, 0.1);
+      border-color: rgba(220, 180, 120, 0.3);
+      box-shadow: 0 0 20px rgba(201, 166, 103, 0.2);
+    }
+    
+    /* Add blue dot in top right corner like in reference */
+    .grid-cell::after {
+      content: '';
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: #38bdf8;
+      opacity: 0.8;
+    }
+    
+    .card {
+      position: absolute;
+      width: 225px;  /* 90% of 250px */
+      height: 225px; /* 90% of 250px */
+      background-color: rgba(10, 15, 25, 0.85);
+      border: 1px solid rgba(71, 85, 105, 0.4);
+      border-radius: 8px;
+      padding: 18px;
+      opacity: 1;
+      transition: opacity 0.4s ease, transform 0.6s cubic-bezier(0.19, 1, 0.22, 1), box-shadow 0.3s ease, border-color 0.3s ease, background-color 0.4s ease;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+      backdrop-filter: blur(5px);
+      z-index: 20;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      overflow: visible;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+    }
+    
+    /* Add subtle gradient border glow */
+    .card::before {
+      content: '';
+      position: absolute;
+      inset: -1px;
+      border-radius: 9px;
+      background: linear-gradient(135deg, rgba(236, 211, 148, 0.05), rgba(201, 166, 103, 0.3), rgba(163, 133, 72, 0.05));
+      z-index: -1;
+      opacity: 1;
+      transition: opacity 0.3s ease;
+    }
+    
+    .card:hover::before {
+      opacity: 1;
+      background: linear-gradient(135deg, rgba(236, 211, 148, 0.1), rgba(201, 166, 103, 0.5), rgba(163, 133, 72, 0.1));
+    }
+    
+    .card.in-grid:hover {
+      box-shadow: 0 8px 30px rgba(220, 180, 120, 0.3);
+      transform: translate(-50%, -50%) scale(1.05);
+      border-color: rgba(220, 180, 120, 0.1);
+    }
+    
+    .card.in-grid:hover .card-title {
+      color: #ecd394;
+      transform: translateY(-2px);
+    }
+    
+    /* Profile card (bottom-left) */
+    .profile-card {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .avatar-container {
+      width: 100%;
+      height: 80px;
+      margin-bottom: 15px;
+      background: linear-gradient(135deg, #3b82f6 0%, #ef4444 100%);
+      border-radius: 6px;
+    }
+    
+    /* Meeting card (bottom-right) */
+    .meeting-card {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .meeting-header {
+      background: linear-gradient(135deg, #f97316 0%, #ec4899 100%);
+      height: 6px;
+      width: 30%;
+      border-radius: 3px;
+      margin-bottom: 15px;
+    }
+    
+    .card-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      letter-spacing: -0.01em;
+      color: #f8fafc;
+      white-space: normal;
+      overflow: visible;
+      text-overflow: clip;
+      line-height: 1.3;
+      max-width: 100%;
+      transition: color 0.3s ease, transform 0.3s ease;
+    }
+    
+    .card-subtitle {
+      font-size: 13px;
+      color: #94a3b8;
+      margin-bottom: 15px;
+      line-height: 1.4;
+      overflow: visible;
+      display: block;
+      max-width: 100%;
+    }
+    
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      background: rgba(201, 166, 103, 0.1);
+      color: #ecd394;
+      font-size: 12px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      margin-right: 6px;
+    }
+    
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 8px 0;
+      background: rgba(201, 166, 103, 0.1);
+      color: #ecd394;
+      text-align: center;
+      border-radius: 6px;
+      border: 1px solid rgba(201, 166, 103, 0.2);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 14px;
+      margin-top: auto;
+    }
+    
+    .btn:hover {
+      background: rgba(201, 166, 103, 0.2);
+      border-color: rgba(201, 166, 103, 0.3);
+    }
+    
+    .grid-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      overflow: visible;
+    }
+  </style>
+</head>
+<body>
+  <!-- New entrance overlay structure with panoramic landscape -->
+  <div class="entrance-overlay">
+    <div class="entrance-image"></div>
+    <div class="mask-container">
+      <div class="mask-left" id="maskLeft"></div>
+      <div class="mask-center" id="maskCenter">
+        <div class="peephole" id="peephole"></div>
+      </div>
+      <div class="mask-right" id="maskRight"></div>
+  </div>
+  
+    <!-- Add decorative spheres -->
+    <div class="landscape-sphere sphere-top"></div>
+    <div class="landscape-sphere sphere-left"></div>
+    <div class="landscape-sphere sphere-right"></div>
+    
+    <!-- Add tagline on bottom left -->
+    <div class="tagline-container">
+      <p class="tagline-text">Micro is an all-in-one tool for email, CRM, project management and more that automatically organizes itself.</p>
+      <a href="#" class="waitlist-button">Join the Waitlist</a>
+  </div>
+  
+    <!-- Add brand name on bottom right -->
+    <div class="brand-container">
+      <h1 class="brand-name">Organized.</h1>
+      <p class="brand-tagline">So you don't have to be.</p>
+          </div>
+        </div>
+  
+  <div class="content-overlay" id="contentOverlay">
+    <div class="sphere-decoration sphere-1"></div>
+    <div class="sphere-decoration sphere-2"></div>
+    <div class="sphere-decoration sphere-3"></div>
+    <div class="sphere-decoration sphere-4"></div>
+    
+    <div class="black-capsule">
+      <h1 class="main-heading">financial freedom<br>at your fingertips</h1>
+    </div>
+  </div>
+  
+  <div class="container">
+    <div class="fixed-content" id="fixedContent">
+        <div class="heading" id="heading">
+          <h1>financial freedom</h1>
+          <h2>at your fingertips</h2>
+      </div>
+      
+      <div id="sphereContainer"></div>
+      
+      <div class="grid-container">
+      <div class="grid" id="grid">
+          <!-- Grid cells will be generated by JavaScript -->
+      </div>
+      </div>
+      </div>
+    <div style="height: 700vh;"></div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const grid = document.getElementById('grid');
+      const heading = document.getElementById('heading');
+      const sphereContainer = document.getElementById('sphereContainer');
+      const container = document.querySelector('.container');
+      const fixedContent = document.getElementById('fixedContent');
+      const maskLeft = document.getElementById('maskLeft');
+      const maskCenter = document.getElementById('maskCenter');
+      const maskRight = document.getElementById('maskRight');
+      const peephole = document.getElementById('peephole');
+      const contentOverlay = document.getElementById('contentOverlay');
+      
+      // Generate grid cells dynamically
+      const gridCellCount = 25; // 5x5 grid
+      for (let i = 0; i < gridCellCount; i++) {
+        const cell = document.createElement('div');
+        cell.classList.add('grid-cell');
+        cell.setAttribute('data-index', i);
+        grid.appendChild(cell);
+      }
+      
+      // Create feature cards
+      const budgetCard = document.createElement('div');
+      budgetCard.classList.add('card', 'in-grid');
+      budgetCard.innerHTML = `
+        <div class="card-title">Budget Planner</div>
+        <div class="card-subtitle">Create and manage custom budgets with category tracking and spending analysis</div>
+        <div class="tags">
+          <span class="tag">Financial Planning</span>
+        </div>
+        <button class="btn">Explore Budgeting</button>
+      `;
+      
+      const investmentCard = document.createElement('div');
+      investmentCard.classList.add('card', 'in-grid');
+      investmentCard.innerHTML = `
+        <div class="card-title">Investment Portfolio</div>
+        <div class="card-subtitle">Monitor your investments and track performance with detailed analytics</div>
+        <div class="tags">
+          <span class="tag">Wealth Building</span>
+        </div>
+        <button class="btn">View Investments</button>
+      `;
+      
+      const goalCard = document.createElement('div');
+      goalCard.classList.add('card', 'in-grid');
+      goalCard.innerHTML = `
+        <div class="card-title">Financial Goals</div>
+        <div class="card-subtitle">Set personalized savings targets with detailed progress tracking</div>
+        <div class="tags">
+          <span class="tag">Goal Tracking</span>
+        </div>
+        <button class="btn">Set Goals</button>
+      `;
+      
+      const transactionCard = document.createElement('div');
+      transactionCard.classList.add('card', 'in-grid');
+      transactionCard.innerHTML = `
+        <div class="card-title">Transaction History</div>
+        <div class="card-subtitle">View and categorize all your financial transactions in one place</div>
+        <div class="tags">
+          <span class="tag">Expense Tracking</span>
+        </div>
+        <button class="btn">View Transactions</button>
+      `;
+      
+      const recurringCard = document.createElement('div');
+      recurringCard.classList.add('card', 'in-grid');
+      recurringCard.innerHTML = `
+        <div class="card-title">Recurring Payments</div>
+        <div class="card-subtitle">Manage subscriptions and automate bill tracking with reminders</div>
+        <div class="tags">
+          <span class="tag">Bill Management</span>
+        </div>
+        <button class="btn">Manage Payments</button>
+      `;
+      
+      // Position cards in specific grid cells
+      // Center for Budget Card
+      const budgetCell = grid.querySelector('[data-index="12"]');
+      budgetCell.appendChild(budgetCard);
+      
+      // Upper right for Investment Card
+      const investmentCell = grid.querySelector('[data-index="4"]');
+      investmentCell.appendChild(investmentCard);
+      
+      // Upper left for Goals Card
+      const goalCell = grid.querySelector('[data-index="0"]');
+      goalCell.appendChild(goalCard);
+      
+      // Lower right for Transaction Card
+      const transactionCell = grid.querySelector('[data-index="24"]');
+      transactionCell.appendChild(transactionCard);
+      
+      // Lower left for Recurring Card
+      const recurringCell = grid.querySelector('[data-index="20"]');
+      recurringCell.appendChild(recurringCard);
+      
+      // Initialize Three.js for the golden sphere
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+      
+      const renderer = new THREE.WebGLRenderer({ 
+        antialias: true,
+        alpha: true 
+      });
+      renderer.setSize(450, 450);
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      sphereContainer.appendChild(renderer.domElement);
+      
+      // Create a sphere with gold material
+      const geometry = new THREE.SphereGeometry(1, 64, 64);
+      
+      // Create gold material with enhanced reflection and depth
+      const material = new THREE.MeshPhysicalMaterial({
+        color: 0xc9a667,
+        metalness: 0.9,
+        roughness: 0.15,
+        reflectivity: 0.9,
+        clearcoat: 0.3, 
+        clearcoatRoughness: 0.2,
+        emissive: 0x7d694c,
+        emissiveIntensity: 0.2
+      });
+      
+      const sphere = new THREE.Mesh(geometry, material);
+      sphere.castShadow = true;
+      sphere.receiveShadow = true;
+      scene.add(sphere);
+      
+      // Add a subtle shadow blob beneath the sphere (fake shadow)
+      const shadowGeo = new THREE.CircleGeometry(1.2, 32);
+      const shadowMat = new THREE.MeshBasicMaterial({ 
+        color: 0x000000, 
+        transparent: true, 
+        opacity: 0.2,
+        depthWrite: false
+      });
+      const shadowMesh = new THREE.Mesh(shadowGeo, shadowMat);
+      shadowMesh.rotation.x = -Math.PI / 2;
+      shadowMesh.position.y = -1.05;
+      scene.add(shadowMesh);
+      
+      // Add directional light (top-left highlight)
+      const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
+      directionalLight.position.set(-1, 2, 1.5);
+      directionalLight.castShadow = true;
+      scene.add(directionalLight);
+      
+      // Add ambient light
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+      scene.add(ambientLight);
+      
+      // Add a soft point light from below for dramatic effect
+      const pointLight = new THREE.PointLight(0xf1c232, 0.7);
+      pointLight.position.set(0, -1.5, 0.5);
+      scene.add(pointLight);
+      
+      // Add rim light from behind
+      const rimLight = new THREE.DirectionalLight(0xffffff, 0.5);
+      rimLight.position.set(0, 0, -2);
+      scene.add(rimLight);
+      
+      // Position camera
+      camera.position.z = 2.5;
+      
+      // Animation loop
+      function animate() {
+        requestAnimationFrame(animate);
+        sphere.rotation.y += 0.005;
+        renderer.render(scene, camera);
+      }
+      animate();
+      
+      // Initialize states
+      maskLeft.style.transform = 'translateY(0)';
+      maskRight.style.transform = 'translateY(0)';
+      peephole.style.width = '0';
+      peephole.style.height = '0';
+      fixedContent.style.opacity = '0';
+      fixedContent.style.transform = 'translateY(100px)';
+      contentOverlay.style.opacity = '0';
+      
+      // Make sure entrance overlay starts fully visible
+      document.querySelector('.entrance-overlay').style.opacity = '1';
+      
+      // Add some animation to the landscape spheres
+      const landscapeSpheres = document.querySelectorAll('.landscape-sphere');
+      landscapeSpheres.forEach(sphere => {
+        // Random initial position offset
+        const xOffset = (Math.random() - 0.5) * 20;
+        const yOffset = (Math.random() - 0.5) * 20;
+        sphere.style.transform = `translate(${xOffset}px, ${yOffset}px)`;
+        
+        // Animate each sphere with different timing
+        setInterval(() => {
+          const newXOffset = (Math.random() - 0.5) * 20;
+          const newYOffset = (Math.random() - 0.5) * 20;
+          sphere.style.transition = 'transform 8s cubic-bezier(0.19, 1, 0.22, 1)';
+          sphere.style.transform = `translate(${newXOffset}px, ${yOffset}px)`;
+        }, 5000 + Math.random() * 3000);
+      });
+      
+      // Handle scrolling animations
+      window.addEventListener('scroll', () => {
+        const scrollPosition = window.scrollY;
+        const viewportHeight = window.innerHeight;
+        const totalHeight = container.clientHeight;
+        const scrollRatio = scrollPosition / (totalHeight - viewportHeight);
+        
+        // Animation timing constants
+        const introAnimStart = 0.01;
+        const introAnimMid = 0.1;
+        const introAnimEnd = 0.2;
+        const mainAnimStart = 0.15;
+        const mainAnimEnd = 0.4;
+        
+        // Initial animation - move left and right panels up out of frame immediately on scroll
+        if (scrollRatio > introAnimStart) {
+          const initialProgress = Math.min(1, (scrollRatio - introAnimStart) / 0.05);
+          
+          // Move left and right masks up out of frame - faster animation
+          maskLeft.style.transition = 'transform 0.8s cubic-bezier(0.19, 1, 0.22, 1)';
+          maskRight.style.transition = 'transform 0.8s cubic-bezier(0.19, 1, 0.22, 1)';
+          
+          // Make them move up proportionally to scroll
+          const moveUpAmount = Math.min(100, initialProgress * 100);
+          maskLeft.style.transform = `translateY(-${moveUpAmount}%)`;
+          maskRight.style.transform = `translateY(-${moveUpAmount}%)`;
+          
+          // Get references to the tagline and brand containers
+          const taglineContainer = document.querySelector('.tagline-container');
+          const brandContainer = document.querySelector('.brand-container');
+          
+          // Fade out the tagline and brand along with the panels
+          if (taglineContainer && brandContainer) {
+            taglineContainer.style.opacity = Math.max(0, 1 - initialProgress * 1.2);
+            brandContainer.style.opacity = Math.max(0, 1 - initialProgress * 1.2);
+          }
+          
+          // Start growing the peephole in the center
+          if (initialProgress > 0.4) {
+            const peepholeProgress = (initialProgress - 0.4) / 0.6;
+            peephole.style.width = `${Math.min(60, peepholeProgress * 60)}%`;
+            peephole.style.height = `${Math.min(75, peepholeProgress * 75)}%`;
+            peephole.style.borderRadius = `${40}% / ${60}%`; // Pill shape
+          }
+          
+          // If panels are almost out of view, start fading the center panel
+          if (initialProgress > 0.8) {
+            const centerFadeProgress = (initialProgress - 0.8) / 0.2;
+            maskCenter.style.opacity = 1 - centerFadeProgress;
+          }
+          
+          // Fade in the main content once the side panels have moved
+          if (initialProgress > 0.5) {
+            const contentFadeIn = (initialProgress - 0.5) / 0.5;
+            fixedContent.style.opacity = Math.min(1, contentFadeIn * 1.5);
+            fixedContent.style.transform = `translateY(${Math.max(0, 50 - (contentFadeIn * 50))}px)`;
+            
+            // Also fade out the entire entrance overlay at the end
+            document.querySelector('.entrance-overlay').style.opacity = 
+              Math.max(0, 1 - contentFadeIn);
+          }
+        }
+        
+        // Handle the rest of the animations (grid, sphere, etc.) as scroll continues
+        if (scrollRatio > mainAnimStart) {
+          // Calculate animation progress - how far we are in the transition
+          const animationProgress = Math.min(1, (scrollRatio - mainAnimStart) / 
+                                           (mainAnimEnd - mainAnimStart));
+          
+          // Grid animation - transition from laying to forward-facing position
+          if (animationProgress > 0) {
+            // Decrease scale as it tilts forward
+            const scaleValue = 0.7 - (animationProgress * 0.1);
+            
+            // Rotation from 35deg to 0deg (fully upright)
+            const rotateValue = 35 - (animationProgress * 35);
+            
+            // Add vertical movement (moves down slightly as it becomes upright)
+            const verticalOffset = 100 * animationProgress; // Move down by 100px at full animation
+            
+            // Apply transformation with smooth easing
+            grid.style.transition = 'transform 1.5s cubic-bezier(0.19, 1, 0.22, 1)';
+            grid.style.transform = `perspective(1000px) rotateX(${rotateValue}deg) translateY(${verticalOffset}px) scale(${scaleValue})`;
+          }
+          
+          // Sphere animation - moves upward as grid tilts forward
+          if (animationProgress > 0) {
+            // Calculate upward movement while preserving initial -50% positioning
+            const sphereYPos = -50 - (300 * animationProgress); // Start from -50% and move up
+            const sphereScale = 1 - animationProgress * 0.3;
+            
+            // Apply sphere transformation with percentage for vertical position
+            sphereContainer.style.transform = `translate(-50%, ${sphereYPos}%) scale(${sphereScale})`;
+            sphereContainer.style.opacity = Math.max(0, 1 - animationProgress * 1.1);
+          }
+          
+          // Text animation - heading moves up and fades at same rate as grid tilts
+          if (animationProgress > 0) {
+            // Move heading up gradually, fully out of frame at end of animation
+            const headingYPos = -250 * animationProgress;
+            const headingScale = 1 - animationProgress * 0.1;
+            
+            // Apply transformations to heading
+            heading.style.transform = `translateY(${headingYPos}px) scale(${headingScale})`;
+            heading.style.opacity = Math.max(0, 1 - animationProgress * 1.1);
+          }
+        }
+      });
+      
+      // Trigger initial scroll events
+          setTimeout(() => {
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+      window.scrollTo(0, 0);
+        }, 50);
+      }, 200);
+    });
+  </script>
+</body>
+</html> 

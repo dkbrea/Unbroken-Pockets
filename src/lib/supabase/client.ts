@@ -1,21 +1,19 @@
-import { createClient as createClientBase } from '@supabase/supabase-js'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+import type { Database } from '../database.types'
 
-// Get the Supabase URL from environment variables
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-// Get project reference from URL
-const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\./)?.[1] || ''
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-export function createClient() {
-  return createClientBase(
-    supabaseUrl,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        // Match cookie name format that Supabase uses
-        storageKey: `sb-${projectRef}-auth-token`
-      }
+export const createClient = () => {
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error('Missing Supabase environment variables')
+  }
+
+  return createSupabaseClient<Database>(supabaseUrl, supabaseKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true
     }
-  )
+  })
 } 

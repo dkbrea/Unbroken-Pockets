@@ -28,6 +28,7 @@ export type DebtState = {
   deleteDebt: (id: number) => Promise<void>;
   isLoading?: boolean;
   error?: Error | null;
+  updateDebtPayment: (debtId: number, amount: number) => Promise<boolean>;
 };
 
 // Helper function to convert database snake_case to frontend camelCase
@@ -738,7 +739,29 @@ export function useDebtData(): DebtState {
       interestSaved: 0, // Would calculate this based on actual amortization
     };
   }, [debts, totalDebt, totalMinPayment]);
-  
+
+  const updateDebtPayment = async (debtId: number, amount: number) => {
+    try {
+      // Update the debt payment in your data store
+      const updatedDebts = debts.map(debt => 
+        debt.id === debtId 
+          ? { ...debt, minimumPayment: amount }
+          : debt
+      );
+      
+      // Update local state
+      setDebts(updatedDebts);
+      
+      // If you have an API call, make it here
+      // await api.updateDebtPayment(debtId, amount);
+      
+      return true;
+    } catch (error) {
+      console.error('Error updating debt payment:', error);
+      return false;
+    }
+  };
+
   return {
     debts,
     totalDebt,
@@ -748,6 +771,7 @@ export function useDebtData(): DebtState {
     updateDebt,
     deleteDebt,
     isLoading,
-    error
+    error,
+    updateDebtPayment
   };
 } 

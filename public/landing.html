@@ -26,6 +26,15 @@
             overflow-x: hidden;
         }
 
+        /* Fix for text spacing issues in all headings */
+        h1, h2, h3, .section-title, .main-title {
+            word-spacing: normal !important;
+            letter-spacing: normal !important;
+            white-space: normal !important;
+            text-rendering: optimizeLegibility !important;
+            font-kerning: normal !important;
+        }
+
         /* Main container */
         .container {
             width: 100%;
@@ -847,6 +856,7 @@
             display: flex;
             gap: 1rem;
             margin-left: 2rem;
+            opacity: 1;
         }
 
         .sign-in-button, .sign-up-button {
@@ -860,6 +870,7 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
+            opacity: 1;
         }
 
         .sign-in-button {
@@ -961,6 +972,20 @@
         body.menu-open {
             overflow: hidden;
         }
+
+        /* Hide elements initially that will be animated in */
+        .nav-link, .main-title, .subtitle, .cta-button, 
+        .image-zoom, .scroll-indicator, .nav, .side-nav,
+        .section-title, .section-text,
+        .feature-section, .feature-item, .gallery-section,
+        .cta-section, .footer {
+            opacity: 0;
+        }
+          
+        /* Ensure auth buttons are visible */
+        .auth-buttons, .sign-in-button, .sign-up-button {
+            opacity: 1 !important;
+        }
     </style>
 </head>
 <body>
@@ -1014,14 +1039,14 @@
         <section class="hero" id="hero">
             <div class="zoom-container">
                 <div class="zoom-element">
-                    <h1 class="main-title">Master Your Money System</h1>
+                    <h1 class="main-title" style="word-spacing: normal; letter-spacing: normal; white-space: normal; text-rendering: optimizeLegibility;">Master&nbsp;Your&nbsp;Money&nbsp;System</h1>
                     <p class="subtitle">Take control of your financial future with our all-in-one personal finance solution. Experience peace of mind knowing your finances are <span class="word-rotator" data-words='["unbroken", "organized", "optimized", "simplified"]'>unbroken</span>.</p>
                     
                     <div class="image-zoom reveal-on-scroll">
                         <img src="dashboard-preview.svg" alt="Unbroken Pockets Dashboard Preview">
                     </div>
                     
-                    <a href="/auth/signin" class="cta-button magnetic-button">Start Your Financial Journey</a>
+                    <a href="/auth/signin" class="cta-button magnetic-button">Start&nbsp;Your&nbsp;Financial&nbsp;Journey</a>
                 </div>
             </div>
             
@@ -1084,7 +1109,7 @@
         <section class="gallery-section" id="gallery">
             <div class="zoom-container">
                 <div class="zoom-element">
-                    <h2 class="section-title reveal-on-scroll">Experience Financial Peace</h2>
+                    <h2 class="section-title reveal-on-scroll" style="word-spacing: normal; letter-spacing: normal; white-space: normal; text-rendering: optimizeLegibility;">Experience&nbsp;Financial&nbsp;Peace</h2>
                     <p class="section-text reveal-on-scroll">See how Unbroken Pockets transforms your financial life with these powerful features.</p>
                     
                     <div class="finance-preview reveal-on-scroll">
@@ -1169,7 +1194,7 @@
         <section class="cta-section" id="cta">
             <div class="zoom-container">
                 <div class="zoom-element">
-                    <h2 class="section-title reveal-on-scroll">Start Your Financial Transformation</h2>
+                    <h2 class="section-title reveal-on-scroll" style="word-spacing: normal; letter-spacing: normal; white-space: normal; text-rendering: optimizeLegibility;">Start&nbsp;Your&nbsp;Financial&nbsp;Transformation</h2>
                     <p class="section-text reveal-on-scroll">Join thousands of people who have found peace and success with their finances through Unbroken Pockets.</p>
                     <a href="/auth/signin" class="cta-button magnetic-button reveal-on-scroll">Get Started Today</a>
                 </div>
@@ -1264,11 +1289,14 @@
             // Fade in navigation
             tl.to('.nav', { opacity: 1, duration: 1, ease: 'power2.out' }, 0.5);
             
+            // Fade in auth buttons
+            tl.to('.auth-buttons', { opacity: 1, duration: 1, ease: 'power2.out' }, 0.6);
+            
             // Fade in side nav
             tl.to('.side-nav', { opacity: 1, duration: 1, ease: 'power2.out' }, 0.5);
             
             // Stagger nav links
-            tl.to('.nav-link, .auth-buttons button', { 
+            tl.to('.nav-link, .auth-buttons a', { 
                 opacity: 1, 
                 y: 0, 
                 duration: 0.8, 
@@ -1552,30 +1580,28 @@
 
             // Staggered text reveal for section titles
             document.querySelectorAll('.section-title').forEach(title => {
-                const text = title.textContent;
-                let html = '';
+                // Store the original text for reference
+                const originalText = title.textContent;
                 
-                for (let i = 0; i < text.length; i++) {
-                    if (text[i] === ' ') {
-                        html += ' ';
-                    } else {
-                        html += `<span style="display:inline-block; opacity: 0; transform: translateY(20px);">${text[i]}</span>`;
-                    }
-                }
+                // Skip animation and just ensure proper spacing
+                title.style.wordSpacing = 'normal';
+                title.style.letterSpacing = 'normal';
+                title.style.whiteSpace = 'normal';
+                title.style.textRendering = 'optimizeLegibility';
+                title.style.fontKerning = 'normal';
                 
-                title.innerHTML = html;
+                // Force re-render by applying the text again
+                title.textContent = originalText;
                 
                 ScrollTrigger.create({
                     trigger: title,
                     start: 'top 80%',
                     onEnter: () => {
-                        gsap.to(title.querySelectorAll('span'), {
-                            opacity: 1,
-                            y: 0,
-                            duration: 0.05,
-                            stagger: 0.02,
-                            ease: 'power2.out'
-                        });
+                        // Animate opacity and position without changing the text structure
+                        gsap.fromTo(title, 
+                            { opacity: 0, y: 20 }, 
+                            { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out' }
+                        );
                     }
                 });
             });

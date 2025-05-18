@@ -1,0 +1,1729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Unbroken Pockets | Personal Finance Management</title>
+  <!-- Preload scenic image -->
+  <link rel="preload" href="https://images.unsplash.com/photo-1501785888041-af3ef285b470?q=80&w=2000" as="image">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      background-color: #000;
+      color: #fff;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      background-image: radial-gradient(circle at center, rgba(255, 255, 255, 0.15) 2px, transparent 2px);
+      background-size: 30px 30px;
+      position: relative;
+    }
+    
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-image: radial-gradient(circle at center, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+      background-size: 40px 40px;
+      z-index: -1;
+      pointer-events: none;
+      will-change: transform;
+    }
+    
+    .container {
+      position: relative;
+      height: 700vh;
+      width: 100%;
+    }
+    
+    .fixed-content {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      perspective: 1500px;
+      overflow: hidden;
+    }
+    
+    .center-content {
+      position: relative;
+      z-index: 10;
+      transform-origin: center center;
+      transition: transform 0.1s ease-out, opacity 0.8s ease;
+      width: 100%;
+      text-align: center;
+      position: absolute;
+      top: 18%;
+      left: 0;
+    }
+    
+    .heading {
+      text-align: center;
+      margin-bottom: 2rem;
+      transition: transform 0.8s cubic-bezier(0.19, 1, 0.22, 1), opacity 0.8s ease;
+      will-change: transform, opacity;
+      position: relative;
+      z-index: 30;
+    }
+    
+    .heading h1, .heading h2 {
+      font-size: 5rem;
+      font-weight: bold;
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+    }
+    
+    .heading h2 {
+      background: linear-gradient(to right, #ecd394, #a38548);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-fill-color: transparent;
+    }
+    
+    .sphere {
+      width: 360px;
+      height: 360px;
+      margin: 0 auto;
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      transform-style: preserve-3d;
+      perspective: 1000px;
+      transition: transform 0.8s cubic-bezier(0.19, 1, 0.22, 1), opacity 0.8s ease;
+      will-change: transform, opacity;
+      z-index: 20;
+    }
+    
+    .sphere-inner {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, #ecd394 0%, #c9a667 40%, #a38548 80%, #7d694c 100%);
+      box-shadow: 
+        0 0 70px rgba(232, 193, 125, 0.3),
+        inset 20px -20px 60px rgba(255, 255, 255, 0.5),
+        inset -20px 20px 60px rgba(0, 0, 0, 0.6);
+      animation: float 15s ease-in-out infinite;
+      transform: rotateX(10deg) rotateY(-20deg);
+      backdrop-filter: blur(5px);
+    }
+    
+    /* Add a reflection effect */
+    .sphere-inner::after {
+      content: '';
+      position: absolute;
+      top: 5%;
+      left: 15%;
+      width: 30%;
+      height: 30%;
+      background: radial-gradient(circle at center, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0.4) 40%, transparent 100%);
+      border-radius: 50%;
+      filter: blur(3px);
+      animation: reflectionMove 8s infinite ease-in-out;
+    }
+    
+    @keyframes reflectionMove {
+      0% { top: 5%; left: 15%; opacity: 0.8; }
+      25% { top: 8%; left: 18%; opacity: 0.9; }
+      50% { top: 10%; left: 12%; opacity: 0.7; }
+      75% { top: 7%; left: 10%; opacity: 0.8; }
+      100% { top: 5%; left: 15%; opacity: 0.8; }
+    }
+    
+    .grid {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      grid-template-rows: repeat(5, 1fr);
+      opacity: 0; /* Start hidden */
+      transition: transform 1.2s cubic-bezier(0.19, 1, 0.22, 1), opacity 0.4s ease;
+      padding: 3%;
+      transform-style: preserve-3d;
+      transform: perspective(1200px) rotateX(30deg) scale(0.9);
+      transform-origin: center center;
+      gap: 15px; /* Gap between cells */
+      background-color: transparent;
+      width: 90vmin;     /* Increased from 85vmin to make cells larger */
+      height: 90vmin;    /* Increased to match width */
+      max-height: 95vh;  /* Prevent it from getting too tall */
+      max-width: 95vh;   /* Maintain square proportions */
+      margin: auto;
+      will-change: transform, opacity; /* Optimize for animations */
+    }
+    
+    .grid.flat {
+      transform: perspective(1200px) rotateX(30deg) scale(0.9);
+      transition: transform 1.2s cubic-bezier(0.19, 1, 0.22, 1), opacity 0.4s ease;
+    }
+    
+    .grid.upright {
+      transform: perspective(1200px) rotateX(0deg) scale(1);
+      transition: transform 1.2s cubic-bezier(0.19, 1, 0.22, 1), opacity 0.4s ease;
+    }
+    
+    .grid-cell {
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      position: relative;
+      box-sizing: border-box;
+      transition: background-color 0.5s ease, box-shadow 0.5s ease, transform 0.3s ease;
+      background-color: rgba(15, 23, 42, 0.3);
+      border-radius: 12px;
+      backdrop-filter: blur(3px);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      min-height: 200px; /* Increased from 150px */
+      min-width: 250px; /* Matches horizontal line card width */
+      transform-style: preserve-3d; /* Support 3D transforms */
+      transform: translateZ(0); /* Enable GPU acceleration */
+    }
+    
+    .grid-cell:hover {
+      background-color: rgba(220, 180, 120, 0.1);
+      border-color: rgba(220, 180, 120, 0.3);
+      box-shadow: 0 0 20px rgba(201, 166, 103, 0.2);
+    }
+    
+    /* Add blue dot in top right corner like in reference */
+    .grid-cell::after {
+      content: '';
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: #38bdf8;
+      opacity: 0.8;
+    }
+    
+    .card {
+      position: absolute;
+      width: 90%;
+      height: 90%;
+      background-color: rgba(10, 15, 25, 0.85);
+      border: 1px solid rgba(71, 85, 105, 0.4);
+      border-radius: 8px;
+      padding: 18px;
+      opacity: 1;
+      transition: opacity 0.4s ease, transform 0.6s cubic-bezier(0.19, 1, 0.22, 1), box-shadow 0.3s ease, border-color 0.3s ease, background-color 0.4s ease;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+      backdrop-filter: blur(5px);
+      z-index: 20;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      overflow: visible;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between; /* Distribute content evenly */
+      position: relative;
+    }
+    
+    /* Add subtle gradient border on hover */
+    .card::before {
+      content: '';
+      position: absolute;
+      top: -1px;
+      left: -1px;
+      right: -1px;
+      bottom: -1px;
+      border-radius: 9px;
+      background: linear-gradient(135deg, rgba(236, 211, 148, 0), rgba(201, 166, 103, 0.5), rgba(163, 133, 72, 0));
+      z-index: -1;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    
+    .card:hover::before {
+      opacity: 1;
+    }
+    
+    .card.in-grid:hover {
+      box-shadow: 0 8px 30px rgba(220, 180, 120, 0.3);
+      transform: translate(-50%, -50%) scale(1.05);
+      border-color: rgba(220, 180, 120, 0.1);
+    }
+    
+    .card.in-grid:hover .card-title {
+      color: #ecd394;
+      transform: translateY(-2px);
+    }
+    
+    .card-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      letter-spacing: -0.01em;
+      color: #f8fafc;
+      white-space: normal;
+      overflow: visible;
+      text-overflow: clip;
+      line-height: 1.3;
+      max-width: 100%;
+      transition: color 0.3s ease, transform 0.3s ease;
+    }
+    
+    .card-subtitle {
+      font-size: 13px;
+      color: #94a3b8;
+      margin-bottom: 15px;
+      line-height: 1.4;
+      overflow: visible;
+      display: block;
+      max-width: 100%;
+    }
+    
+    .card .stat {
+      font-size: 20px;
+      font-weight: 700;
+      color: #f8fafc;
+      margin-top: auto;
+      padding-top: 12px;
+      white-space: normal;
+      overflow: visible;
+      text-overflow: clip;
+      max-width: 100%;
+      line-height: 1.3;
+      background: linear-gradient(to right, #f8fafc, #ecd394);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-fill-color: transparent;
+      transition: all 0.3s ease;
+    }
+    
+    .card:hover .stat {
+      background: linear-gradient(to right, #ecd394, #c9a667);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-fill-color: transparent;
+    }
+    
+    /* Card positions are now handled by JavaScript */
+    .card-1 {
+      top: 50%;
+      left: 50%;
+    }
+    
+    .card-2 {
+      top: 50%;
+      left: 50%;
+    }
+    
+    .card-3 {
+      top: 50%;
+      left: 50%;
+    }
+    
+    .card-4 {
+      top: 50%;
+      left: 50%;
+    }
+    
+    /* New card positions */
+    .card-5 {
+      top: 50%;
+      left: 50%;
+    }
+    
+    .card-6 {
+      top: 50%;
+      left: 50%;
+    }
+    
+    .card-7 {
+      top: 50%;
+      left: 50%;
+    }
+    
+    .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background-color: #0ea5e9;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+    }
+    
+    .card .label {
+      position: absolute;
+      bottom: 15px;
+      left: 20px;
+      font-size: 12px;
+      color: #94a3b8;
+    }
+
+    .card .icon {
+      width: 24px;
+      height: 24px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      background: rgba(14, 165, 233, 0.1);
+      margin-right: 8px;
+      color: #0ea5e9;
+    }
+
+    .card .btn {
+      position: absolute;
+      bottom: 15px;
+      left: 20px;
+      right: 20px;
+      padding: 8px 0;
+      text-align: center;
+      background: rgba(201, 166, 103, 0.1);
+      color: #c9a667;
+      border: 1px solid #c9a667;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    .card .tag-label {
+      flex-shrink: 0; /* Prevent shrinking */
+      display: inline-flex;
+      padding: 2px 6px;
+      background: rgba(201, 166, 103, 0.08);
+      border-radius: 4px;
+      color: #ecd394;
+      font-size: 9px;
+      margin-bottom: 14px;
+      align-items: center;
+      gap: 4px;
+      letter-spacing: 0.05em;
+      font-weight: 500;
+      text-transform: uppercase;
+      position: relative;
+    }
+    
+    .tag-label::before {
+      content: '';
+      display: inline-block;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background-color: #c9a667;
+    }
+
+    .card .amount {
+      color: #e2e8f0;
+      font-size: 14px;
+      margin: 10px 0;
+    }
+
+    .card .status {
+      display: inline-block;
+      padding: 4px 12px;
+      background: rgba(201, 166, 103, 0.1);
+      color: #c9a667;
+      border-radius: 100px;
+      font-size: 12px;
+    }
+
+    .logo {
+      position: fixed;
+      top: 30px;
+      left: 30px;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #fff;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      letter-spacing: -0.01em;
+    }
+
+    .logo::before {
+      content: '';
+      display: inline-block;
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      background: linear-gradient(135deg, #ecd394 0%, #a38548 100%);
+      margin-right: 8px;
+    }
+
+    .logo span {
+      background: linear-gradient(to right, #ecd394, #a38548);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-fill-color: transparent;
+    }
+
+    .cta {
+      position: fixed;
+      top: 30px;
+      right: 30px;
+      z-index: 1000;
+    }
+
+    .btn-cta {
+      background: rgba(201, 166, 103, 0.1);
+      color: #fff;
+      border: 1px solid rgba(201, 166, 103, 0.3);
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-weight: 500;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .btn-cta:hover {
+      background: rgba(201, 166, 103, 0.2);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(201, 166, 103, 0.2);
+    }
+    
+    .floating-elements {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 5;
+      opacity: 0.3;
+    }
+    
+    .floating-element {
+      position: absolute;
+      border-radius: 50%;
+      background: rgba(201, 166, 103, 0.2);
+      animation: float 20s linear infinite;
+    }
+    
+    .floating-element.dollar {
+      font-size: 20px;
+      color: rgba(201, 166, 103, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      background: rgba(201, 166, 103, 0.1);
+      animation: float 15s linear infinite;
+    }
+    
+    @keyframes float {
+      0% { transform: rotateX(10deg) rotateY(-20deg) translateY(0); }
+      25% { transform: rotateX(12deg) rotateY(-15deg) translateY(-7px); }
+      50% { transform: rotateX(15deg) rotateY(-10deg) translateY(-10px); }
+      75% { transform: rotateX(13deg) rotateY(-15deg) translateY(-7px); }
+      100% { transform: rotateX(10deg) rotateY(-20deg) translateY(0); }
+    }
+
+    .final-cta {
+      position: absolute;
+      bottom: 100px;
+      left: 0;
+      width: 100%;
+      text-align: center;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.4s ease, transform 0.4s ease;
+      padding: 0 20px;
+    }
+    
+    .final-cta h3 {
+      font-size: 3.5rem;
+      margin-bottom: 1.5rem;
+      background: linear-gradient(135deg, #ecd394 0%, #a38548 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-fill-color: transparent;
+      letter-spacing: -0.02em;
+      font-weight: 800;
+    }
+    
+    .final-cta p {
+      max-width: 600px;
+      margin: 0 auto 2rem auto;
+      color: #e2e8f0;
+      font-size: 1.2rem;
+      line-height: 1.5;
+    }
+    
+    .btn-large {
+      background: linear-gradient(135deg, #ecd394 0%, #a38548 100%);
+      color: #fff;
+      border: none;
+      padding: 15px 40px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 1.2rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: inline-block;
+      box-shadow: 0 4px 20px rgba(201, 166, 103, 0.3);
+    }
+    
+    .btn-large:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 30px rgba(201, 166, 103, 0.4);
+    }
+
+    /* Scenic panel styles */
+    .scenic-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100vh;
+      z-index: 100;
+      transition: opacity 0.5s ease;
+      overflow: hidden;
+      pointer-events: none;
+    }
+    
+    .scenic-panels {
+      display: flex;
+      width: 100%;
+      height: 100%;
+      position: relative;
+      transition: transform 1.5s cubic-bezier(0.19, 1, 0.22, 1);
+    }
+    
+    .panel {
+      flex: 1;
+      height: 100%;
+      background-size: cover;
+      background-position: center;
+      position: relative;
+      transition: transform 1.5s cubic-bezier(0.19, 1, 0.22, 1), 
+                  opacity 1.5s cubic-bezier(0.19, 1, 0.22, 1);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-width: 0 1px;
+      overflow: hidden;
+    }
+    
+    .panel::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    
+    .panel-left {
+      background-image: url('https://images.unsplash.com/photo-1501785888041-af3ef285b470?q=80&w=2000');
+      background-position: left center;
+    }
+    
+    .panel-left::before {
+      background: linear-gradient(135deg, rgba(14, 165, 233, 0.3), rgba(59, 130, 246, 0.2));
+    }
+    
+    .panel-center {
+      background-image: url('https://images.unsplash.com/photo-1501785888041-af3ef285b470?q=80&w=2000');
+      background-position: center center;
+    }
+    
+    .panel-center::before {
+      background: linear-gradient(180deg, rgba(249, 168, 212, 0.2), rgba(216, 180, 254, 0.3));
+    }
+    
+    .panel-right {
+      background-image: url('https://images.unsplash.com/photo-1501785888041-af3ef285b470?q=80&w=2000');
+      background-position: right center;
+    }
+    
+    .panel-right::before {
+      background: linear-gradient(225deg, rgba(251, 146, 60, 0.3), rgba(234, 179, 8, 0.2));
+    }
+    
+    .center-hole {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0);
+      width: 30vw;
+      height: 50vh;
+      background-color: black;
+      border-radius: 40% / 60%;
+      transition: transform 1.5s cubic-bezier(0.19, 1, 0.22, 1);
+      box-shadow: 0 0 100px rgba(0, 0, 0, 0.8);
+      overflow: hidden;
+    }
+    
+    .center-hole-content {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      transition: opacity 1s ease;
+      background-color: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      perspective: 1200px;
+    }
+    
+    .perspective-grid {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      transform-style: preserve-3d;
+      transform: rotateX(60deg) scale(0.7);
+      background-image: 
+        radial-gradient(circle at center, rgba(255, 255, 255, 0.15) 2px, transparent 2px);
+      background-size: 30px 30px;
+    }
+    
+    .perspective-grid::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 150px;
+      height: 150px;
+      background: radial-gradient(circle at 30% 30%, #ecd394 0%, #c9a667 40%, #a38548 80%, #7d694c 100%);
+      border-radius: 50%;
+      transform: translate(-50%, -50%) rotateX(-60deg);
+      box-shadow: 0 0 50px rgba(201, 166, 103, 0.5);
+    }
+    
+    /* Add a reflection effect to the grid sphere */
+    .perspective-grid::after {
+      content: '';
+      position: absolute;
+      top: calc(50% - 45px);
+      left: calc(50% - 30px);
+      width: 60px;
+      height: 60px;
+      background: radial-gradient(circle at center, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.1) 60%, transparent 100%);
+      border-radius: 50%;
+      transform: rotateX(-60deg);
+      filter: blur(2px);
+    }
+    
+    /* State classes for animation */
+    .panel-left.active {
+      transform: translateY(-100%) translateX(-20%) rotate(-5deg);
+      opacity: 0;
+    }
+    
+    .panel-right.active {
+      transform: translateY(-100%) translateX(20%) rotate(5deg);
+      opacity: 0;
+    }
+    
+    .panel-center.active {
+      opacity: 0.5;
+    }
+    
+    .center-hole.active {
+      transform: translate(-50%, -50%) scale(1);
+    }
+    
+    .center-hole-content.active {
+      opacity: 1;
+    }
+
+    /* Dot style indicator for active cards */
+    .card::after {
+      content: '';
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: #38bdf8;
+      opacity: 0.8;
+    }
+    
+    /* Enhanced sphere trail */
+    .sphere::before {
+      content: '';
+      position: absolute;
+      width: 100%;
+      height: 300%;
+      top: 100%;
+      left: 0;
+      background: linear-gradient(to bottom, rgba(201, 166, 103, 0.4), rgba(201, 166, 103, 0.1), transparent);
+      opacity: 0;
+      border-radius: 50% 50% 40% 40% / 50% 50% 30% 30%;
+      filter: blur(20px);
+      z-index: -1;
+      transition: opacity 0.5s ease;
+      transform: translateY(-10%);
+    }
+    
+    /* When the sphere starts moving up, show the enhanced trail */
+    .sphere.moving-up::before {
+      opacity: 0.8;
+      animation: trailPulse 2s infinite alternate ease-in-out;
+    }
+
+    @keyframes trailPulse {
+      0% { opacity: 0.7; height: 280%; }
+      100% { opacity: 0.9; height: 320%; }
+    }
+
+    /* Additional card content styles */
+    .card .tag-label {
+      margin-bottom: 14px;
+    }
+    
+    .card-title {
+      margin-bottom: 6px;
+    }
+    
+    .card-subtitle {
+      margin-bottom: 12px;
+    }
+    
+    .card .stat {
+      margin-top: auto;
+      padding-top: 10px;
+    }
+    
+    /* Blue dot for cards like in reference */
+    .card::after {
+      content: '';
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: #38bdf8;
+      opacity: 0.8;
+    }
+
+    /* Enhanced card styling for horizontal line */
+    .card.in-line {
+      position: fixed; 
+      width: 250px !important;
+      height: 250px !important;  /* Keep square 250px × 250px */
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+      transition: all 0.8s cubic-bezier(0.05, 0.7, 0.1, 1.0);
+      background-color: rgba(15, 20, 30, 0.85);
+      border: 1px solid rgba(71, 85, 105, 0.4);
+      border-radius: 8px;
+      z-index: 100;
+      padding: 18px;
+      opacity: 1 !important;
+      will-change: transform, left, top;
+      backdrop-filter: blur(5px);
+    }
+
+    /* Card style when in grid */
+    .card.in-grid {
+      background-color: rgba(10, 20, 40, 0.9);
+      border: 1px solid rgba(30, 40, 60, 0.4);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+      border-radius: 12px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      width: 250px !important; /* Consistent 250px width */
+      height: 250px !important; /* Consistent 250px height */
+      overflow: visible !important;
+    }
+
+    /* Create a subtle floating effect for the heading at the start */
+    @keyframes floatHeading {
+      0% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+      100% { transform: translateY(0); }
+    }
+
+    /* Apply the floating animation to the heading when at the top of the page */
+    .heading-float {
+      animation: floatHeading 6s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body>
+  <div class="logo">Unbroken<span>Pockets</span></div>
+  <div class="cta">
+    <button class="btn-cta">Sign Up Free</button>
+  </div>
+  
+  <div class="floating-elements">
+    <div class="floating-element dollar" style="top: 20%; left: 15%;">$</div>
+    <div class="floating-element dollar" style="top: 70%; left: 80%;">$</div>
+    <div class="floating-element dollar" style="top: 40%; left: 75%;">$</div>
+    <div class="floating-element" style="top: 60%; left: 30%; width: 30px; height: 30px;"></div>
+    <div class="floating-element" style="top: 25%; left: 60%; width: 20px; height: 20px;"></div>
+    <div class="floating-element" style="top: 85%; left: 40%; width: 15px; height: 15px;"></div>
+  </div>
+  
+  <!-- Scenic panels that will animate on scroll -->
+  <div class="scenic-container" id="scenicContainer">
+    <div class="scenic-panels" id="scenicPanels">
+      <div class="panel panel-left" id="panelLeft"></div>
+      <div class="panel panel-center" id="panelCenter">
+        <div class="center-hole" id="centerHole">
+          <div class="center-hole-content" id="centerHoleContent">
+            <div class="perspective-grid"></div>
+          </div>
+        </div>
+      </div>
+      <div class="panel panel-right" id="panelRight"></div>
+    </div>
+  </div>
+  
+  <div class="container">
+    <div class="fixed-content">
+      <div class="center-content" id="centerContent">
+        <div class="heading" id="heading">
+          <h1>financial freedom</h1>
+          <h2>at your fingertips</h2>
+        </div>
+      </div>
+      
+      <div class="sphere" id="sphere">
+        <div class="sphere-inner"></div>
+      </div>
+      
+      <div class="grid" id="grid">
+        <!-- Grid cells will be dynamically generated -->
+      </div>
+      
+      <!-- Smart Budgeting Card -->
+      <div class="card card-1" id="card1">
+        <div class="tag-label">Smart Budgeting</div>
+        <h3 class="card-title">Monthly Budget</h3>
+        <p class="card-subtitle">Track spending vs budget in real-time</p>
+        <div class="stat">$1,850 / $2,000</div>
+      </div>
+      
+      <!-- Cash Flow Analysis Card -->
+      <div class="card card-2" id="card2">
+        <div class="tag-label">Cash Flow</div>
+        <h3 class="card-title">Income vs Expenses</h3>
+        <p class="card-subtitle">This Month's Overview</p>
+        <div class="stat">+$1,250</div>
+      </div>
+      
+      <!-- Financial Wellness Card -->
+      <div class="card card-3" id="card3">
+        <div class="tag-label">Financial Wellness</div>
+        <h3 class="card-title">Wellness Score</h3>
+        <p class="card-subtitle">Your financial health is looking good</p>
+        <div class="stat">82/100</div>
+      </div>
+      
+      <!-- AI Insights Card -->
+      <div class="card card-4" id="card4">
+        <div class="tag-label">AI Insights</div>
+        <h3 class="card-title">Smart Savings Found</h3>
+        <p class="card-subtitle">Potential savings based on spending patterns</p>
+        <div class="stat">$325/month</div>
+      </div>
+      
+      <!-- Investment Tracking Card -->
+      <div class="card card-5" id="card5">
+        <div class="tag-label">Investment Tracking</div>
+        <h3 class="card-title">Portfolio Performance</h3>
+        <p class="card-subtitle">This year's portfolio growth</p>
+        <div class="stat">+12.8%</div>
+      </div>
+      
+      <!-- Transaction History Card -->
+      <div class="card card-6" id="card6">
+        <div class="tag-label">Transaction History</div>
+        <h3 class="card-title">Recent Activity</h3>
+        <p class="card-subtitle">Automatically categorized transactions</p>
+        <div class="stat">215 Transactions</div>
+      </div>
+      
+      <!-- Bank Integration Card -->
+      <div class="card card-7" id="card7">
+        <div class="tag-label">Bank Integration</div>
+        <h3 class="card-title">Connected Accounts</h3>
+        <p class="card-subtitle">Securely linked to financial institutions</p>
+        <div class="stat">4 Banks</div>
+      </div>
+      
+      <div class="bottom-content" id="bottomContent">
+        <p class="tag">all-in-one</p>
+        <h3>complete financial control</h3>
+        <p>Bank connections, transaction history, investment tracking, and goal planning — all in one secure platform for complete financial clarity.</p>
+      </div>
+      
+      <div class="final-cta" id="finalCta">
+        <h3>start your journey today</h3>
+        <p>Join thousands of users who've transformed their relationship with money using Unbroken Pockets.</p>
+        <button class="btn-large">get started</button>
+      </div>
+      
+      <div class="scroll-indicator">
+        <div class="dot active" data-index="0"></div>
+        <div class="dot" data-index="1"></div>
+        <div class="dot" data-index="2"></div>
+        <div class="dot" data-index="3"></div>
+        <div class="dot" data-index="4"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const container = document.querySelector('.container');
+      const centerContent = document.getElementById('centerContent');
+      const heading = document.getElementById('heading');
+      const grid = document.getElementById('grid');
+      const bottomContent = document.getElementById('bottomContent');
+      const finalCta = document.getElementById('finalCta');
+      const card1 = document.getElementById('card1');
+      const card2 = document.getElementById('card2');
+      const card3 = document.getElementById('card3');
+      const card4 = document.getElementById('card4');
+      const card5 = document.getElementById('card5');
+      const card6 = document.getElementById('card6');
+      const card7 = document.getElementById('card7');
+      const dots = document.querySelectorAll('.dot');
+      
+      // Apply floating animation to heading at the top of the page
+      heading.classList.add('heading-float');
+      
+      // Handle heading float animation based on scroll position
+      function updateHeadingFloat() {
+        if (window.scrollY > 10) {
+          heading.classList.remove('heading-float');
+        } else if (window.scrollY === 0) {
+          heading.classList.add('heading-float');
+        }
+      }
+      
+      // Add scroll listener for heading float animation
+      window.addEventListener('scroll', updateHeadingFloat);
+      
+      // Scenic panel elements
+      const scenicContainer = document.getElementById('scenicContainer');
+      const panelLeft = document.getElementById('panelLeft');
+      const panelCenter = document.getElementById('panelCenter');
+      const panelRight = document.getElementById('panelRight');
+      const centerHole = document.getElementById('centerHole');
+      const centerHoleContent = document.getElementById('centerHoleContent');
+      
+      // Generate grid cells dynamically
+      const gridCellCount = 25; // 5x5 grid
+      for (let i = 0; i < gridCellCount; i++) {
+        const cell = document.createElement('div');
+        cell.classList.add('grid-cell');
+        cell.setAttribute('data-index', i);
+        grid.appendChild(cell);
+      }
+      
+      // Card positions in the grid (row, col) - positioned like in reference image
+      const cardGridPositions = [
+        { card: card1, row: 1, col: 1 },     // Smart Budgeting - top left
+        { card: card5, row: 1, col: 3 },     // Investment Tracking - top right
+        { card: card3, row: 2, col: 0 },     // Financial Wellness - left middle
+        { card: card4, row: 2, col: 4 },     // AI Insights - right middle
+        { card: card7, row: 3, col: 4 },     // Bank Integration - right side
+        { card: card6, row: 4, col: 2 },     // Transaction History - bottom middle
+        { card: card2, row: 4, col: 4 }      // Cash Flow - bottom right
+      ];
+      
+      // Final horizontal positions for the clean line layout
+      const cardFinalPositions = [
+        { top: '40%', left: '10%' },    // Card 1
+        { top: '40%', left: '25%' },    // Card 2
+        { top: '40%', left: '40%' },    // Card 3
+        { top: '40%', left: '55%' },    // Card 4
+        { top: '40%', left: '70%' },    // Card 5
+        { top: '40%', left: '85%' },    // Card 6
+        { top: '40%', left: '100%' }    // Card 7
+      ];
+      
+      // Helper function to get a random number between min and max
+      function getRandomNumber(min, max) {
+        return Math.random() * (max - min) + min;
+      }
+      
+      // Helper function for easing
+      function cubicBezier(x1, y1, x2, y2) {
+        return function(t) {
+          if (t <= 0) return 0;
+          if (t >= 1) return 1;
+          
+          // Calculate the polynomial coefficients
+          const cx = 3 * x1;
+          const bx = 3 * (x2 - x1) - cx;
+          const ax = 1 - cx - bx;
+          
+          const cy = 3 * y1;
+          const by = 3 * (y2 - y1) - cy;
+          const ay = 1 - cy - by;
+          
+          // Use Newton-Raphson method to solve for t
+          let x = t;
+          for (let i = 0; i < 5; i++) {
+            const z = ax * x * x * x + bx * x * x + cx * x - t;
+            const dz = 3 * ax * x * x + 2 * bx * x + cx;
+            x = x - z / dz;
+          }
+          
+          // Solve for y using the t value
+          return ay * x * x * x + by * x * x + cy * x;
+        };
+      }
+
+      // Generate random intermediate positions for each card
+      const cardIntermediatePositions = cardGridPositions.map((pos, index) => {
+        // Generate a random position in the viewport
+        // More distinct positions for better visual effect
+        const angle = (index / cardGridPositions.length) * Math.PI * 2;
+        const distance = Math.random() * 20 + 30; // Random distance from center
+        const top = 50 + Math.sin(angle) * distance;
+        const left = 50 + Math.cos(angle) * distance;
+        
+        return {
+          top: top + '%',
+          left: left + '%',
+          rotate: (Math.random() * 40 - 20) + 'deg', // -20 to +20 degrees rotation
+          scale: 0.8 + Math.random() * 0.4 // Random scale between 0.8 and 1.2
+        };
+      });
+      
+      // Make sure all cards are initially positioned as children of the grid
+      cardGridPositions.forEach(pos => {
+        grid.appendChild(pos.card);
+      });
+      
+      // Position cards in the grid initially
+      function positionCardsInGrid() {
+        cardGridPositions.forEach((pos, index) => {
+          const card = pos.card;
+          const cellIndex = pos.row * 5 + pos.col;
+          const cell = grid.querySelector(`[data-index="${cellIndex}"]`);
+          
+          if (cell) {
+            // Make sure card is child of the cell
+            if (card.parentNode !== cell) {
+              cell.appendChild(card);
+            }
+            
+            // Center card in cell
+            card.style.position = 'absolute';
+            card.style.left = '50%';
+            card.style.top = '50%';
+            card.style.transform = 'translate(-50%, -50%)';
+            
+            // Set consistent width and height
+            card.style.width = '250px';
+            card.style.height = '250px';
+            
+            // Add in-grid class for styling
+            card.classList.add('in-grid');
+            card.classList.remove('in-line');
+            
+            // Reset opacity
+            card.style.opacity = '1';
+            
+            // Highlight the cell
+            cell.style.backgroundColor = 'rgba(30, 41, 59, 0.7)';
+            cell.style.transition = 'background-color 0.5s ease, box-shadow 0.5s ease';
+          }
+        });
+      }
+      
+      // Call once to set initial positions
+      setTimeout(positionCardsInGrid, 100);
+      
+      // Add a resize event listener to ensure cards stay positioned properly
+      window.addEventListener('resize', positionCardsInGrid);
+      
+      // Also reposition cards whenever scrolling starts or window is resized
+      let lastScrollTop = 0;
+      window.addEventListener('scroll', function() {
+        const st = window.scrollY;
+        // If this is the start of scrolling (direction changed)
+        if ((st > lastScrollTop && lastScrollTop === 0) || (st === 0 && lastScrollTop > 0)) {
+          positionCardsInGrid();
+        }
+        lastScrollTop = st;
+      });
+      
+      // Get total height
+      const totalHeight = container.clientHeight;
+      const viewportHeight = window.innerHeight;
+      
+      // Handle scrolling
+      window.addEventListener('scroll', () => {
+        const scrollPosition = window.scrollY;
+        const scrollRatio = scrollPosition / (totalHeight - viewportHeight);
+        
+        // Animation timing constants
+        const scenicPanelThreshold = 0.2; // When to complete the panel animation
+        const scenicPanelFadeout = 0.3;   // When to fade out the panels completely
+        const gridPerspectiveStart = 0.4; // When to start the grid perspective animation
+        const gridPerspectiveEnd = 0.6;   // When to end the grid perspective animation
+        
+        if (scrollRatio < scenicPanelThreshold) {
+          // Normalize progress for panel animation (0 to 1 within threshold)
+          const panelProgress = Math.min(1, scrollRatio / scenicPanelThreshold);
+          
+          // Animate panels
+          if (panelProgress > 0.2) {
+            panelLeft.classList.add('active');
+            panelRight.classList.add('active');
+          } else {
+            panelLeft.classList.remove('active');
+            panelRight.classList.remove('active');
+          }
+          
+          if (panelProgress > 0.4) {
+            centerHole.classList.add('active');
+          } else {
+            centerHole.classList.remove('active');
+          }
+          
+          if (panelProgress > 0.7) {
+            centerHoleContent.classList.add('active');
+            panelCenter.classList.add('active');
+          } else {
+            centerHoleContent.classList.remove('active');
+            panelCenter.classList.remove('active');
+          }
+          
+          // Prevent normal scrolling animations
+          centerContent.style.opacity = 0;
+          grid.style.opacity = 0;
+        } else {
+          // Fade out scenic panels completely after threshold
+          const fadeOutProgress = Math.min(1, (scrollRatio - scenicPanelThreshold) / (scenicPanelFadeout - scenicPanelThreshold));
+          scenicContainer.style.opacity = 1 - fadeOutProgress;
+          
+          if (fadeOutProgress === 1) {
+            scenicContainer.style.display = 'none'; // Remove from layout after faded out
+            
+            // Ensure grid is visible once scenic panels are gone
+            if (parseFloat(grid.style.opacity) < 0.1) {
+              grid.style.opacity = '1';
+            }
+          }
+          
+          // Scale content based on scroll
+          const scale = 0.2 + ((scrollRatio - scenicPanelThreshold) * 4.8); // From 0.2 to 5
+          centerContent.style.transform = `scale(${scale})`;
+          centerContent.style.opacity = fadeOutProgress;
+          
+          // Set grid opacity only once during the initial fade-in after the scenic panels
+          if (scrollRatio < 0.35) {
+            grid.style.opacity = Math.max(0, fadeOutProgress);
+          } else {
+            // Once we reach the grid transformation phase, maintain a constant high opacity
+            grid.style.opacity = '1';
+          }
+          
+          // Handle grid perspective transformation
+          const gridPerspectiveStart = 0.4;
+          const gridPerspectiveEnd = 0.6;
+          
+          if (scrollRatio > gridPerspectiveStart) {
+            // Ensure grid is fully visible during its animation
+            grid.style.opacity = '1';
+            
+            const perspectiveProgress = Math.min(1, (scrollRatio - gridPerspectiveStart) / (gridPerspectiveEnd - gridPerspectiveStart));
+            
+            // Force grid to start in laying position (flat)
+            if (perspectiveProgress < 0.1) {
+              grid.style.transform = 'perspective(1200px) rotateX(30deg) scale(0.9)';
+            }
+            // Transition from laying to forward-facing position
+            else {
+              // Adjust transform scale based on perspective progress
+              const scaleValue = 0.9 + (perspectiveProgress * 0.1);
+              const rotateValue = 30 - (perspectiveProgress * 30);
+              
+              // Use cubic-bezier easing for smoother grid animation
+              const customEasing = cubicBezier(0.19, 1, 0.22, 1);
+              const easeProgress = customEasing(perspectiveProgress);
+              
+              // Apply the transformation to the grid - this was missing
+              grid.style.transform = `perspective(1200px) rotateX(${rotateValue}deg) scale(${scaleValue})`;
+              
+              // Update grid classes based on rotation
+              if (perspectiveProgress > 0.9) {
+                grid.classList.add('upright');
+                grid.classList.remove('flat');
+              } else if (perspectiveProgress < 0.1) {
+                grid.classList.add('flat');
+                grid.classList.remove('upright');
+              }
+              
+              // Update scroll indicator
+              const activeIndex = Math.min(4, Math.floor(scrollRatio * 5));
+              dots.forEach((dot, index) => {
+                if (index === activeIndex) {
+                  dot.classList.add('active');
+                } else {
+                  dot.classList.remove('active');
+                }
+              });
+
+              // Find this existing sphere animation code and enhance it
+              // Animate the sphere to slide up and out as the grid flattens
+              const sphereElement = document.getElementById('sphere');
+              // Starting from center position to a position above the viewport
+              const sphereYPos = 0 - (perspectiveProgress * 150); // Move up 150vh at full progress
+              const sphereScale = 1 - perspectiveProgress * 0.3;
+              const sphereRotateX = perspectiveProgress * -10; // Slight backward tilt as it moves up
+              const sphereRotateY = -20 + (perspectiveProgress * 40); // Add rotation around Y axis for more dynamic movement
+
+              // Apply combined transformations with enhanced rotation
+              sphereElement.style.transform = `translate(-50%, ${sphereYPos}vh) scale(${sphereScale}) rotateX(${sphereRotateX}deg) rotateY(${sphereRotateY}deg)`;
+
+              // Gradually reduce opacity as it moves up
+              sphereElement.style.opacity = Math.max(0, 1 - perspectiveProgress * 1.5);
+
+              // Add the moving-up class when the sphere starts moving for trail effect
+              if (perspectiveProgress > 0.1) {
+                sphereElement.classList.add('moving-up');
+              } else {
+                sphereElement.classList.remove('moving-up');
+              }
+
+              // Synchronize heading animation with sphere movement
+              const headingElement = document.getElementById('heading');
+              // Use slightly different values for a nice offset effect
+              const headingYPos = -10 - (perspectiveProgress * 160); // Move up with progress, matching sphere's upward movement
+              const headingScale = 1 - perspectiveProgress * 0.2; // Shrink slightly as it moves up
+
+              // Apply combined transformations to heading
+              headingElement.style.transform = `translateY(${headingYPos}vh) scale(${headingScale})`;
+              headingElement.style.opacity = Math.max(0, 1 - perspectiveProgress * 1.2); // Fade out as it moves up
+
+              // Apply appropriate animation to cards based on grid position
+              const cardOpacity = 0.5 + (perspectiveProgress * 0.5);
+              cardGridPositions.forEach((pos, index) => {
+                const card = pos.card;
+                const cellIndex = pos.row * 5 + pos.col;
+                const cell = grid.querySelector(`[data-index="${cellIndex}"]`);
+                
+                // Make sure cards are in their cells during the grid transition
+                if (cell && card.parentNode !== cell) {
+                  cell.appendChild(card);
+                  
+                  // Position card within cell
+                  card.style.position = 'absolute';
+                  card.style.left = '50%';
+                  card.style.top = '50%';
+                  card.style.transform = 'translate(-50%, -50%)';
+                  card.style.width = '250px';
+                  card.style.height = '250px';
+                }
+                
+                // Fade in cards as grid rotates
+                card.style.opacity = cardOpacity;
+                
+                // Add grid styling
+                card.classList.add('in-grid');
+                card.classList.remove('in-line');
+                
+                // Highlight the cell based on progress
+                if (cell) {
+                  cell.style.backgroundColor = `rgba(30, 41, 59, ${0.3 + perspectiveProgress * 0.5})`;
+                  cell.style.boxShadow = `0 ${2 + perspectiveProgress * 4}px ${8 + perspectiveProgress * 12}px rgba(0, 0, 0, ${0.1 + perspectiveProgress * 0.2})`;
+                }
+              });
+            }
+          }
+        }
+        
+        // Adjust other animations relative to the scenic panel animation
+        const adjustedScrollRatio = (scrollRatio - scenicPanelThreshold) / (1 - scenicPanelThreshold);
+
+        // Handle bottom content
+        const bottomStart = 0.7;
+        const bottomContentOpacity = adjustedScrollRatio > bottomStart ? (adjustedScrollRatio - bottomStart) / (1 - bottomStart) : 0;
+        bottomContent.style.opacity = bottomContentOpacity;
+        bottomContent.style.transform = `translateY(${20 - (bottomContentOpacity * 20)}px)`;
+
+        // Handle final CTA
+        const finalStart = 0.85;
+        const finalContentOpacity = adjustedScrollRatio > finalStart ? (adjustedScrollRatio - finalStart) / (1 - finalStart) : 0;
+        finalCta.style.opacity = finalContentOpacity;
+        finalCta.style.transform = `translateY(${20 - (finalContentOpacity * 20)}px)`;
+
+        // Define card transition thresholds
+        const cardTransitionStart = 0.65; // Start transition after grid is upright
+        const cardTransitionEnd = 0.75;   // End of card transition to horizontal line
+
+        // If we're in the card transition range, animate cards from grid to horizontal line
+        if (adjustedScrollRatio >= cardTransitionStart && adjustedScrollRatio <= cardTransitionEnd) {
+          // Calculate progress within the card transition (0 to 1)
+          const cardProgress = (adjustedScrollRatio - cardTransitionStart) / (cardTransitionEnd - cardTransitionStart);
+          
+          // Use custom easing for smoother animation - use a gentle curve
+          const easedProgress = cubicBezier(0.05, 0.7, 0.1, 1.0)(cardProgress);
+          
+          // Fade out the grid as cards transition to horizontal line
+          // Start fading from 20% into the card transition, fully gone by the end
+          const gridFadeStart = 0.1; // Start fading earlier for smoother transition
+          const gridFadeEnd = 0.9;   // Complete the fade slightly before cards finish alignment
+          if (easedProgress >= gridFadeStart) {
+            const gridFadeProgress = Math.min(1, (easedProgress - gridFadeStart) / (gridFadeEnd - gridFadeStart));
+            // Use cubic bezier easing for smoother fade out
+            const fadeEasing = cubicBezier(0.4, 0, 0.2, 1); // Standard material design easing
+            const fadedOpacity = 1 - fadeEasing(gridFadeProgress);
+            grid.style.opacity = Math.max(0, fadedOpacity);
+          }
+          
+          // Animate cards to horizontal line
+          cardGridPositions.forEach((pos, index) => {
+            const card = pos.card;
+            const cellIndex = pos.row * 5 + pos.col;
+            const cell = grid.querySelector(`[data-index="${cellIndex}"]`);
+            
+            // Get initial position of the card in the grid cell
+            const cellRect = cell.getBoundingClientRect();
+            const gridX = cellRect.left + cellRect.width / 2;
+            const gridY = cellRect.top + cellRect.height / 2;
+            
+            // Final horizontal position (evenly spaced across screen width)
+            const totalWidth = Math.min(window.innerWidth * 0.85, 1200); // Limit the max width
+            const cardSpacing = totalWidth / cardGridPositions.length;
+            const leftOffset = (window.innerWidth - totalWidth) / 2;
+            const finalX = leftOffset + cardSpacing * (index + 0.5);
+            const finalY = window.innerHeight * 0.5; // Position at center of screen
+            
+            // IMPORTANT: Always move card to body right at the start of the transition
+            // This ensures cards stay visible during their journey from grid to horizontal line
+            if (card.parentNode !== document.body) {
+              const cardRect = card.getBoundingClientRect();
+              
+              // Move to body
+              document.body.appendChild(card);
+              
+              // Immediately position at exact same screen coordinates
+              card.style.position = 'fixed';
+              card.style.left = (cardRect.left + cardRect.width / 2) + 'px';
+              card.style.top = (cardRect.top + cardRect.height / 2) + 'px';
+              card.style.width = cardRect.width + 'px';
+              card.style.height = cardRect.height + 'px';
+              card.style.transform = 'translate(-50%, -50%)';
+              card.style.transition = 'none'; // Disable transitions temporarily
+              
+              // Force layout reflow to ensure the card is positioned correctly
+              card.offsetHeight;
+              
+              // Re-enable transitions
+              setTimeout(() => {
+                card.style.transition = 'all 0.8s cubic-bezier(0.05, 0.7, 0.1, 1.0)';
+              }, 10);
+            }
+            
+            // Apply a gentle arc to the movement path for more natural motion
+            const arcHeight = 30; // Height of the arc in pixels
+            const arcOffset = Math.sin(easedProgress * Math.PI) * arcHeight;
+            
+            // Interpolate between grid and final positions with arc
+            const currentX = gridX + (finalX - gridX) * easedProgress;
+            const pathY = gridY + (finalY - gridY) * easedProgress;
+            const currentY = pathY - arcOffset * (1 - Math.abs(2 * easedProgress - 1));
+            
+            // Apply position with scaling effect
+            card.style.left = currentX + 'px';
+            card.style.top = currentY + 'px';
+
+            // Subtle scale effect during transition
+            const scaleAmount = 1 + Math.sin(easedProgress * Math.PI) * 0.05;
+            card.style.transform = `translate(-50%, -50%) scale(${scaleAmount})`;
+            
+            // Adjust size (from cell size to horizontal line size)
+            const startWidth = cellRect.width * 0.92; // 92% of cell width
+            const startHeight = cellRect.height * 0.92; // 92% of cell height
+            const finalWidth = 250; // Width in horizontal line
+            const finalHeight = 150; // Changed back to rectangular format to match second screenshot
+            
+            card.style.width = (startWidth + (finalWidth - startWidth) * easedProgress) + 'px';
+            card.style.height = (startHeight + (finalHeight - startHeight) * easedProgress) + 'px';
+            
+            // Ensure full opacity with smoother transition
+            card.style.opacity = 0.8 + (0.2 * easedProgress);
+            
+            // Update class based on progress
+            if (easedProgress > 0.5) {
+              card.classList.add('in-line');
+              card.classList.remove('in-grid');
+            } else {
+              card.classList.add('in-grid');
+              card.classList.remove('in-line');
+            }
+            
+            // Set z-index based on card position for proper stacking
+            card.style.zIndex = 100 + index;
+          });
+        } 
+        // After transition is complete, ensure cards stay in horizontal line
+        else if (adjustedScrollRatio > cardTransitionEnd) {
+          // Keep grid hidden
+          grid.style.opacity = '0';
+          
+          cardGridPositions.forEach((pos, index) => {
+            const card = pos.card;
+            
+            // Move card to body if not already there
+            if (card.parentNode !== document.body) {
+              document.body.appendChild(card);
+            }
+            
+            // Position in final horizontal line
+            const totalWidth = Math.min(window.innerWidth * 0.85, 1200); // Limit the max width
+            const cardSpacing = totalWidth / cardGridPositions.length;
+            const leftOffset = (window.innerWidth - totalWidth) / 2;
+            const finalX = leftOffset + cardSpacing * (index + 0.5);
+            const finalY = window.innerHeight * 0.5; // Position at center of screen
+            
+            card.style.position = 'fixed';
+            card.style.left = finalX + 'px';
+            card.style.top = finalY + 'px';
+            card.style.width = '250px';
+            card.style.height = '250px'; // Keep it square 250x250
+            card.style.transform = 'translate(-50%, -50%)';
+            card.style.opacity = 1;
+            card.style.transition = 'all 0.8s cubic-bezier(0.05, 0.7, 0.1, 1.0)';
+            
+            // Ensure proper class
+            card.classList.add('in-line');
+            card.classList.remove('in-grid');
+            
+            // Set z-index
+            card.style.zIndex = 100 + index;
+          });
+        }
+        // Make sure cards go back to grid at earlier scroll positions
+        else if (adjustedScrollRatio < cardTransitionStart && adjustedScrollRatio > gridPerspectiveStart) {
+          // Ensure cards are reattached to grid
+          positionCardsInGrid();
+        }
+      });
+      
+      // Handle dot clicks
+      dots.forEach(dot => {
+        dot.addEventListener('click', () => {
+          const index = dot.getAttribute('data-index');
+          const scenicPanelThreshold = 0.2;
+          const targetScroll = (totalHeight - viewportHeight) * ((index / 4) * (1 - scenicPanelThreshold) + scenicPanelThreshold);
+          window.scrollTo({
+            top: targetScroll,
+            behavior: 'smooth'
+          });
+        });
+      });
+      
+      // Add hover effect to cards
+      const cards = document.querySelectorAll('.card');
+      cards.forEach(card => {
+        card.addEventListener('mouseenter', () => {
+          if (parseFloat(card.style.opacity) > 0.5) {
+            // Extract current transform
+            const currentTransform = card.style.transform;
+            // Add scale effect
+            card.style.transform = `${currentTransform.replace('scale(1.05)', '')} scale(1.05)`;
+            card.style.zIndex = parseInt(card.style.zIndex || 100) + 10;
+          }
+        });
+        
+        card.addEventListener('mouseleave', () => {
+          // Reset z-index to original
+          setTimeout(() => {
+            // Trigger scroll event to restore proper positioning
+            window.dispatchEvent(new Event('scroll'));
+          }, 100);
+        });
+      });
+      
+      // Initialize with scroll position at top
+      window.scrollTo(0, 0);
+
+      // Initialize grid opacity and transform - hidden until scenic panels animation completes
+      grid.style.opacity = '0';
+      grid.style.transform = 'perspective(1200px) rotateX(30deg) scale(0.9)';
+      grid.classList.add('flat');
+      grid.classList.remove('upright');
+      
+      // Make sure the sphere is attached directly to the fixed-content for proper centering
+      const sphereElement = document.getElementById('sphere');
+      const fixedContent = document.querySelector('.fixed-content');
+      
+      // Detach and reattach to ensure proper DOM structure
+      if (sphereElement.parentNode !== fixedContent) {
+        fixedContent.appendChild(sphereElement);
+      }
+      
+      // Initial positions for elements
+      const headingElement = document.getElementById('heading');
+      // Only set initial positions when at the very top of the page
+      if (window.scrollY === 0) {
+        headingElement.style.transform = 'translateY(0)';
+        headingElement.style.opacity = 1;
+        
+        // Initial position for sphere
+        sphereElement.style.transform = 'translate(-50%, -50%)';
+        sphereElement.style.opacity = 1;
+      }
+
+      // Enhanced animation for transitioning cards to horizontal line
+      function animateCardsToHorizontalLine(progress, ease = false) {
+        const customEasing = cubicBezier(0.19, 1, 0.22, 1);
+        const easeProgress = ease ? customEasing(progress) : progress;
+        
+        cardGridPositions.forEach((pos, index) => {
+          const card = pos.card;
+          
+          // Get current position
+          const gridCellIndex = pos.row * 5 + pos.col;
+          const gridCell = grid.querySelector(`[data-index="${gridCellIndex}"]`);
+          const gridCellRect = gridCell.getBoundingClientRect();
+          
+          // Get final position
+          const finalPos = cardFinalPositions[index];
+          const finalTop = parseInt(finalPos.top) / 100 * window.innerHeight;
+          const finalLeft = parseInt(finalPos.left) / 100 * window.innerWidth;
+          
+          // Calculate intermediate position
+          const currentTop = gridCellRect.top + gridCellRect.height / 2;
+          const currentLeft = gridCellRect.left + gridCellRect.width / 2;
+          
+          // Use intermediate positions for random path
+          const intermediatePos = cardIntermediatePositions[index];
+          const midTop = parseInt(intermediatePos.top) / 100 * window.innerHeight;
+          const midLeft = parseInt(intermediatePos.left) / 100 * window.innerWidth;
+          
+          // Add randomized curved path using quadratic bezier
+          let t;
+          if (progress < 0.5) {
+            // First half of animation: grid to intermediate 
+            t = progress * 2; // normalize to 0-1 range
+            const bezierX = currentLeft * (1 - t) * (1 - t) + 2 * midLeft * t * (1 - t) + finalLeft * t * t;
+            const bezierY = currentTop * (1 - t) * (1 - t) + 2 * midTop * t * (1 - t) + finalTop * t * t;
+            
+            // Translate card to the calculated position
+            if (card.parentNode !== document.body) {
+              document.body.appendChild(card); // Move to body for absolute positioning
+            }
+            
+            // Apply transforms
+            card.style.position = 'fixed';
+            card.style.left = bezierX + 'px';
+            card.style.top = bezierY + 'px';
+            card.style.transform = `translate(-50%, -50%) rotate(${t * parseFloat(intermediatePos.rotate)})`;
+            
+            // Start transitioning to in-line class
+            card.style.width = (92 - t * 30) + '%';
+            card.style.height = (92 - t * 30) + '%';
+            
+            // Adjust opacity to ensure visibility
+            card.style.opacity = 0.7 + (0.3 * t);
+            
+          } else {
+            // Second half: intermediate to horizontal line
+            t = (progress - 0.5) * 2; // normalize to 0-1 range
+            const bezierX = midLeft * (1 - t) * (1 - t) + 2 * finalLeft * t * (1 - t) + finalLeft * t * t;
+            const bezierY = midTop * (1 - t) * (1 - t) + 2 * finalTop * t * (1 - t) + finalTop * t * t;
+            
+            // Ensure card is in body
+            if (card.parentNode !== document.body) {
+              document.body.appendChild(card);
+            }
+            
+            // Apply transform
+            card.style.position = 'fixed';
+            card.style.left = bezierX + 'px';
+            card.style.top = bezierY + 'px';
+            card.style.transform = `translate(-50%, -50%) rotate(${(1-t) * parseFloat(intermediatePos.rotate)})`;
+            
+            // Complete transition to in-line card
+            card.style.width = '250px';
+            card.style.height = '250px'; // Keep it square 250x250
+            
+            // Full opacity
+            card.style.opacity = '1';
+            
+            // Add in-line class, remove in-grid
+            card.classList.add('in-line');
+            card.classList.remove('in-grid');
+          }
+          
+          // Add z-index to ensure proper stacking
+          card.style.zIndex = index + 100;
+        });
+      }
+
+      // Add a subtle floating animation to cards when they're in horizontal line
+      function addCardHoverEffects() {
+        const cards = document.querySelectorAll('.card');
+        cards.forEach((card, index) => {
+          // Add slight floating animation with different delay for each card
+          if (card.classList.contains('in-line')) {
+            card.style.animation = `floatCard 8s ease-in-out ${index * 0.7}s infinite`;
+          }
+        });
+      }
+
+      // Add floating animation keyframes
+      const styleSheet = document.styleSheets[0];
+      styleSheet.insertRule(`
+        @keyframes floatCard {
+          0% { transform: translate(-50%, -50%); }
+          50% { transform: translate(-50%, calc(-50% - 5px)); }
+          100% { transform: translate(-50%, -50%); }
+        }
+      `, styleSheet.cssRules.length);
+
+      // Add parallax effect to background
+      window.addEventListener('mousemove', (e) => {
+        // Calculate mouse position percentage
+        const mouseX = e.clientX / window.innerWidth;
+        const mouseY = e.clientY / window.innerHeight;
+        
+        // Apply parallax effect to background dots with subtle movement
+        const bgElement = document.querySelector('body::before');
+        if (bgElement) {
+          bgElement.style.transform = `translate(${mouseX * -10}px, ${mouseY * -10}px)`;
+        }
+      });
+
+      // Add a scroll class to the body during scrolling
+      let scrollTimer;
+      window.addEventListener('scroll', () => {
+        // Add scrolling class
+        document.body.classList.add('is-scrolling');
+        
+        // Clear previous timeout
+        clearTimeout(scrollTimer);
+        
+        // Remove scrolling class after scrolling stops
+        scrollTimer = setTimeout(() => {
+          document.body.classList.remove('is-scrolling');
+        }, 100);
+      });
+    });
+  </script>
+</body>
+</html> 

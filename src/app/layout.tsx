@@ -1,12 +1,15 @@
-import type { Metadata } from "next";
-import "./globals.css";
-import Sidebar from "@/components/layout/Sidebar";
-import ClientLayout from "@/components/layout/ClientLayout";
+import './globals.css'
+import type { Metadata } from 'next'
+import { Inter } from 'next/font/google'
+import { ToastProvider } from '@/components/ui/toast'
+import Sidebar from '@/components/layout/Sidebar'
+
+const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: "Unbroken Pockets | Personal Finance Analytics Platform",
-  description: "Take control of your finances with Unbroken Pockets - Your home base for money clarity",
-};
+  title: 'Unbroken Pockets - Personal Finance',
+  description: 'Track your finances, manage budgets, and achieve your financial goals.',
+}
 
 export default function RootLayout({
   children,
@@ -15,16 +18,16 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className="font-sans antialiased bg-[#FDF6EC] min-h-screen w-full"
-      >
-        <div className="flex w-full">
-          <Sidebar />
-          <div className="flex flex-col w-full">
-              <ClientLayout>{children}</ClientLayout>
+      <body className={`${inter.className} bg-gray-100 text-gray-900`}>
+        <ToastProvider>
+          <div className="flex h-screen">
+            <Sidebar />
+            <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto md:ml-64">
+              {children}
+            </main>
           </div>
-        </div>
+        </ToastProvider>
       </body>
     </html>
-  );
+  )
 }

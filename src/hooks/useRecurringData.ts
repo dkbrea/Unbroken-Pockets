@@ -699,31 +699,76 @@ export function useRecurringData(): RecurringState {
           },
         ])
         .select();
-
+      
       if (error) {
-        console.error("Error adding recurring transaction:", error);
-        console.log("Adding client-side transaction as fallback due to database error");
-        
-        // Add to local transactions as fallback
-        const updatedTransactions = [...localTransactions, clientTransaction];
-        setLocalTransactions(updatedTransactions);
-        
-        // Save to localStorage for persistence
-        try {
-          localStorage.setItem('recurring_transactions', JSON.stringify(updatedTransactions));
-          console.log("Saved client-side transaction to localStorage:", clientTransaction);
-        } catch (err) {
-          console.error("Error saving to localStorage:", err);
-        }
-      } else {
-        console.log("Successfully added transaction to database:", data);
-        // If successful, we'll update our local state in the useEffect that watches recurringTransactions
+        console.error("Error adding recurring transaction:", error.message);
+        throw new Error(error.message);
       }
 
-      // Force refresh data
+      // Successfully added to database - data will contain the newly added record
+      console.log("Successfully added recurring transaction:", data);
+
+      // If it's an income transaction, also add it to the income_sources table
+      if (transaction.type === 'income' && data && data.length > 0) {
+        const recurringId = data[0].id;
+        
+        console.log("Adding to income_sources with recurring transaction ID:", recurringId);
+        
+        const { error: incomeError } = await supabase
+          .from("income_sources")
+          .insert([
+            {
+              recurring_transaction_id: recurringId,
+              user_id: user?.id,
+              name: transaction.name,
+              category: transaction.category,
+              amount: transaction.amount,
+              next_date: transaction.nextDate,
+              frequency: transaction.frequency,
+              type: transaction.type,
+              status: transaction.status || "active",
+              payment_method: transaction.paymentMethod,
+              notes: transaction.description || "",
+              // id is auto-generated
+            },
+          ]);
+        
+        if (incomeError) {
+          console.error("Error adding income source:", incomeError.message);
+          // Don't throw here, we already added the recurring transaction successfully
+        } else {
+          console.log("Successfully added income source for recurring transaction ID:", recurringId);
+        }
+      }
+      
+      // If it's an expense transaction, also add it to the fixed_expenses table
+      if (transaction.type === 'expense' && data && data.length > 0) {
+        const recurringId = data[0].id;
+        
+        console.log("Adding to fixed_expenses with recurring transaction ID:", recurringId);
+        
+        const { error: expenseError } = await supabase
+          .from("fixed_expenses")
+          .insert([
+            {
+              recurring_transaction_id: recurringId,
+              // No need to duplicate data as we will join with the recurring_transactions table
+            },
+          ]);
+        
+        if (expenseError) {
+          console.error("Error adding fixed expense:", expenseError.message);
+          // Don't throw here, we already added the recurring transaction successfully
+        } else {
+          console.log("Successfully added fixed expense for recurring transaction ID:", recurringId);
+        }
+      }
+
+      // Refresh the transactions list
       mutate();
-    } catch (err) {
-      console.error("Unexpected error adding transaction:", err);
+    } catch (error) {
+      console.error("Error in addRecurringTransaction:", error);
+      throw error;
     }
   };
 
@@ -822,6 +867,73 @@ export function useRecurringData(): RecurringState {
           console.error("Error updating recurring transaction:", error);
         } else {
           console.log("Successfully updated transaction in database:", data);
+          
+          // Check if the transaction type has changed
+          if (existingTransaction.type !== updatedTransaction.type) {
+            console.log(`Transaction type changed from ${existingTransaction.type} to ${updatedTransaction.type}`);
+            
+            // Handle transition between income and expense types
+            if (existingTransaction.type === 'income' && updatedTransaction.type === 'expense') {
+              console.log("Converting from income to expense - need to remove from income_sources and add to fixed_expenses");
+              
+              // Remove from income_sources
+              const { error: removeIncomeError } = await supabase
+                .from("income_sources")
+                .delete()
+                .eq("recurring_transaction_id", id);
+                
+              if (removeIncomeError) {
+                console.error("Error removing from income_sources:", removeIncomeError);
+              } else {
+                console.log("Successfully removed from income_sources");
+              }
+              
+              // Add to fixed_expenses
+              const { error: addExpenseError } = await supabase
+                .from("fixed_expenses")
+                .insert([
+                  {
+                    recurring_transaction_id: id,
+                  },
+                ]);
+                
+              if (addExpenseError) {
+                console.error("Error adding to fixed_expenses:", addExpenseError);
+              } else {
+                console.log("Successfully added to fixed_expenses");
+              }
+            } 
+            else if (existingTransaction.type === 'expense' && updatedTransaction.type === 'income') {
+              console.log("Converting from expense to income - need to remove from fixed_expenses and add to income_sources");
+              
+              // Remove from fixed_expenses
+              const { error: removeExpenseError } = await supabase
+                .from("fixed_expenses")
+                .delete()
+                .eq("recurring_transaction_id", id);
+                
+              if (removeExpenseError) {
+                console.error("Error removing from fixed_expenses:", removeExpenseError);
+              } else {
+                console.log("Successfully removed from fixed_expenses");
+              }
+              
+              // Add to income_sources
+              const { error: addIncomeError } = await supabase
+                .from("income_sources")
+                .insert([
+                  {
+                    recurring_transaction_id: id,
+                  },
+                ]);
+                
+              if (addIncomeError) {
+                console.error("Error adding to income_sources:", addIncomeError);
+              } else {
+                console.log("Successfully added to income_sources");
+              }
+            }
+          }
         }
       }
       
@@ -881,6 +993,36 @@ export function useRecurringData(): RecurringState {
         console.error("Cannot directly delete debt transactions. Please delete the debt from the Debt Tracker page.");
         // Return without making changes
         return;
+      }
+      
+      // Check if we need to remove from income_sources or fixed_expenses
+      if (existingTransaction) {
+        if (existingTransaction.type === 'income') {
+          console.log("Removing entry from income_sources table");
+          const { error: incomeError } = await supabase
+            .from("income_sources")
+            .delete()
+            .eq("recurring_transaction_id", id);
+            
+          if (incomeError) {
+            console.error("Error removing from income_sources:", incomeError);
+          } else {
+            console.log("Successfully removed from income_sources");
+          }
+        } 
+        else if (existingTransaction.type === 'expense') {
+          console.log("Removing entry from fixed_expenses table");
+          const { error: expenseError } = await supabase
+            .from("fixed_expenses")
+            .delete()
+            .eq("recurring_transaction_id", id);
+            
+          if (expenseError) {
+            console.error("Error removing from fixed_expenses:", expenseError);
+          } else {
+            console.log("Successfully removed from fixed_expenses");
+          }
+        }
       }
       
       // Try to delete from Supabase

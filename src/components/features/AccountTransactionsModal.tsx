@@ -22,7 +22,7 @@ interface MonthYearDate {
 interface AccountTransactionsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  accountId: number;
+  accountId: string;
   accountName: string;
 }
 
@@ -195,11 +195,8 @@ const AccountTransactionsModal = ({
         {/* Modal Content - Transaction List */}
         <div className="flex-1 overflow-auto">
           <TransactionsList
-            detailed={true}
             transactions={filteredTransactions}
-            recentTransactions={[]}
             isLoading={isLoading}
-            onDeleteTransaction={handleDeleteTransaction}
             onRefresh={handleRefresh}
           />
         </div>

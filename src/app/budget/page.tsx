@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { 
   CreditCard, 
   Filter, 
@@ -26,379 +26,38 @@ import {
   ShoppingBag,
   MoreHorizontal,
   CreditCard as CreditCardIcon,
-  Target
+  Target,
+  Calendar as CalendarIcon
 } from 'lucide-react'
 import { useBudgetData } from '@/hooks/useBudgetData'
-import { format, parseISO } from 'date-fns'
+import { format, parseISO, startOfMonth } from 'date-fns'
 import { BudgetCategory } from '@/hooks/useBudgetData'
+import { getMonthlyBudgetSummary } from '@/lib/services/budgetService'
+import { useRecurringData } from '@/hooks/useRecurringData'
+import { useFixedExpensesData } from '@/hooks/useFixedExpensesData'
+import { useIncomeSourcesData } from '@/hooks/useIncomeSourcesData'
+import { useDebtData } from '@/hooks/useDebtData'
+import { useGoalsData } from '@/hooks/useGoalsData'
+import { CategoryForm } from '@/components/forms/CategoryForm'
+import { TransactionForm } from '@/components/forms/TransactionForm'
+import { AllocationForm } from '@/components/forms/AllocationForm'
+import { supabase } from '@/lib/supabase'
+import { MonthlyFlowHeader } from '@/components/MonthlyFlowHeader'
 
-// Budget Category Form
-type CategoryFormProps = {
-  onSubmit: (data: any) => void;
-  onCancel: () => void;
-  initialData?: any;
-  title: string;
+// Add FinancialGoal type definition
+type FinancialGoal = {
+  id: number;
+  name: string;
+  targetAmount: number;
+  currentAmount: number;
+  monthlyContribution: number;
+  contribution_amount: number; // Change this to be required since it's used in the code
+  targetDate: string;
+  status: string;
+  description?: string;
+  createdAt: string;
+  updatedAt: string;
 }
-
-const CategoryForm = ({ onSubmit, onCancel, initialData, title }: CategoryFormProps) => {
-  const [formData, setFormData] = useState({
-    name: initialData?.name || '',
-    allocated: initialData?.allocated || 0,
-    icon: initialData?.iconName || 'ShoppingCart',
-    color: initialData?.color || 'text-green-600 bg-green-100'
-  });
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: name === 'allocated' ? Number(value) : value
-    }));
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSubmit(formData);
-  };
-
-  // Map of available icons with their display names
-  const availableIcons = [
-    { name: 'ShoppingCart', label: 'Shopping Cart' },
-    { name: 'Utensils', label: 'Dining' },
-    { name: 'Car', label: 'Transportation' },
-    { name: 'Coffee', label: 'Entertainment' },
-    { name: 'ShoppingBag', label: 'Shopping' },
-    { name: 'Heart', label: 'Personal Care' },
-    { name: 'Home', label: 'Housing' },
-    { name: 'Film', label: 'Movies' }, 
-    { name: 'Briefcase', label: 'Work' },
-    { name: 'MoreHorizontal', label: 'Miscellaneous' }
-  ];
-
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-lg w-full max-w-md overflow-hidden">
-        <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-          <h2 className="text-lg font-semibold">{title}</h2>
-          <button onClick={onCancel} className="text-gray-500 hover:text-gray-700">
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-        
-        <form onSubmit={handleSubmit} className="p-5">
-          <div className="mb-4">
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">Category Name</label>
-            <input
-              type="text"
-              id="name"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              className="w-full border-gray-300 rounded-md shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500"
-              required
-            />
-          </div>
-          
-          <div className="mb-4">
-            <label htmlFor="allocated" className="block text-sm font-medium text-gray-700 mb-1">Monthly Budget</label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
-              <input
-                type="number"
-                id="allocated"
-                name="allocated"
-                value={formData.allocated}
-                onChange={handleChange}
-                min="0"
-                step="0.01"
-                className="w-full pl-8 border-gray-300 rounded-md shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500"
-                required
-              />
-            </div>
-          </div>
-          
-          <div className="mb-4">
-            <label htmlFor="icon" className="block text-sm font-medium text-gray-700 mb-1">Icon</label>
-            <select
-              id="icon"
-              name="icon"
-              value={formData.icon}
-              onChange={handleChange}
-              className="w-full border-gray-300 rounded-md shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500"
-            >
-              {availableIcons.map(icon => (
-                <option key={icon.name} value={icon.name}>{icon.label}</option>
-              ))}
-            </select>
-          </div>
-          
-          <div className="mb-4">
-            <label htmlFor="color" className="block text-sm font-medium text-gray-700 mb-1">Color</label>
-            <select
-              id="color"
-              name="color"
-              value={formData.color}
-              onChange={handleChange}
-              className="w-full border-gray-300 rounded-md shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="text-blue-600 bg-blue-100">Blue</option>
-              <option value="text-green-600 bg-green-100">Green</option>
-              <option value="text-red-600 bg-red-100">Red</option>
-              <option value="text-yellow-600 bg-yellow-100">Yellow</option>
-              <option value="text-purple-600 bg-purple-100">Purple</option>
-              <option value="text-pink-600 bg-pink-100">Pink</option>
-              <option value="text-indigo-600 bg-indigo-100">Indigo</option>
-              <option value="text-gray-600 bg-gray-100">Gray</option>
-            </select>
-          </div>
-          
-          <div className="mt-6 flex justify-end space-x-3">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-            >
-              {initialData ? 'Update' : 'Add'} Category
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
-
-// Transaction Form Component
-type TransactionFormProps = {
-  categories: any[];
-  onSubmit: (data: any) => void;
-  onCancel: () => void;
-}
-
-const TransactionForm = ({ categories, onSubmit, onCancel }: TransactionFormProps) => {
-  const [formData, setFormData] = useState({
-    categoryId: categories[0]?.id || 0,
-    amount: '',
-    description: ''
-  });
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: name === 'categoryId' ? Number(value) : value
-    }));
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSubmit({
-      ...formData,
-      amount: parseFloat(formData.amount)
-    });
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-lg w-full max-w-md overflow-hidden">
-        <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-          <h2 className="text-lg font-semibold">Add Transaction</h2>
-          <button onClick={onCancel} className="text-gray-500 hover:text-gray-700">
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-        
-        <form onSubmit={handleSubmit} className="p-5">
-          <div className="mb-4">
-            <label htmlFor="categoryId" className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-            <select
-              id="categoryId"
-              name="categoryId"
-              value={formData.categoryId}
-              onChange={handleChange}
-              className="w-full border-gray-300 rounded-md shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500"
-              required
-            >
-              {categories.map(category => (
-                <option key={category.id} value={category.id}>{category.name}</option>
-              ))}
-            </select>
-          </div>
-          
-          <div className="mb-4">
-            <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-1">Amount</label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
-              <input
-                type="number"
-                id="amount"
-                name="amount"
-                value={formData.amount}
-                onChange={handleChange}
-                min="0.01"
-                step="0.01"
-                className="w-full pl-8 border-gray-300 rounded-md shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500"
-                required
-              />
-            </div>
-          </div>
-          
-          <div className="mb-4">
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">Description (Optional)</label>
-            <textarea
-              id="description"
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-              rows={3}
-              className="w-full border-gray-300 rounded-md shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-          
-          <div className="mt-6 flex justify-end space-x-3">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-            >
-              Add Transaction
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
-
-// Allocation Form Component
-type AllocationFormProps = {
-  category: any;
-  onSubmit: (categoryId: number, amount: number) => void;
-  onCancel: () => void;
-  leftToAllocate: number;
-  totalDebtPayments: number;
-  totalGoalContributions: number;
-  fixedExpenses: number;
-}
-
-const AllocationForm = ({ 
-  category, 
-  onSubmit, 
-  onCancel, 
-  leftToAllocate,
-  totalDebtPayments,
-  totalGoalContributions,
-  fixedExpenses
-}: AllocationFormProps) => {
-  const [amount, setAmount] = useState(category.allocated);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setAmount(parseFloat(e.target.value));
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSubmit(category.id, amount);
-  };
-  
-  const handleAllocateRemaining = () => {
-    // Allocate the remaining amount + any amount already allocated to this category
-    setAmount(category.allocated + leftToAllocate);
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-lg w-full max-w-md overflow-hidden">
-        <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-          <h2 className="text-lg font-semibold">Set Budget for {category.name}</h2>
-          <button onClick={onCancel} className="text-gray-500 hover:text-gray-700">
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-        
-        <form onSubmit={handleSubmit} className="p-5">
-          <div className="mb-4">
-            <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-1">Monthly Allocation</label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
-              <input
-                type="number"
-                id="amount"
-                name="amount"
-                value={amount}
-                onChange={handleChange}
-                min="0"
-                step="0.01"
-                className="w-full pl-8 border-gray-300 rounded-md shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500"
-                required
-              />
-            </div>
-          </div>
-          
-          {/* Left to allocate info */}
-          {leftToAllocate > 0 && (
-            <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-yellow-800">Left to allocate:</span>
-                <span className="font-medium text-yellow-800">${leftToAllocate.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-              </div>
-              
-              <div className="mb-2 text-xs text-yellow-700">
-                This amount is already accounting for:
-                <ul className="list-disc pl-5 mt-1 space-y-1">
-                  {fixedExpenses > 0 && (
-                    <li>Fixed expenses: ${fixedExpenses.toLocaleString('en-US', { maximumFractionDigits: 2 })}</li>
-                  )}
-                  {totalDebtPayments > 0 && (
-                    <li>Debt payments: ${totalDebtPayments.toLocaleString('en-US', { maximumFractionDigits: 2 })}</li>
-                  )}
-                  {totalGoalContributions > 0 && (
-                    <li>Goal contributions: ${totalGoalContributions.toLocaleString('en-US', { maximumFractionDigits: 2 })}</li>
-                  )}
-                </ul>
-              </div>
-              
-              <button
-                type="button"
-                onClick={handleAllocateRemaining}
-                className="w-full py-2 px-3 bg-yellow-100 hover:bg-yellow-200 text-yellow-800 text-sm font-medium rounded"
-              >
-                Allocate Remaining Funds to This Category
-              </button>
-            </div>
-          )}
-          
-          <div className="mt-6 flex justify-end space-x-3">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-            >
-              Save
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
 
 export default function Budget() {
   const {
@@ -409,6 +68,7 @@ export default function Budget() {
     remainingBudget,
     monthlyIncome,
     fixedExpenses,
+    totalSubscriptions,
     leftToAllocate,
     totalDebtPayments,
     totalGoalContributions,
@@ -425,15 +85,176 @@ export default function Budget() {
     refreshData
   } = useBudgetData();
   
+  // Get recurring data for income and fixed expenses
+  const { 
+    recurringTransactions,
+    calculateMonthIncome,
+    calculateMonthExpenses,
+    calculateMonthDebt
+  } = useRecurringData();
+
+  // Get fixed expenses data
+  const { fixedExpenses: fixedExpensesList } = useFixedExpensesData();
+
+  // Get income sources data
+  const { incomeSources } = useIncomeSourcesData();
+
+  // Get debt data
+  const { 
+    debts,
+    updateDebtPayment,
+  } = useDebtData();
+
+  // Get goals data
+  const { 
+    financialGoals,
+    updateGoalContribution,
+  } = useGoalsData();
+  
   const [showNewCategoryModal, setShowNewCategoryModal] = useState(false);
   const [showEditCategoryModal, setShowEditCategoryModal] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<any>(null);
   const [showTransactionModal, setShowTransactionModal] = useState(false);
   const [showAllocationModal, setShowAllocationModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [viewMode, setViewMode] = useState<'current' | 'forecast'>('current');
+  const [isLoadingForecast, setIsLoadingForecast] = useState(false);
   
-  // Calculate total expenses
-  const totalExpenses = totalAllocated + fixedExpenses + totalDebtPayments + totalGoalContributions;
+  // Calculate total expenses including subscriptions
+  const totalExpenses = totalAllocated + fixedExpenses + totalSubscriptions + totalDebtPayments + totalGoalContributions;
+  
+  // Load forecast data when switching to forecast view
+  useEffect(() => {
+    if (viewMode === 'forecast' && !isLoadingForecast && financialGoals.length > 0) {
+      loadForecastData();
+    }
+  }, [viewMode, financialGoals]);
+
+  const loadForecastData = async () => {
+    setIsLoadingForecast(true);
+    try {
+      const currentYear = new Date().getFullYear();
+      const months = Array.from({ length: 12 }, (_, i) => new Date(currentYear, i, 1));
+      
+      // First get the current month's budget entries to use as defaults
+      const currentMonth = startOfMonth(new Date());
+      const currentMonthSummary = await getMonthlyBudgetSummary(currentMonth);
+      
+      // Get all monthly summaries
+      const forecastPromises = months.map(async month => {
+        const summary = await getMonthlyBudgetSummary(month);
+        
+        // For each category in the summary, if there's no allocation, use the current month's allocation
+        summary.categories = summary.categories.map(cat => {
+          const currentMonthCat = currentMonthSummary.categories.find(c => c.id === cat.id);
+          return {
+            ...cat,
+            allocated: cat.allocated || (currentMonthCat?.allocated || 0)
+          };
+        });
+        
+        return summary;
+      });
+      
+      const monthlySummaries = await Promise.all(forecastPromises);
+
+      // Calculate income sources for each month
+      const incomeSourcesByMonth = months.map(month => {
+        return incomeSources.map(source => ({
+          ...source,
+          amount: calculateMonthIncome(month, [{
+            id: source.id,
+            name: source.name,
+            amount: Math.abs(source.amount),
+            category: source.category,
+            frequency: source.frequency || 'Monthly',
+            nextDate: source.next_date,
+            type: 'income',
+            description: source.description || '',
+            status: 'active',
+            paymentMethod: '',
+            createdAt: '',
+            updatedAt: '',
+            startDate: '',
+            user_id: ''
+          }])
+        }));
+      });
+
+      // Calculate fixed expenses for each month
+      const fixedExpensesByMonth = months.map(month => {
+        return fixedExpensesList.map(expense => ({
+          ...expense,
+          amount: calculateMonthExpenses(month, [{
+            id: expense.id,
+            name: expense.name,
+            amount: -Math.abs(expense.amount),
+            category: expense.category,
+            frequency: expense.frequency || 'Monthly',
+            nextDate: expense.next_date,
+            type: 'expense',
+            description: expense.description || '',
+            status: 'active',
+            paymentMethod: '',
+            createdAt: '',
+            updatedAt: '',
+            startDate: '',
+            user_id: ''
+          }])
+        }));
+      });
+
+      // Calculate debt payments for each month
+      const debtPaymentsByMonth = months.map(month => {
+        return debts.map(debt => ({
+          ...debt,
+          amount: -Math.abs(debt.minimumPayment),
+          status: 'active' as 'active',
+        }));
+      });
+
+      // Fetch all monthly goal contributions for the year
+      const { data: monthlyContributions, error: contributionsError } = await supabase
+        .from('goal_monthly_contributions')
+        .select('*')
+        .gte('month', `${currentYear}-01`)
+        .lte('month', `${currentYear}-12`);
+
+      if (contributionsError) throw contributionsError;
+
+      // Calculate savings goals for each month
+      const savingsByMonth = months.map((month, monthIndex) => {
+        const monthStr = `${currentYear}-${String(monthIndex + 1).padStart(2, '0')}`;
+        
+        return financialGoals.map(goal => {
+          // Find month-specific contribution if it exists
+          const monthlyContribution = monthlyContributions?.find(
+            mc => mc.goal_id === goal.id && mc.month === monthStr
+          );
+
+          return {
+            id: goal.id,
+            ...goal,
+            // Use month-specific contribution if it exists, otherwise use default
+            amount: monthlyContribution?.amount ?? goal.monthlyContribution
+          };
+        });
+      });
+
+      setForecastData({
+        monthlySummaries,
+        incomeSourcesByMonth,
+        fixedExpensesByMonth,
+        debtPaymentsByMonth,
+        savingsByMonth,
+        months
+      });
+    } catch (err) {
+      console.error('Error loading forecast data:', err);
+    } finally {
+      setIsLoadingForecast(false);
+    }
+  };
   
   // Handle adding a new category
   const handleAddCategory = async (categoryData: any) => {
@@ -534,12 +355,285 @@ export default function Budget() {
     }
   };
 
+  type ForecastData = {
+    monthlySummaries: any[];
+    incomeSourcesByMonth: any[][];
+    fixedExpensesByMonth: any[][];
+    debtPaymentsByMonth: any[][];
+    savingsByMonth: any[][];
+    months: Date[];
+  };
+  const [forecastData, setForecastData] = useState<ForecastData>({
+    monthlySummaries: [],
+    incomeSourcesByMonth: [],
+    fixedExpensesByMonth: [],
+    debtPaymentsByMonth: [],
+    savingsByMonth: [],
+    months: []
+  });
+
+  // Add new handler functions for debt and goal updates
+  const handleUpdateDebtPayment = async (debtId: number, amount: number) => {
+    try {
+      setIsSubmitting(true);
+      // Call your API or service to update the debt payment
+      await updateDebtPayment(debtId, amount);
+      refreshData();
+    } catch (err) {
+      console.error('Error updating debt payment:', err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleUpdateGoalContribution = async (goalId: number, amount: number, monthIndex: number) => {
+    try {
+      setIsSubmitting(true);
+      const currentYear = new Date().getFullYear();
+      const monthStr = `${currentYear}-${String(monthIndex + 1).padStart(2, '0')}`;
+      
+      const success = await updateGoalContribution(goalId, amount, monthStr);
+      
+      if (!success) {
+        throw new Error('Failed to update goal contribution');
+      }
+
+      // Update local state with new goal amount and recalculate totals
+      setForecastData(prev => {
+        const newState = { ...prev };
+        
+        // Update the specific goal's amount
+        newState.savingsByMonth = prev.savingsByMonth.map((monthData, idx) => 
+          idx === monthIndex
+            ? monthData.map(goal => 
+                goal.id === goalId ? { ...goal, amount } : goal
+              )
+            : monthData
+        );
+
+        // Update monthly summaries to reflect new goal amount
+        newState.monthlySummaries = prev.monthlySummaries.map((summary, idx) => {
+          if (idx === monthIndex) {
+            const newGoalTotal = newState.savingsByMonth[idx].reduce((sum, goal) => sum + (goal.amount || 0), 0);
+            return {
+              ...summary,
+              totalGoalContributions: newGoalTotal
+            };
+          }
+          return summary;
+        });
+
+        return newState;
+      });
+    } catch (err) {
+      console.error('Error updating goal contribution:', err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Update the editingCell state type
+  const [editingCell, setEditingCell] = useState<{
+    id: number;
+    month: number;
+    type: 'expense'|'debt'|'goal';
+    entityType: 'category'|'debt'|'goal';
+  } | null>(null);
+  const [editValue, setEditValue] = useState<string>('');
+
+  // Helper function to handle cell edit completion
+  const handleCellEditComplete = async (id: number, type: 'expense'|'debt'|'goal', entityType: 'category'|'debt'|'goal', amount: number) => {
+    try {
+      // First update the backend
+      if (type === 'expense' && entityType === 'category') {
+        await handleUpdateAllocation(id, amount);
+      } else if (type === 'debt' && entityType === 'debt') {
+        await handleUpdateDebtPayment(id, amount);
+      } else if (type === 'goal' && entityType === 'goal') {
+        await handleUpdateGoalContribution(id, amount, editingCell?.month || 0);
+      }
+
+      // Then update the local state
+      setForecastData(prev => {
+        const newState = { ...prev };
+        
+        if (type === 'expense' && entityType === 'category') {
+          newState.monthlySummaries = prev.monthlySummaries.map((month, idx) => 
+            idx === editingCell?.month
+              ? {
+                  ...month,
+                  categories: month.categories.map(cat => 
+                    cat.id === id ? { ...cat, allocated: amount } : cat
+                  )
+                }
+              : month
+          );
+        } else if (type === 'debt' && entityType === 'debt') {
+          newState.debtPaymentsByMonth = prev.debtPaymentsByMonth.map((month, idx) => 
+            idx === editingCell?.month
+              ? month.map(debt => 
+                  debt.id === id ? { ...debt, amount: -Math.abs(amount) } : debt
+                )
+              : month
+          );
+        } else if (type === 'goal' && entityType === 'goal') {
+          newState.savingsByMonth = prev.savingsByMonth.map((month, idx) => 
+            idx === editingCell?.month
+              ? month.map(goal => 
+                  goal.id === id ? { ...goal, amount } : goal
+                )
+              : month
+          );
+        }
+        
+        return newState;
+      });
+    } catch (err) {
+      console.error('Error updating amount:', err);
+    } finally {
+      // Always clear the editing state
+      setEditingCell(null);
+      setEditValue('');
+    }
+  };
+
   return (
     <div className="w-full">
+      <style jsx global>{`
+        .forecast-scroll-wrapper {
+          overflow-x: auto;
+          width: 100%;
+          max-height: calc(100vh - 200px);
+          overflow-y: auto;
+          position: relative;
+        }
+        .forecast-table {
+          table-layout: fixed;
+          width: 1400px;
+          border-collapse: separate;
+          border-spacing: 0;
+        }
+        
+        /* Column sizing */
+        .forecast-label-col {
+          width: 180px;
+          min-width: 180px;
+          max-width: 180px;
+          position: sticky;
+          left: 0;
+          z-index: 20;
+          background: inherit;
+        }
+        .forecast-month-col {
+          width: 200px;
+          min-width: 200px;
+          max-width: 200px;
+        }
+        
+        /* Main header styles */
+        .forecast-table thead {
+          position: sticky !important;
+          top: 0;
+          z-index: 50;
+          background: white;
+        }
+        .forecast-table thead th {
+          background: white;
+          position: sticky !important;
+          top: 0;
+          height: 120px;
+        }
+        .forecast-table thead th.forecast-label-col {
+          z-index: 51;
+          left: 0;
+          background: white;
+        }
+        
+        /* Section header styles */
+        tr.section-header {
+          position: sticky !important;
+          top: 120px !important;
+          background: inherit;
+          z-index: 40;
+        }
+        
+        tr.section-header td {
+          position: sticky !important;
+          top: 120px !important;
+          background: inherit !important;
+          z-index: 40;
+        }
+        
+        tr.section-header td:first-child {
+          position: sticky !important;
+          left: 0;
+          z-index: 41;
+        }
+
+        /* Section background colors */
+        .income-section.section-header td {
+          background-color: rgb(239 246 255) !important;
+        }
+        .fixed-section.section-header td {
+          background-color: rgb(254 242 242) !important;
+        }
+        .subscriptions-section.section-header td {
+          background-color: rgb(239 246 255) !important;
+        }
+        .variable-section.section-header td {
+          background-color: rgb(240 253 244) !important;
+        }
+        .debt-section.section-header td {
+          background-color: rgb(250 245 255) !important;
+        }
+        .goals-section.section-header td {
+          background-color: rgb(254 252 232) !important;
+        }
+
+        /* Row background colors */
+        .income-section-row td { background-color: rgb(239 246 255); }
+        .fixed-section-row td { background-color: rgb(254 242 242); }
+        .subscriptions-section-row td { background-color: rgb(239 246 255); }
+        .variable-section-row td { background-color: rgb(240 253 244); }
+        .debt-section-row td { background-color: rgb(250 245 255); }
+        .goals-section-row td { background-color: rgb(254 252 232); }
+
+        /* First column in regular rows */
+        .forecast-label-col {
+          position: sticky !important;
+          left: 0;
+          z-index: 20;
+        }
+      `}</style>
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-[#1F3A93] mb-4 md:mb-0">Variable Expense Budget</h1>
         
         <div className="flex flex-wrap items-center gap-3">
+          {/* View Toggle */}
+          <div className="flex items-center border border-gray-300 rounded-md overflow-hidden">
+            <button
+              className={`px-4 py-2 text-sm font-medium ${
+                viewMode === 'current' 
+                  ? 'bg-[#1F3A93] text-white' 
+                  : 'bg-white text-gray-700 hover:bg-gray-50'
+              }`}
+              onClick={() => setViewMode('current')}
+            >
+              Current Month
+            </button>
+            <button
+              className={`px-4 py-2 text-sm font-medium ${
+                viewMode === 'forecast' 
+                  ? 'bg-[#1F3A93] text-white' 
+                  : 'bg-white text-gray-700 hover:bg-gray-50'
+              }`}
+              onClick={() => setViewMode('forecast')}
+            >
+              Year Forecast
+            </button>
+          </div>
+
+          {viewMode === 'current' && (
           <div className="flex items-center border border-gray-300 rounded-md overflow-hidden">
             <button
               className="p-2 text-gray-600 hover:bg-gray-100 disabled:opacity-50"
@@ -562,6 +656,7 @@ export default function Budget() {
               <ChevronRight className="h-5 w-5" />
             </button>
           </div>
+          )}
           
           <button
             className="flex items-center bg-white border border-gray-300 rounded-md px-3 py-2 text-sm font-medium text-[#4A4A4A] hover:bg-[#F5F5F5] disabled:opacity-50"
@@ -583,7 +678,8 @@ export default function Budget() {
         </div>
       </div>
       
-      {isLoading ? (
+      {viewMode === 'current' ? (
+        isLoading ? (
         <div className="w-full py-20 flex justify-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1F3A93]"></div>
         </div>
@@ -639,6 +735,14 @@ export default function Budget() {
                         <span>Fixed Expenses:</span>
                       </div>
                       <span>${fixedExpenses.toLocaleString('en-US', { maximumFractionDigits: 2 })}</span>
+                    </div>
+
+                    <div className="flex justify-between text-gray-600">
+                      <div className="flex items-center">
+                        <CalendarIcon className="h-3 w-3 mr-2 text-blue-500" />
+                        <span>Subscriptions:</span>
+                      </div>
+                      <span>${totalSubscriptions.toLocaleString('en-US', { maximumFractionDigits: 2 })}</span>
                     </div>
                     
                     <div className="flex justify-between text-gray-600">
@@ -751,9 +855,9 @@ export default function Budget() {
                   <ArrowUp className="h-4 w-4 text-red-600" />
                 </div>
               </div>
-              <p className="text-2xl font-bold text-gray-900">${totalSpent.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+              <p className="text-2xl font-bold text-gray-900">${Math.abs(totalSpent).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
               <p className="text-sm text-gray-500 mt-1">
-                {totalAllocated > 0 ? `${((totalSpent / totalAllocated) * 100).toFixed(1)}%` : '0%'} of variable budget
+                {totalAllocated > 0 ? `${((Math.abs(totalSpent) / totalAllocated) * 100).toFixed(1)}%` : '0%'} of variable budget
               </p>
             </div>
             
@@ -836,8 +940,8 @@ export default function Budget() {
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {budgetCategories.map(category => {
-                      const remaining = category.allocated - category.spent;
-                      const percentUsed = category.allocated > 0 ? (category.spent / category.allocated) * 100 : 0;
+                      const categoryRemaining = category.allocated - Math.abs(category.spent);
+                      const categoryPercentUsed = category.allocated > 0 ? (Math.abs(category.spent) / category.allocated) * 100 : 0;
                       
                       return (
                         <tr key={category.id} className="hover:bg-gray-50">
@@ -862,16 +966,16 @@ export default function Budget() {
                             </button>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            ${category.spent.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            ${Math.abs(category.spent).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className={`text-sm font-medium ${remaining >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                              ${Math.abs(remaining).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              {remaining < 0 && ' over'}
+                            <div className={`text-sm font-medium ${categoryRemaining >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              ${Math.abs(categoryRemaining).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              {categoryRemaining < 0 && ' over'}
                             </div>
                             {category.allocated > 0 && (
                               <div className="text-xs text-gray-500">
-                                {remaining >= 0 ? (100 - percentUsed).toFixed(1) : 0}% left
+                                {categoryRemaining >= 0 ? (100 - categoryPercentUsed).toFixed(1) : 0}% left
                               </div>
                             )}
                           </td>
@@ -879,12 +983,12 @@ export default function Budget() {
                             <div className="w-full bg-gray-200 rounded-full h-2.5">
                               <div 
                                 className={`h-2.5 rounded-full ${
-                                  percentUsed > 100 ? 'bg-red-500' : 
-                                  percentUsed > 90 ? 'bg-orange-500' : 
-                                  percentUsed > 70 ? 'bg-yellow-500' : 
+                                  categoryPercentUsed > 100 ? 'bg-red-500' : 
+                                  categoryPercentUsed > 90 ? 'bg-orange-500' : 
+                                  categoryPercentUsed > 70 ? 'bg-yellow-500' : 
                                   'bg-green-500'
                                 }`}
-                                style={{ width: `${Math.min(percentUsed, 100)}%` }}
+                                style={{ width: `${Math.min(categoryPercentUsed, 100)}%` }}
                               ></div>
                             </div>
                           </td>
@@ -936,6 +1040,286 @@ export default function Budget() {
             )}
           </div>
         </>
+        )
+      ) : (
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="mb-6">
+            <h2 className="text-lg font-semibold text-[#1F3A93] mb-4">Year Forecast</h2>
+            {isLoadingForecast ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1F3A93]"></div>
+              </div>
+            ) : (
+              <div className="space-y-8">
+                {/* Unified Table */}
+                <div className="forecast-scroll-wrapper">
+                  <table className="forecast-table">
+                    <thead>
+                      <tr>
+                        <th className="forecast-label-col">Category</th>
+                        {(forecastData.months ?? []).map((month, index) => {
+                          const monthlyIncome = forecastData.incomeSourcesByMonth[index]?.reduce((sum, source) => sum + (source.amount || 0), 0) || 0;
+                          const monthlyFixed = forecastData.fixedExpensesByMonth[index]?.reduce((sum, expense) => {
+                            // Skip if this is a subscription
+                            if (expense.category?.toLowerCase() === 'subscriptions') return sum;
+                            return sum + Math.abs(expense.amount || 0);
+                          }, 0) || 0;
+                          const monthlySubscriptions = recurringTransactions
+                            .filter(tx => tx.category?.toLowerCase() === 'subscriptions')
+                            .reduce((sum, subscription) => {
+                              const monthlyAmount = calculateMonthExpenses(month, [{ ...subscription }]);
+                              return sum + Math.abs(monthlyAmount);
+                            }, 0);
+                          const monthlyVariable = forecastData.monthlySummaries[index]?.categories.reduce((sum, cat) => sum + (cat.allocated || 0), 0) || 0;
+                          const monthlyDebt = forecastData.debtPaymentsByMonth[index]?.reduce((sum, debt) => sum + Math.abs(debt.amount || 0), 0) || 0;
+                          const monthlyGoals = forecastData.savingsByMonth[index]?.reduce((sum, goal) => sum + (goal.amount || 0), 0) || 0;
+
+                          return (
+                            <th key={`month-${index}`} className="forecast-month-col p-0">
+                              <div className="month-header-wrapper">
+                                <MonthlyFlowHeader
+                                  month={month}
+                                  income={monthlyIncome}
+                                  fixedExpenses={monthlyFixed}
+                                  subscriptions={monthlySubscriptions}
+                                  variableExpenses={monthlyVariable}
+                                  debtPayments={monthlyDebt}
+                                  goalContributions={monthlyGoals}
+                                />
+                              </div>
+                            </th>
+                          );
+                        })}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {/* Income Section */}
+                      <tr className="section-header income-section">
+                        <td className="py-2 px-4 font-semibold text-blue-800">Income Sources</td>
+                        {Array(12).fill(0).map((_, i) => (
+                          <td key={`income-header-${i}`} />
+                        ))}
+                      </tr>
+                      {incomeSources.map((source) => (
+                        <tr key={`income-${source.id || source.name}`} className="income-section-row">
+                          <td className="forecast-label-col py-2 px-4">
+                            <div className="text-sm font-medium text-gray-900">{source.name}</div>
+                          </td>
+                          {forecastData.months.map((_, index) => {
+                            const sourceData = forecastData.incomeSourcesByMonth[index]?.find(s => s.id === source.id);
+                            return (
+                              <td key={`income-${source.id || source.name}-${index}`} className="forecast-month-col py-2 px-4 text-sm text-gray-900 text-center">
+                                ${(sourceData?.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+
+                      {/* Fixed Expenses Section */}
+                      <tr className="section-header fixed-section">
+                        <td className="py-2 px-4 font-semibold text-red-800">Fixed Expenses</td>
+                        {Array(12).fill(0).map((_, i) => (
+                          <td key={`fixed-header-${i}`} />
+                        ))}
+                      </tr>
+                      {fixedExpensesList
+                        .filter(expense => expense.category?.toLowerCase() !== 'subscriptions')
+                        .map((expense) => (
+                        <tr key={`fixed-${expense.id || expense.name}`} className="fixed-section-row">
+                          <td className="forecast-label-col py-2 px-4">
+                            <div className="text-sm font-medium text-gray-900">{expense.name}</div>
+                          </td>
+                          {forecastData.months.map((_, index) => {
+                            const expenseData = forecastData.fixedExpensesByMonth[index]?.find(e => e.id === expense.id);
+                            return (
+                              <td key={`fixed-${expense.id || expense.name}-${index}`} className="forecast-month-col py-2 px-4 text-sm text-gray-900 text-center">
+                                ${Math.abs(expenseData?.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+
+                      {/* Subscriptions Section */}
+                      <tr className="section-header subscriptions-section">
+                        <td className="py-2 px-4 font-semibold text-blue-800">Subscriptions</td>
+                        {Array(12).fill(0).map((_, i) => (
+                          <td key={`subs-header-${i}`} />
+                        ))}
+                      </tr>
+                      {recurringTransactions.filter(tx => tx.category?.toLowerCase() === 'subscriptions').map((subscription) => (
+                        <tr key={`sub-${subscription.id || subscription.name}`} className="subscriptions-section-row">
+                          <td className="forecast-label-col py-2 px-4">
+                            <div className="text-sm font-medium text-gray-900">{subscription.name}</div>
+                          </td>
+                          {forecastData.months.map((month, index) => (
+                            <td key={`sub-${subscription.id || subscription.name}-${index}`} className="forecast-month-col py-2 px-4 text-sm text-gray-900 text-center">
+                              ${Math.abs(calculateMonthExpenses(month, [{ ...subscription }])).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+
+                      {/* Variable Expenses Section */}
+                      <tr className="section-header variable-section">
+                        <td className="py-2 px-4 font-semibold text-green-800">Variable Expenses</td>
+                        {Array(12).fill(0).map((_, i) => (
+                          <td key={`var-header-${i}`} />
+                        ))}
+                      </tr>
+                      {budgetCategories.map((category) => (
+                        <tr key={`var-${category.id}`} className="variable-section-row">
+                          <td className="forecast-label-col py-2 px-4">
+                            <div className="text-sm font-medium text-gray-900">{category.name}</div>
+                          </td>
+                          {(forecastData.months ?? []).map((_, monthIndex) => {
+                            // First try to get any month-specific override from monthlySummaries
+                            const monthSummary = forecastData.monthlySummaries[monthIndex];
+                            const monthSpecificData = monthSummary?.categories?.find(c => c.id === category.id);
+                            
+                            // If no month-specific override, use the category's current allocation
+                            const allocated = monthSpecificData?.allocated ?? category.allocated;
+                            
+                            return (
+                              <td key={`var-${category.id}-${monthIndex}`} className="forecast-month-col py-2 px-4 text-sm text-gray-900 text-center">
+                                {editingCell?.id === category.id && 
+                                 editingCell?.month === monthIndex && 
+                                 editingCell?.type === 'expense' ? (
+                                  <input
+                                    type="number"
+                                    className="w-24 text-center border rounded"
+                                    value={editValue}
+                                    onChange={(e) => setEditValue(e.target.value)}
+                                    onBlur={() => handleCellEditComplete(category.id, 'expense', 'category', parseFloat(editValue))}
+                                    onKeyPress={(e) => {
+                                      if (e.key === 'Enter') {
+                                        handleCellEditComplete(category.id, 'expense', 'category', parseFloat(editValue));
+                                      }
+                                    }}
+                                    autoFocus
+                                  />
+                                ) : (
+                                  <button
+                                    className="hover:underline"
+                                    onClick={() => {
+                                      setEditingCell({ id: category.id, month: monthIndex, type: 'expense', entityType: 'category' });
+                                      setEditValue(allocated?.toString() || '0');
+                                    }}
+                                  >
+                                    ${(allocated || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </button>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+
+                      {/* Debt Section */}
+                      <tr className="section-header debt-section">
+                        <td className="py-2 px-4 font-semibold text-purple-800">Debt Payments</td>
+                        {Array(12).fill(0).map((_, i) => (
+                          <td key={`debt-header-${i}`} />
+                        ))}
+                      </tr>
+                      {debts.map((debt) => (
+                        <tr key={`debt-${debt.id || debt.name}`} className="debt-section-row">
+                          <td className="forecast-label-col py-2 px-4">
+                            <div className="text-sm font-medium text-gray-900">{debt.name}</div>
+                          </td>
+                          {forecastData.debtPaymentsByMonth.map((month, monthIndex) => {
+                            const debtData = month.find(d => d.id === debt.id);
+                            return (
+                              <td key={`debt-${debt.id}-${monthIndex}`} className="forecast-month-col py-2 px-4 text-sm text-gray-900 text-center">
+                                {editingCell?.id === debt.id && 
+                                 editingCell?.month === monthIndex && 
+                                 editingCell?.type === 'debt' ? (
+                                  <input
+                                    type="number"
+                                    className="w-24 text-center border rounded"
+                                    value={editValue}
+                                    onChange={(e) => setEditValue(e.target.value)}
+                                    onBlur={() => handleCellEditComplete(debt.id, 'debt', 'debt', parseFloat(editValue))}
+                                    onKeyPress={(e) => {
+                                      if (e.key === 'Enter') {
+                                        handleCellEditComplete(debt.id, 'debt', 'debt', parseFloat(editValue));
+                                      }
+                                    }}
+                                    autoFocus
+                                  />
+                                ) : (
+                                  <button
+                                    className="hover:underline"
+                                    onClick={() => {
+                                      setEditingCell({ id: debt.id, month: monthIndex, type: 'debt', entityType: 'debt' });
+                                      setEditValue(Math.abs(debtData?.amount || 0).toString());
+                                    }}
+                                  >
+                                    ${Math.abs(debtData?.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </button>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+
+                      {/* Goals Section */}
+                      <tr className="section-header goals-section">
+                        <td className="py-2 px-4 font-semibold text-yellow-800">Savings Goals</td>
+                        {Array(12).fill(0).map((_, i) => (
+                          <td key={`goal-header-${i}`} />
+                        ))}
+                      </tr>
+                      {financialGoals.map((goal) => (
+                        <tr key={`goal-${goal.id || goal.name}`} className="goals-section-row">
+                          <td className="forecast-label-col py-2 px-4">
+                            <div className="text-sm font-medium text-gray-900">{goal.name}</div>
+                          </td>
+                          {forecastData.savingsByMonth.map((month, monthIndex) => {
+                            const goalData = month.find(g => g.id === goal.id);
+                            return (
+                              <td key={`goal-${goal.id}-${monthIndex}`} className="forecast-month-col py-2 px-4 text-sm text-gray-900 text-center">
+                                {editingCell?.id === goal.id && 
+                                 editingCell?.month === monthIndex && 
+                                 editingCell?.type === 'goal' ? (
+                                  <input
+                                    type="number"
+                                    className="w-24 text-center border rounded"
+                                    value={editValue}
+                                    onChange={(e) => setEditValue(e.target.value)}
+                                    onBlur={() => handleCellEditComplete(goal.id, 'goal', 'goal', parseFloat(editValue))}
+                                    onKeyPress={(e) => {
+                                      if (e.key === 'Enter') {
+                                        handleCellEditComplete(goal.id, 'goal', 'goal', parseFloat(editValue));
+                                      }
+                                    }}
+                                    autoFocus
+                                  />
+                                ) : (
+                                  <button
+                                    className="hover:underline"
+                                    onClick={() => {
+                                      setEditingCell({ id: goal.id, month: monthIndex, type: 'goal', entityType: 'goal' });
+                                      setEditValue((goalData?.amount || 0).toString());
+                                    }}
+                                  >
+                                    ${(goalData?.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </button>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       )}
       
       {/* Modals */}
@@ -967,10 +1351,18 @@ export default function Budget() {
         />
       )}
       
-      {showAllocationModal && selectedCategory && (
+      {showAllocationModal && selectedCategory && selectedCategory.entityType !== 'goal' && (
         <AllocationForm
           category={selectedCategory}
-          onSubmit={handleUpdateAllocation}
+          onSubmit={(amount) => {
+            if (selectedCategory.entityType === 'debt') {
+              handleUpdateDebtPayment(selectedCategory.id, amount);
+            } else {
+              handleUpdateAllocation(selectedCategory.id, amount);
+            }
+            setShowAllocationModal(false);
+            setSelectedCategory(null);
+          }}
           onCancel={() => {
             setShowAllocationModal(false);
             setSelectedCategory(null);
@@ -979,6 +1371,7 @@ export default function Budget() {
           totalDebtPayments={totalDebtPayments}
           totalGoalContributions={totalGoalContributions}
           fixedExpenses={fixedExpenses}
+          totalSubscriptions={totalSubscriptions}
         />
       )}
     </div>

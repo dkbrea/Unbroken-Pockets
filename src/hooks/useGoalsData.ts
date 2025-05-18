@@ -32,6 +32,19 @@ export type NewGoal = Omit<Goal, 'id' | 'icon'> & {
   iconName?: string;
 };
 
+export type FinancialGoal = {
+  id: number;
+  name: string;
+  targetAmount: number;
+  currentAmount: number;
+  monthlyContribution: number;
+  targetDate: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type GoalMonthlyContribution = Database['public']['Tables']['goal_monthly_contributions']['Row'];
+
 export type GoalsState = {
   activeTab: 'progress' | 'timeline';
   goals: Goal[];
@@ -47,6 +60,12 @@ export type GoalsState = {
   isLoading: boolean;
   error: Error | null;
   refetch: () => Promise<void>;
+  financialGoals: FinancialGoal[];
+  addFinancialGoal: (goal: Omit<FinancialGoal, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  updateFinancialGoal: (id: number, goal: Partial<FinancialGoal>) => Promise<void>;
+  deleteFinancialGoal: (id: number) => Promise<void>;
+  refreshFinancialGoals: () => Promise<void>;
+  updateGoalContribution: (goalId: number, amount: number, month: string) => Promise<boolean>;
 };
 
 // Helper function to map icon names to actual Lucide icons
@@ -71,6 +90,7 @@ const supabase = createClient<Database>(supabaseUrl, supabaseKey);
 export function useGoalsData(): GoalsState {
   const [activeTab, setActiveTab] = useState<'progress' | 'timeline'>('progress');
   const [goals, setGoals] = useState<Goal[]>([]);
+  const [financialGoals, setFinancialGoals] = useState<FinancialGoal[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
   
@@ -79,35 +99,24 @@ export function useGoalsData(): GoalsState {
     try {
       setIsLoading(true);
       
-      // Note: We're not filtering by user_id since the column might not exist yet
-      // Once the user_id column is added, we can uncomment this to filter by user
-      
-      /*
-      // Get the current authenticated user
-      const { data: userData, error: userError } = await supabase.auth.getUser();
-      
-      if (userError) {
-        throw new Error(userError.message);
-      }
-      
-      if (!userData?.user) {
-        setGoals([]);
-        return;
-      }
-      */
-      
-      // Query without filtering by user_id
-      const { data, error: goalsError } = await supabase
+      // Query goals
+      const { data: goalsData, error: goalsError } = await supabase
         .from('financial_goals')
         .select('*');
       
-      if (goalsError) {
-        throw new Error(goalsError.message);
-      }
-      
-      if (data) {
+      if (goalsError) throw goalsError;
+
+      // Query all monthly contributions for these goals
+      const { data: monthlyContributions, error: contributionsError } = await supabase
+        .from('goal_monthly_contributions')
+        .select('*')
+        .in('goal_id', goalsData?.map(g => g.id) || []);
+
+      if (contributionsError) throw contributionsError;
+
+      if (goalsData) {
         // Transform to match the Goal type
-        const transformedGoals: Goal[] = data.map(goal => ({
+        const transformedGoals: Goal[] = goalsData.map(goal => ({
           id: goal.id,
           name: goal.name,
           icon: getIconByName(goal.icon),
@@ -122,9 +131,16 @@ export function useGoalsData(): GoalsState {
         }));
         
         setGoals(transformedGoals);
-      } else {
-        // Empty array if no data
-        setGoals([]);
+        setFinancialGoals(goalsData.map(goal => ({
+          id: goal.id,
+          name: goal.name,
+          targetAmount: goal.target_amount,
+          currentAmount: goal.current_amount,
+          monthlyContribution: goal.contribution_amount,
+          targetDate: goal.target_date,
+          createdAt: goal.created_at,
+          updatedAt: goal.updated_at
+        })));
       }
     } catch (err) {
       setError(err instanceof Error ? err : new Error('An unknown error occurred'));
@@ -132,7 +148,7 @@ export function useGoalsData(): GoalsState {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [supabase]);
   
   // Add a new goal
   const addGoal = useCallback(async (goal: NewGoal) => {
@@ -301,6 +317,47 @@ export function useGoalsData(): GoalsState {
     return goals.reduce((sum, goal) => sum + goal.contributions.amount, 0);
   }, [goals]);
 
+  const updateGoalContribution = useCallback(async (goalId: number, amount: number, month: string) => {
+    try {
+      // First check if there's an existing contribution for this month
+      const { data: existingContribution, error: fetchError } = await supabase
+        .from('goal_monthly_contributions')
+        .select('*')
+        .eq('goal_id', goalId)
+        .eq('month', month)
+        .maybeSingle();
+
+      if (fetchError) throw fetchError;
+
+      if (existingContribution) {
+        // Update existing contribution
+        const { error } = await supabase
+          .from('goal_monthly_contributions')
+          .update({ amount })
+          .eq('id', existingContribution.id);
+
+        if (error) throw error;
+      } else {
+        // Insert new contribution
+        const { error } = await supabase
+          .from('goal_monthly_contributions')
+          .insert({
+            goal_id: goalId,
+            month,
+            amount
+          });
+
+        if (error) throw error;
+      }
+
+      return true;
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('An unknown error occurred'));
+      console.error('Error updating goal contribution:', err);
+      return false;
+    }
+  }, [supabase]);
+
   return {
     activeTab,
     goals,
@@ -315,6 +372,20 @@ export function useGoalsData(): GoalsState {
     deleteGoal,
     isLoading,
     error,
-    refetch: fetchGoals
+    refetch: fetchGoals,
+    financialGoals,
+    addFinancialGoal: async (goal) => {
+      // Implementation will be added
+    },
+    updateFinancialGoal: async (id, goal) => {
+      // Implementation will be added
+    },
+    deleteFinancialGoal: async (id) => {
+      // Implementation will be added
+    },
+    refreshFinancialGoals: async () => {
+      // Implementation will be added
+    },
+    updateGoalContribution
   };
 } 

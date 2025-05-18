@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase'
 
 export default function AccountsFix() {
   const [status, setStatus] = useState<string>('Checking database status...')
@@ -15,9 +15,6 @@ export default function AccountsFix() {
 
   async function checkDatabase() {
     try {
-      const supabase = createClient()
-      
-      // Check auth
       const { data: { user }, error: authError } = await supabase.auth.getUser()
       
       if (authError) {
@@ -32,7 +29,6 @@ export default function AccountsFix() {
       
       setUser(user)
       
-      // Load all accounts
       const { data: accountsData, error: accountsError } = await supabase
         .from('accounts')
         .select('*')
@@ -44,7 +40,6 @@ export default function AccountsFix() {
       
       setAccounts(accountsData || [])
       
-      // Check if there are accounts with missing user_id
       const missingUserIdAccounts = accountsData.filter(acc => !acc.user_id)
       
       if (missingUserIdAccounts.length > 0) {
@@ -52,7 +47,6 @@ export default function AccountsFix() {
       } else if (accountsData.length === 0) {
         setStatus('No accounts found in the database.')
       } else {
-        // Check if there are accounts for the current user
         const userAccounts = accountsData.filter(acc => acc.user_id === user.id)
         if (userAccounts.length === 0) {
           setStatus(`Found ${accountsData.length} accounts, but none belong to your user ID (${user.id}).`)
@@ -68,24 +62,6 @@ export default function AccountsFix() {
   async function fixAccounts() {
     setIsFixing(true)
     try {
-      const supabase = createClient()
-      
-      // First make sure the user_id column exists
-      try {
-        await supabase.rpc('run_sql', {
-          sql: `
-            -- Add user_id column if it doesn't exist
-            ALTER TABLE public.accounts ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE;
-            
-            -- Create index for better query performance
-            CREATE INDEX IF NOT EXISTS idx_accounts_user_id ON accounts(user_id);
-          `
-        })
-      } catch (error) {
-        console.log('SQL error - likely not allowed, but continuing with other approaches...')
-      }
-      
-      // Get any accounts without user_id
       const { data: accountsWithoutUserId, error: queryError } = await supabase
         .from('accounts')
         .select('id')
@@ -99,7 +75,6 @@ export default function AccountsFix() {
       
       let updatedCount = 0
       
-      // Update accounts one by one
       for (const account of accountsWithoutUserId || []) {
         const { error: updateError } = await supabase
           .from('accounts')
@@ -111,16 +86,13 @@ export default function AccountsFix() {
         }
       }
       
-      // Update accounts that don't belong to any user
       if (updatedCount === 0) {
-        // Check if there are any accounts that don't belong to the current user
         const { data: otherAccounts, error: otherAccountsError } = await supabase
           .from('accounts')
           .select('id')
           .neq('user_id', user.id)
         
         if (!otherAccountsError && otherAccounts.length > 0) {
-          // Ask user if they want to claim these accounts
           if (confirm(`Found ${otherAccounts.length} accounts belonging to other users. Do you want to claim them?`)) {
             for (const account of otherAccounts) {
               const { error: updateError } = await supabase

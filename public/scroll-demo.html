@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Micro.so Scroll Demo</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      background-color: #000;
+      color: #fff;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      overflow-x: hidden;
+    }
+    
+    .container {
+      position: relative;
+      height: 500vh;
+      width: 100%;
+    }
+    
+    .fixed-content {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      perspective: 1500px;
+      overflow: hidden;
+    }
+    
+    .center-content {
+      position: relative;
+      z-index: 10;
+      transform-origin: center center;
+      transition: transform 0.1s ease-out;
+    }
+    
+    .heading {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    
+    .heading h1, .heading h2 {
+      font-size: 5rem;
+      font-weight: bold;
+    }
+    
+    .sphere {
+      width: 300px;
+      height: 300px;
+      margin: 0 auto;
+      position: relative;
+    }
+    
+    .sphere-inner {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #dba354 0%, #8c6239 100%);
+      box-shadow: 0 0 50px rgba(219, 163, 84, 0.3);
+    }
+    
+    .grid {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      grid-template-rows: repeat(5, 1fr);
+      opacity: 0.3;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+    
+    .grid-cell {
+      border: 1px solid #333;
+    }
+    
+    .card {
+      position: absolute;
+      width: 280px;
+      height: 160px;
+      background-color: #000;
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 20px;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.4s ease, transform 0.4s ease;
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+    }
+    
+    .card-1 {
+      top: 50%;
+      left: 50%;
+      transform: translate(calc(-50% - 400px), calc(-50% - 150px)) rotate(-5deg);
+    }
+    
+    .card-2 {
+      top: 50%;
+      left: 50%;
+      transform: translate(calc(-50% + 400px), calc(-50% - 200px)) rotate(5deg);
+    }
+    
+    .card-3 {
+      top: 50%;
+      left: 50%;
+      transform: translate(calc(-50% - 300px), calc(-50% + 200px)) rotate(-3deg);
+    }
+    
+    .card-4 {
+      top: 50%;
+      left: 50%;
+      transform: translate(calc(-50% + 350px), calc(-50% + 250px)) rotate(4deg);
+    }
+    
+    .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background-color: #4538ff;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+    }
+    
+    .card-title {
+      font-size: 16px;
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+    
+    .card-subtitle {
+      font-size: 14px;
+      color: #777;
+      margin-bottom: 12px;
+    }
+    
+    .bottom-content {
+      position: absolute;
+      bottom: 20px;
+      left: 0;
+      width: 100%;
+      text-align: center;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.4s ease, transform 0.4s ease;
+      padding: 0 20px;
+    }
+    
+    .bottom-content h3 {
+      font-size: 2rem;
+      margin-bottom: 1rem;
+    }
+    
+    .bottom-content p {
+      max-width: 600px;
+      margin: 0 auto;
+      color: #999;
+    }
+    
+    .tag {
+      color: #f59e0b;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      font-size: 0.8rem;
+      margin-bottom: 0.5rem;
+    }
+    
+    .scroll-indicator {
+      position: fixed;
+      right: 30px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 100;
+    }
+    
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: #fff;
+      opacity: 0.3;
+      cursor: pointer;
+      transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+    
+    .dot.active {
+      opacity: 1;
+      transform: scale(1.5);
+    }
+
+    .card .location {
+      position: absolute;
+      bottom: 15px;
+      left: 20px;
+      font-size: 12px;
+      color: #777;
+    }
+
+    .card .connections {
+      position: absolute;
+      bottom: 15px;
+      left: 20px;
+      font-size: 12px;
+      color: #777;
+      display: flex;
+      align-items: center;
+    }
+
+    .connections-icon {
+      width: 16px;
+      height: 16px;
+      background: #444;
+      border-radius: 50%;
+      margin-right: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 8px;
+    }
+
+    .card .btn {
+      position: absolute;
+      bottom: 15px;
+      left: 20px;
+      right: 20px;
+      padding: 8px 0;
+      text-align: center;
+      background: rgba(143, 123, 227, 0.1);
+      color: #8f7be3;
+      border: 1px solid #8f7be3;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    .card .tag-label {
+      display: inline-block;
+      padding: 4px 8px;
+      border: 1px solid #00cfc4;
+      border-radius: 4px;
+      color: #00cfc4;
+      font-size: 12px;
+      margin-bottom: 8px;
+    }
+
+    .card .amount {
+      color: #ccc;
+      font-size: 14px;
+      margin: 10px 0;
+    }
+
+    .card .rating {
+      display: inline-block;
+      padding: 4px 12px;
+      background: rgba(143, 123, 227, 0.1);
+      color: #8f7be3;
+      border-radius: 100px;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="fixed-content">
+      <div class="center-content" id="centerContent">
+        <div class="heading" id="heading">
+          <h1>Micro works the way</h1>
+          <h2>you want to work</h2>
+        </div>
+        
+        <div class="sphere">
+          <div class="sphere-inner"></div>
+        </div>
+      </div>
+      
+      <div class="grid" id="grid">
+        <div class="grid-cell"></div>
+        <div class="grid-cell"></div>
+        <div class="grid-cell"></div>
+        <div class="grid-cell"></div>
+        <div class="grid-cell"></div>
+        <div class="grid-cell"></div>
+        <div class="grid-cell"></div>
+        <div class="grid-cell"></div>
+        <div class="grid-cell"></div>
+        <div class="grid-cell"></div>
+        <div class="grid-cell"></div>
+        <div class="grid-cell"></div>
+        <div class="grid-cell"></div>
+        <div class="grid-cell"></div>
+        <div class="grid-cell"></div>
+        <div class="grid-cell"></div>
+        <div class="grid-cell"></div>
+        <div class="grid-cell"></div>
+        <div class="grid-cell"></div>
+        <div class="grid-cell"></div>
+        <div class="grid-cell"></div>
+        <div class="grid-cell"></div>
+        <div class="grid-cell"></div>
+        <div class="grid-cell"></div>
+        <div class="grid-cell"></div>
+      </div>
+      
+      <div class="card card-1" id="card1">
+        <div class="avatar">E</div>
+        <h3 class="card-title">Eric Hoffman</h3>
+        <p class="card-subtitle">CO / Founder of Reform Co, Mountain Bike Lover</p>
+        <div class="location">Salt Lake City</div>
+      </div>
+      
+      <div class="card card-2" id="card2">
+        <div class="avatar" style="background: linear-gradient(135deg, #9333ea 0%, #3b82f6 100%);">R</div>
+        <h3 class="card-title">Reform Collective</h3>
+        <p class="card-subtitle">Digital First Agency - We Live In the Details</p>
+        <div class="connections">
+          <div class="connections-icon">👥</div>
+          <span>4 connections</span>
+        </div>
+      </div>
+      
+      <div class="card card-3" id="card3">
+        <h3 class="card-title">Call Scheduled with Eric</h3>
+        <p class="card-subtitle">Set up time with Eric</p>
+        <div class="btn">Call Scheduled with Eric</div>
+      </div>
+      
+      <div class="card card-4" id="card4">
+        <div class="tag-label">Demo Meeting</div>
+        <h3 class="card-title">Demo Meeting</h3>
+        <p class="card-subtitle">Send Eric details about integrations ahead of the demo call</p>
+        <div class="amount">$25,000</div>
+        <div class="rating"><span style="margin-right: 5px;">|||</span> Very Strong</div>
+      </div>
+      
+      <div class="bottom-content" id="bottomContent">
+        <p class="tag">AI-POWERED</p>
+        <h3>Everything in one place</h3>
+        <p>Fully-featured email client, CRM, task manager and more integrated with Gmail, Calendar, LinkedIn, WhatsApp and other tools.</p>
+      </div>
+      
+      <div class="scroll-indicator">
+        <div class="dot active" data-index="0"></div>
+        <div class="dot" data-index="1"></div>
+        <div class="dot" data-index="2"></div>
+        <div class="dot" data-index="3"></div>
+        <div class="dot" data-index="4"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const container = document.querySelector('.container');
+      const centerContent = document.getElementById('centerContent');
+      const heading = document.getElementById('heading');
+      const grid = document.getElementById('grid');
+      const bottomContent = document.getElementById('bottomContent');
+      const card1 = document.getElementById('card1');
+      const card2 = document.getElementById('card2');
+      const card3 = document.getElementById('card3');
+      const card4 = document.getElementById('card4');
+      const dots = document.querySelectorAll('.dot');
+      
+      // Get total height
+      const totalHeight = container.clientHeight;
+      const viewportHeight = window.innerHeight;
+      
+      // Handle scrolling
+      window.addEventListener('scroll', () => {
+        const scrollPosition = window.scrollY;
+        const scrollRatio = scrollPosition / (totalHeight - viewportHeight);
+        
+        // Scale content based on scroll
+        const scale = 0.2 + (scrollRatio * 4.8); // From 0.2 to 5
+        centerContent.style.transform = `scale(${scale})`;
+        
+        // Handle grid opacity and scale
+        const gridOpacity = 1 - (scrollRatio * 0.7);
+        const gridScale = 1 - (scrollRatio * 0.5);
+        grid.style.opacity = Math.max(0, gridOpacity);
+        grid.style.transform = `scale(${gridScale})`;
+        
+        // Handle heading opacity
+        const headingOpacity = 1 - (scrollRatio * 1.5);
+        heading.style.opacity = Math.max(0, headingOpacity);
+        
+        // Handle bottom content
+        const bottomStart = 0.7;
+        const bottomContentOpacity = scrollRatio > bottomStart ? (scrollRatio - bottomStart) / (1 - bottomStart) : 0;
+        bottomContent.style.opacity = bottomContentOpacity;
+        bottomContent.style.transform = `translateY(${20 - (bottomContentOpacity * 20)}px)`;
+        
+        // Handle cards
+        // Card 1
+        if (scrollRatio > 0.1 && scrollRatio < 0.8) {
+          card1.style.opacity = Math.min(1, (scrollRatio - 0.1) * 5);
+        } else {
+          card1.style.opacity = scrollRatio >= 0.8 ? Math.max(0, 1 - ((scrollRatio - 0.8) * 5)) : 0;
+        }
+        
+        // Card 2
+        if (scrollRatio > 0.15 && scrollRatio < 0.85) {
+          card2.style.opacity = Math.min(1, (scrollRatio - 0.15) * 5);
+        } else {
+          card2.style.opacity = scrollRatio >= 0.85 ? Math.max(0, 1 - ((scrollRatio - 0.85) * 5)) : 0;
+        }
+        
+        // Card 3
+        if (scrollRatio > 0.2 && scrollRatio < 0.9) {
+          card3.style.opacity = Math.min(1, (scrollRatio - 0.2) * 5);
+        } else {
+          card3.style.opacity = scrollRatio >= 0.9 ? Math.max(0, 1 - ((scrollRatio - 0.9) * 5)) : 0;
+        }
+        
+        // Card 4
+        if (scrollRatio > 0.25 && scrollRatio < 0.95) {
+          card4.style.opacity = Math.min(1, (scrollRatio - 0.25) * 5);
+        } else {
+          card4.style.opacity = scrollRatio >= 0.95 ? Math.max(0, 1 - ((scrollRatio - 0.95) * 5)) : 0;
+        }
+        
+        // Update scroll indicator
+        const activeIndex = Math.min(4, Math.floor(scrollRatio * 5));
+        dots.forEach((dot, index) => {
+          if (index === activeIndex) {
+            dot.classList.add('active');
+          } else {
+            dot.classList.remove('active');
+          }
+        });
+      });
+      
+      // Handle dot clicks
+      dots.forEach(dot => {
+        dot.addEventListener('click', () => {
+          const index = dot.getAttribute('data-index');
+          const targetScroll = (totalHeight - viewportHeight) * (index / 4);
+          window.scrollTo({
+            top: targetScroll,
+            behavior: 'smooth'
+          });
+        });
+      });
+    });
+  </script>
+</body>
+</html> 

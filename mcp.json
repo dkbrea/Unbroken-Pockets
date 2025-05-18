@@ -1,0 +1,66 @@
+{
+  "id": "preserve-functionality-when-editing",
+  "name": "Preserve All Application Functionality When Editing",
+  "version": "1.0.0",
+  "description": "Protocol to ensure all code edits maintain existing functionality unless explicitly requested otherwise",
+  "author": "Cursor AI Assistant",
+  "created_at": "2023-11-01",
+  "priority": "critical",
+  "rules": [
+    {
+      "id": "targeted-changes",
+      "description": "Make minimal, targeted changes that only affect what's specifically requested",
+      "examples": {
+        "good": "Modifying only the specific CSS properties mentioned while leaving all other code intact",
+        "bad": "Changing multiple parts of a file when only a small change was requested"
+      }
+    },
+    {
+      "id": "preserve-behavior",
+      "description": "Never remove or modify code that impacts application behavior unless explicitly asked",
+      "examples": {
+        "good": "Modifying styling while preserving all JavaScript functions and event handlers",
+        "bad": "Accidentally removing JavaScript code when trying to edit CSS properties"
+      }
+    },
+    {
+      "id": "review-diff",
+      "description": "Always review the full diff before confirming any changes",
+      "examples": {
+        "good": "Checking that only intended lines were modified and no functionality was removed",
+        "bad": "Submitting changes without verifying what was removed or modified"
+      }
+    },
+    {
+      "id": "template-literals-caution",
+      "description": "Exercise extreme caution with template literals and syntax-sensitive sections",
+      "examples": {
+        "good": "Ensuring template literals are properly closed and not causing truncation",
+        "bad": "Improper handling of backticks in JavaScript causing content after it to be removed"
+      }
+    },
+    {
+      "id": "separate-concerns",
+      "description": "Keep functional code intact when making style or layout adjustments",
+      "examples": {
+        "good": "Modifying only CSS without touching JavaScript event handlers",
+        "bad": "Breaking animation functionality when trying to adjust styling"
+      }
+    }
+  ],
+  "validation_checklist": [
+    "Verify that only the requested changes were made",
+    "Confirm no JavaScript functionality was removed",
+    "Check that event handlers remain intact",
+    "Ensure template literals and other syntax-sensitive code is properly formatted",
+    "Verify the HTML structure remains complete and valid",
+    "Confirm that no animations or transitions were broken"
+  ],
+  "risk_factors": [
+    "Template literals with backticks in JavaScript",
+    "Large files with mixed HTML, CSS, and JavaScript",
+    "Complex animations or event-driven functionality",
+    "Tightly coupled components where changes might have cascading effects"
+  ],
+  "application": "This protocol should be applied to all code editing operations, especially when modifying styling or layout in files that also contain functional code."
+}

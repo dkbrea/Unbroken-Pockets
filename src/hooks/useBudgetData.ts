@@ -1,88 +1,95 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Home, ShoppingCart, Car, Utensils, Coffee, Briefcase, Film, Heart, ShoppingBag, MoreHorizontal } from 'lucide-react';
 import { LucideIcon } from 'lucide-react';
+import { useForecastData } from '@/hooks/useForecastData';
 import {
-  getBudgetCategories,
+  getBudgetCategories as getServiceBudgetCategories,
   getMonthlyBudgetSummary,
-  createBudgetCategory,
-  updateBudgetCategory,
-  deleteBudgetCategory,
+  createBudgetCategory as createServiceBudgetCategory,
+  updateBudgetCategory as updateServiceBudgetCategory,
+  deleteBudgetCategory as deleteServiceBudgetCategory,
   saveBudgetEntry,
   addBudgetTransaction,
   initializeDefaultBudgetCategories,
   copyBudgetEntriesFromPreviousMonth,
-  getBudgetEntriesForMonth
-} from '@/lib/services/budgetService';
+  getBudgetEntriesForMonth,
+  type BudgetCategory as BudgetServiceCategoryType
+} from '../lib/services/budgetService';
 import { format, startOfMonth, parseISO, addMonths, subMonths } from 'date-fns';
 import { useRecurringData } from './useRecurringData';
 import { useDebtData } from './useDebtData';
 import { useGoalsData } from './useGoalsData';
+import { supabase } from '../lib/supabase';
+import { Database } from '@/lib/database.types';
+import type { Budget, BudgetState } from '@/lib/types/states';
+import { getAuthenticatedUserId } from '@/lib/auth/authUtils';
 
-export type BudgetCategory = {
+// Local hook-specific category type with LucideIcon
+export interface BudgetCategoryUi {
   id: number;
   name: string;
   allocated: number;
   spent: number;
   icon: LucideIcon;
   color: string;
-};
+}
 
-export type BudgetState = {
+export interface ExtendedBudgetState extends BudgetState {
   activePeriod: string;
-  budgetCategories: BudgetCategory[];
+  budgetCategories: BudgetCategoryUi[];
   totalAllocated: number;
   totalSpent: number;
   remainingBudget: number;
   monthlyIncome: number;
   fixedExpenses: number;
+  totalSubscriptions: number;
   leftToAllocate: number;
   totalDebtPayments: number;
   totalGoalContributions: number;
   isLoading: boolean;
   error: Error | null;
-  setActivePeriod: (period: string) => void;
-  addCategory: (category: Omit<BudgetCategory, 'id'>) => Promise<void>;
-  updateCategory: (id: number, category: Partial<BudgetCategory>) => Promise<void>;
+  isAuthError: boolean;
+  addCategory: (category: Omit<BudgetCategoryUi, 'id' | 'icon' | 'spent'> & { iconName: string }) => Promise<void>;
+  updateCategory: (id: number, category: Partial<Omit<BudgetCategoryUi, 'icon'>> & { iconName?: string }) => Promise<void>;
   deleteCategory: (id: number) => Promise<void>;
   setAllocation: (categoryId: number, amount: number) => Promise<void>;
   addTransaction: (categoryId: number, amount: number, description?: string) => Promise<void>;
   nextMonth: () => void;
   prevMonth: () => void;
   refreshData: () => Promise<void>;
+}
+
+const iconMap: { [key: string]: LucideIcon } = {
+  Home, ShoppingCart, Car, Utensils, Coffee, Briefcase, Film, Heart, ShoppingBag, MoreHorizontal
 };
 
-// Helper function to get icon component from string name
+const getIconName = (iconComponent: LucideIcon): string => {
+  return Object.keys(iconMap).find(key => iconMap[key] === iconComponent) || 'ShoppingCart';
+};
+
 const getIconComponent = (iconName: string): LucideIcon => {
-  switch (iconName) {
-    case 'Home': return Home;
-    case 'ShoppingCart': return ShoppingCart;
-    case 'Car': return Car;
-    case 'Utensils': return Utensils;
-    case 'Coffee': return Coffee;
-    case 'Briefcase': return Briefcase;
-    case 'Film': return Film;
-    case 'Heart': return Heart;
-    case 'ShoppingBag': return ShoppingBag;
-    case 'MoreHorizontal': return MoreHorizontal;
-    default: return ShoppingCart;
-  }
+  return iconMap[iconName] || ShoppingCart;
 };
 
-export function useBudgetData(): BudgetState {
+export function useBudgetData(): ExtendedBudgetState {
+  const [userId, setUserId] = useState<string | null>(null);
   const [activeMonth, setActiveMonth] = useState<Date>(startOfMonth(new Date()));
   const [activePeriod, setActivePeriod] = useState(format(activeMonth, 'MMMM yyyy'));
-  const [budgetCategories, setBudgetCategories] = useState<BudgetCategory[]>([]);
+  const [budgetCategories, setBudgetCategories] = useState<BudgetCategoryUi[]>([]);
   const [totalAllocated, setTotalAllocated] = useState(0);
   const [totalSpent, setTotalSpent] = useState(0);
   const [remainingBudget, setRemainingBudget] = useState(0);
   const [monthlyIncome, setMonthlyIncome] = useState(0);
   const [fixedExpenses, setFixedExpenses] = useState(0);
+  const [totalSubscriptions, setTotalSubscriptions] = useState(0);
   const [leftToAllocate, setLeftToAllocate] = useState(0);
   const [totalDebtPayments, setTotalDebtPayments] = useState(0);
   const [totalGoalContributions, setTotalGoalContributions] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const [isAuthError, setIsAuthError] = useState(false);
   const [previousMonth, setPreviousMonth] = useState<Date | null>(null);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
   
   // Get recurring data to access monthly income and fixed expenses
   const { 
@@ -95,41 +102,127 @@ export function useBudgetData(): BudgetState {
   } = useRecurringData();
   
   // Get debt data to access total minimum payments (using debt tracker data, not recurring)
-  const { totalMinPayment } = useDebtData();
+  const { totalMinPayment, debts } = useDebtData();
   
   // Get goals data to access total monthly contributions
-  const { totalMonthlyContribution } = useGoalsData();
+  const { totalMonthlyContribution, financialGoals } = useGoalsData();
+
+  // Get forecast data
+  const { forecastData } = useForecastData();
   
-  // Update fixed expenses (from recurring transactions)
+  // Fetch authenticated user ID on mount
   useEffect(() => {
-    // If we have transactions data, calculate fixed expenses for the specific month
-    if (displayTransactions && displayTransactions.length > 0) {
-      // Calculate expenses for the active month - this matches the recurring calendar view
+    const fetchUser = async () => {
       try {
-        const expensesForActiveMonth = calculateMonthExpenses(activeMonth, displayTransactions);
-        setFixedExpenses(expensesForActiveMonth);
+        const id = await getAuthenticatedUserId();
+        if (id) {
+          setUserId(id);
+          setIsAuthError(false);
+        } else {
+          setIsAuthError(true);
+          setError(new Error('User not authenticated.'));
+        }
+      } catch (err) {
+        setIsAuthError(true);
+        setError(err instanceof Error ? err : new Error('Authentication failed'));
+      }
+    };
+    fetchUser();
+  }, []);
+  
+  // Update fixed expenses and subscriptions (from recurring transactions)
+  useEffect(() => {
+    // If we have transactions data, calculate fixed expenses and subscriptions for the specific month
+    if (displayTransactions && displayTransactions.length > 0) {
+      try {
+        // Calculate fixed expenses (excluding subscriptions)
+        const expensesForActiveMonth = calculateMonthExpenses(activeMonth, displayTransactions.filter(tx => 
+          tx.amount < 0 && 
+          tx.category?.toLowerCase() !== 'subscriptions'
+        ));
+        setFixedExpenses(Math.abs(expensesForActiveMonth));
+
+        // Calculate subscriptions separately
+        const subscriptionsForActiveMonth = calculateMonthExpenses(activeMonth, displayTransactions.filter(tx => 
+          tx.amount < 0 &&
+          tx.category?.toLowerCase() === 'subscriptions'
+        ));
+        setTotalSubscriptions(Math.abs(subscriptionsForActiveMonth));
       } catch (error) {
-        console.error("Error calculating fixed expenses for month:", error);
+        console.error("Error calculating expenses for month:", error);
         // Fallback to the general calculation
         const nonDebtExpenses = recurringExpenses - recurringDebt;
         setFixedExpenses(Math.abs(nonDebtExpenses || 0));
+        setTotalSubscriptions(0);
       }
     } else {
       // Fallback to the general calculation if no display transactions are available
-      // Fixed expenses are all recurring expenses excluding debt payments that are already tracked by the debt tracker
       const nonDebtExpenses = recurringExpenses - recurringDebt;
-      // Ensure fixed expenses is a positive value
       setFixedExpenses(Math.abs(nonDebtExpenses || 0));
+      setTotalSubscriptions(0);
     }
   }, [recurringExpenses, recurringDebt, activeMonth, displayTransactions, calculateMonthExpenses]);
   
   // Update total debt payments and goal contributions
   useEffect(() => {
-    // Use debt payments from debt tracker if available, otherwise fallback to recurring debt payments
-    const debtPayments = totalMinPayment > 0 ? totalMinPayment : recurringDebt;
-    setTotalDebtPayments(debtPayments || 0);
-    setTotalGoalContributions(totalMonthlyContribution || 0);
-  }, [totalMinPayment, recurringDebt, totalMonthlyContribution]);
+    // Get the current month index (0-based)
+    const currentMonthIndex = activeMonth.getMonth();
+    
+    // Load forecast data if not already loaded or if current month data is missing
+    if (!forecastData?.debtPaymentsByMonth?.[currentMonthIndex] || !forecastData?.savingsByMonth?.[currentMonthIndex]) {
+      // Create forecast data for the current month
+      const currentYear = activeMonth.getFullYear();
+      const monthStr = `${currentYear}-${String(currentMonthIndex + 1).padStart(2, '0')}`;
+      
+      // Fetch monthly contributions for the current month
+      supabase
+        .from('goal_monthly_contributions')
+        .select('*')
+        .eq('month', monthStr)
+        .then(({ data: monthlyContributions, error }) => {
+          if (error) {
+            console.error('Error fetching monthly contributions:', error);
+            return;
+          }
+
+          // Calculate savings goals for the month using monthly contributions if available
+          const savingsForMonth = financialGoals.map(goal => {
+            const monthlyContribution = monthlyContributions?.find(mc => mc.goal_id === goal.id);
+            return {
+              id: goal.id,
+              amount: monthlyContribution?.amount ?? goal.monthlyContribution
+            };
+          });
+
+          // Calculate debt payments for the month
+          const debtPaymentsForMonth = debts.map(debt => ({
+            id: debt.id,
+            amount: -Math.abs(debt.minimumPayment)
+          }));
+
+          // Calculate totals
+          const forecastGoalsTotal = savingsForMonth
+            .reduce((sum, goal) => sum + (goal.amount || 0), 0);
+          const forecastDebtTotal = debtPaymentsForMonth
+            .reduce((sum, debt) => sum + Math.abs(debt.amount || 0), 0);
+
+          setTotalDebtPayments(forecastDebtTotal);
+          setTotalGoalContributions(forecastGoalsTotal);
+        });
+    } else {
+      // Use existing forecast data with null checks
+      const monthDebtPayments = forecastData.debtPaymentsByMonth[currentMonthIndex] || [];
+      const monthSavings = forecastData.savingsByMonth[currentMonthIndex] || [];
+
+      const forecastDebtTotal = monthDebtPayments
+        .reduce((sum, debt) => sum + Math.abs(debt?.amount || 0), 0);
+      const forecastGoalsTotal = monthSavings
+        .reduce((sum, goal) => sum + (goal?.amount || 0), 0);
+
+      setTotalDebtPayments(forecastDebtTotal);
+      setTotalGoalContributions(forecastGoalsTotal);
+    }
+  }, [activeMonth, forecastData, financialGoals, debts]);
   
   // Update monthly income for the active month and calculate left to allocate
   useEffect(() => {
@@ -140,7 +233,7 @@ export function useBudgetData(): BudgetState {
         setMonthlyIncome(incomeForActiveMonth);
         
         // Calculate left to allocate with the period-specific income
-        const totalCommittedFunds = totalAllocated + fixedExpenses + totalDebtPayments + totalGoalContributions;
+        const totalCommittedFunds = totalAllocated + fixedExpenses + totalSubscriptions + totalDebtPayments + totalGoalContributions;
         setLeftToAllocate(incomeForActiveMonth - totalCommittedFunds);
       } catch (error) {
         console.error("Error calculating monthly income for month:", error);
@@ -148,7 +241,7 @@ export function useBudgetData(): BudgetState {
         setMonthlyIncome(recurringIncome);
         
         // Calculate left to allocate with recurring income
-        const totalCommittedFunds = totalAllocated + fixedExpenses + totalDebtPayments + totalGoalContributions;
+        const totalCommittedFunds = totalAllocated + fixedExpenses + totalSubscriptions + totalDebtPayments + totalGoalContributions;
         setLeftToAllocate(recurringIncome - totalCommittedFunds);
       }
     } else {
@@ -156,67 +249,41 @@ export function useBudgetData(): BudgetState {
       setMonthlyIncome(recurringIncome);
       
       // Calculate left to allocate with recurring income
-      const totalCommittedFunds = totalAllocated + fixedExpenses + totalDebtPayments + totalGoalContributions;
+      const totalCommittedFunds = totalAllocated + fixedExpenses + totalSubscriptions + totalDebtPayments + totalGoalContributions;
       setLeftToAllocate(recurringIncome - totalCommittedFunds);
     }
-  }, [activeMonth, recurringIncome, totalAllocated, fixedExpenses, totalDebtPayments, totalGoalContributions, displayTransactions, calculateMonthIncome]);
+  }, [activeMonth, recurringIncome, totalAllocated, fixedExpenses, totalSubscriptions, totalDebtPayments, totalGoalContributions, displayTransactions, calculateMonthIncome]);
   
   // Function to check and copy budget entries if needed
   const checkAndCopyBudgetEntries = useCallback(async (targetMonth: Date, sourceMonth: Date) => {
+    if (!userId) return;
     try {
-      const entries = await getBudgetEntriesForMonth(targetMonth);
+      const entries = await getBudgetEntriesForMonth(targetMonth, userId);
       if (entries.length === 0) {
-        // No entries for this month, copy from source month
-        console.log(`No budget entries found for ${format(targetMonth, 'MMMM yyyy')}, copying from ${format(sourceMonth, 'MMMM yyyy')}`);
-        await copyBudgetEntriesFromPreviousMonth(targetMonth, sourceMonth);
+        console.log(`No budget entries for ${format(targetMonth, 'MMMM yyyy')}, copying from ${format(sourceMonth, 'MMMM yyyy')}`);
+        await copyBudgetEntriesFromPreviousMonth(targetMonth, sourceMonth, userId);
       }
     } catch (err) {
       console.error("Error checking/copying budget entries:", err);
     }
-  }, []);
+  }, [userId]);
 
   // Function to load budget data for the active month
   const loadBudgetData = useCallback(async () => {
+    if (!userId) {
+      if (!isAuthError) setIsLoading(true);
+      return;
+    }
     setIsLoading(true);
     setError(null);
     
     try {
-      // Get categories from database
-      const categories = await getBudgetCategories();
-      
-      // If no categories found, initialize default ones
-      if (categories.length === 0) {
-        await initializeDefaultBudgetCategories();
-        const newCategories = await getBudgetCategories();
-        
-        if (newCategories.length === 0) {
-          throw new Error('Failed to initialize budget categories');
-        }
-      }
-      
-      // If we have a previous month and have changed months, check if we need to copy entries
-      if (previousMonth && previousMonth.getTime() !== activeMonth.getTime()) {
-        await checkAndCopyBudgetEntries(activeMonth, previousMonth);
-      }
-      
-      // Get budget summary for current month
-      const summary = await getMonthlyBudgetSummary(activeMonth);
-      
-      // Map summary data to component state
-      const formattedCategories = summary.categories.map(cat => ({
-        id: cat.id,
-        name: cat.name,
-        allocated: cat.allocated,
-        spent: cat.spent,
-        icon: getIconComponent(cat.icon),
-        color: cat.color
-      }));
-      
-      setBudgetCategories(formattedCategories);
+      const summary = await getMonthlyBudgetSummary(activeMonth, userId);
+      setBudgetCategories(summary.categories.map(mapBudgetCategoryFromService));
       setTotalAllocated(summary.totalAllocated);
       setTotalSpent(summary.totalSpent);
       setRemainingBudget(summary.remainingBudget);
-      setActivePeriod(summary.month);
+      setActivePeriod(format(activeMonth, 'MMMM yyyy'));
       
       // Update previous month to current month for next comparison
       setPreviousMonth(activeMonth);
@@ -225,7 +292,7 @@ export function useBudgetData(): BudgetState {
       setError(err instanceof Error ? err : new Error('Unknown error loading budget data'));
       
       // Use fallback data
-      const fallbackCategories = [
+      const fallbackCategories: BudgetCategoryUi[] = [
         { 
           id: 1, 
           name: 'Groceries', 
@@ -276,12 +343,14 @@ export function useBudgetData(): BudgetState {
     } finally {
       setIsLoading(false);
     }
-  }, [activeMonth, previousMonth, checkAndCopyBudgetEntries]);
+  }, [activeMonth, userId, isAuthError]);
   
   // Load data on mount and when active month changes
   useEffect(() => {
-    loadBudgetData();
-  }, [loadBudgetData]);
+    if (userId) {
+      loadBudgetData();
+    }
+  }, [userId, loadBudgetData]);
   
   // Function to navigate to next month
   const nextMonth = useCallback(() => {
@@ -300,23 +369,16 @@ export function useBudgetData(): BudgetState {
   }, []);
   
   // Add a new budget category
-  const addCategory = useCallback(async (category: Omit<BudgetCategory, 'id'>) => {
+  const addCategory = useCallback(async (category: Omit<BudgetCategoryUi, 'id' | 'icon' | 'spent'> & { iconName: string }) => {
+    if (!userId) {
+      setError(new Error('User not authenticated. Cannot add category.'));
+      return;
+    }
     try {
       setIsLoading(true);
       
-      // Convert LucideIcon to string name
-      const iconName = Object.entries({
-        Home, ShoppingCart, Car, Utensils, Coffee, Briefcase, Film, Heart, ShoppingBag, MoreHorizontal
-      }).find(([_, icon]) => icon === category.icon)?.[0] || 'ShoppingCart';
-      
-      // Create category in database
-      await createBudgetCategory({
-        name: category.name,
-        allocated: category.allocated,
-        spent: 0,
-        icon: iconName || '',
-        color: category.color
-      });
+      const serviceCategoryData = mapBudgetCategoryToService(category);
+      await createServiceBudgetCategory(serviceCategoryData, userId);
       
       // Refresh data
       await loadBudgetData();
@@ -326,29 +388,23 @@ export function useBudgetData(): BudgetState {
     } finally {
       setIsLoading(false);
     }
-  }, [loadBudgetData]);
+  }, [userId, loadBudgetData]);
   
   // Update an existing budget category
-  const updateCategory = useCallback(async (id: number, category: Partial<BudgetCategory>) => {
+  const updateCategory = useCallback(async (id: number, category: Partial<Omit<BudgetCategoryUi, 'icon'>> & { iconName?: string }) => {
+    if (!userId) {
+      setError(new Error('User not authenticated. Cannot update category.'));
+      return;
+    }
     try {
       setIsLoading(true);
       
-      // Convert icon if provided
-      let iconName;
-      if (category.icon) {
-        iconName = Object.entries({
-          Home, ShoppingCart, Car, Utensils, Coffee, Briefcase, Film, Heart, ShoppingBag, MoreHorizontal
-        }).find(([_, icon]) => icon === category.icon)?.[0] || '';
-      }
-      
-      // Update category in database
-      await updateBudgetCategory(id, {
-        ...(category.name ? { name: category.name } : {}),
-        ...(category.allocated !== undefined ? { allocated: category.allocated } : {}),
-        ...(category.spent !== undefined ? { spent: category.spent } : {}),
-        ...(iconName ? { icon: iconName } : {}),
-        ...(category.color ? { color: category.color } : {})
-      });
+      const { iconName, ...restOfUpdate } = category;
+      const serviceUpdate: Partial<Omit<BudgetServiceCategoryType, 'id' | 'user_id' | 'created_at' | 'updated_at'>> = {
+        ...restOfUpdate,
+        ...(iconName && { icon: iconName }),
+      };
+      await updateServiceBudgetCategory(id, serviceUpdate, userId);
       
       // Refresh data
       await loadBudgetData();
@@ -358,15 +414,18 @@ export function useBudgetData(): BudgetState {
     } finally {
       setIsLoading(false);
     }
-  }, [loadBudgetData]);
+  }, [userId, loadBudgetData]);
   
   // Delete a budget category
   const deleteCategory = useCallback(async (id: number) => {
+    if (!userId) {
+      setError(new Error('User not authenticated. Cannot delete category.'));
+      return;
+    }
     try {
       setIsLoading(true);
       
-      // Delete category from database
-      await deleteBudgetCategory(id);
+      await deleteServiceBudgetCategory(id, userId);
       
       // Refresh data
       await loadBudgetData();
@@ -376,10 +435,14 @@ export function useBudgetData(): BudgetState {
     } finally {
       setIsLoading(false);
     }
-  }, [loadBudgetData]);
+  }, [userId, loadBudgetData]);
   
   // Set allocation for a category for the current month
   const setAllocation = useCallback(async (categoryId: number, amount: number) => {
+    if (!userId) {
+      setError(new Error('User not authenticated. Cannot set allocation.'));
+      return;
+    }
     try {
       setIsLoading(true);
       
@@ -390,12 +453,8 @@ export function useBudgetData(): BudgetState {
       }
       
       // Save budget entry
-      await saveBudgetEntry({
-        category_id: categoryId,
-        month: activeMonth.toISOString(),
-        allocated: amount,
-        spent: category.spent // Keep existing spent amount
-      });
+      const monthStr = format(activeMonth, 'yyyy-MM-dd');
+      await saveBudgetEntry({ category_id: categoryId, month: monthStr, allocated: amount, spent: category.spent }, userId);
       
       // Refresh data
       await loadBudgetData();
@@ -405,20 +464,19 @@ export function useBudgetData(): BudgetState {
     } finally {
       setIsLoading(false);
     }
-  }, [activeMonth, budgetCategories, loadBudgetData]);
+  }, [userId, activeMonth, budgetCategories, loadBudgetData]);
   
   // Add a transaction to a category
-  const addTransaction = useCallback(async (categoryId: number, amount: number, description?: string) => {
+  const addTransaction = useCallback(async (categoryId: number, amount: number, description: string = 'Budget transaction') => {
+    if (!userId) {
+      setError(new Error('User not authenticated. Cannot add transaction.'));
+      return;
+    }
     try {
       setIsLoading(true);
       
-      // Add transaction
-      await addBudgetTransaction({
-        category_id: categoryId,
-        amount: Math.abs(amount), // Ensure positive value for amount (spending is positive in this context)
-        date: new Date().toISOString(),
-        description: description || ''
-      });
+      const dateStr = format(new Date(), 'yyyy-MM-dd');
+      await addBudgetTransaction({ category_id: categoryId, amount, date: dateStr, description }, userId);
       
       // Refresh data
       await loadBudgetData();
@@ -428,12 +486,29 @@ export function useBudgetData(): BudgetState {
     } finally {
       setIsLoading(false);
     }
-  }, [loadBudgetData]);
+  }, [userId, loadBudgetData]);
   
   // Manual refresh function
   const refreshData = useCallback(async () => {
+    if (!userId) {
+      setError(new Error("Cannot refresh data: User not authenticated."));
+      return;
+    }
     await loadBudgetData();
-  }, [loadBudgetData]);
+  }, [userId, loadBudgetData]);
+
+  const mapBudgetCategoryFromService = (serviceCategory: BudgetServiceCategoryType): BudgetCategoryUi => ({
+    ...serviceCategory,
+    icon: getIconComponent(serviceCategory.icon || 'ShoppingCart'),
+  });
+
+  const mapBudgetCategoryToService = (uiCategory: Omit<BudgetCategoryUi, 'id' | 'icon' | 'spent'> & { iconName: string }): Omit<BudgetServiceCategoryType, 'id' | 'user_id' | 'created_at' | 'updated_at'> => ({
+    name: uiCategory.name,
+    allocated: uiCategory.allocated,
+    spent: 0,
+    icon: uiCategory.iconName,
+    color: uiCategory.color,
+  });
 
   return {
     activePeriod,
@@ -443,20 +518,13 @@ export function useBudgetData(): BudgetState {
     remainingBudget,
     monthlyIncome,
     fixedExpenses,
+    totalSubscriptions,
     leftToAllocate,
     totalDebtPayments,
     totalGoalContributions,
     isLoading,
     error,
-    setActivePeriod: (period: string) => {
-      try {
-        // Parse the period string (e.g., "May 2023") to a Date
-        const date = parseISO(`${period}-01`); // Add day for parsing
-        setActiveMonth(startOfMonth(date));
-      } catch (err) {
-        console.error('Error parsing period:', err);
-      }
-    },
+    isAuthError,
     addCategory,
     updateCategory,
     deleteCategory,
@@ -464,6 +532,16 @@ export function useBudgetData(): BudgetState {
     addTransaction,
     nextMonth,
     prevMonth,
-    refreshData
-  };
+    refreshData,
+    budgets,
+    setBudgets,
+    setActivePeriod: (period: string) => {
+      try {
+        const date = parseISO(`${period}-01`);
+        setActiveMonth(startOfMonth(date));
+      } catch (err) {
+        console.error('Error parsing period:', err);
+      }
+    },
+  } as ExtendedBudgetState;
 } 

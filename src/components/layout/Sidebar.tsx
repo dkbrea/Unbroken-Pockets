@@ -12,18 +12,29 @@ import {
   CalendarClock, 
   Target, 
   TrendingUp,
-  User,
   LogOut,
-  Wallet
+  Wallet,
+  LucideIcon
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
+
+interface NavigationItem {
+  name: string;
+  href: string;
+  icon: LucideIcon;
+}
+
+interface User {
+  email?: string;
+  [key: string]: any;
+}
 
 const Sidebar = () => {
   const pathname = usePathname()
+  const [user, setUser] = useState<User | null>(null)
   const router = useRouter()
-  const [user, setUser] = useState<any>(null)
   
   useEffect(() => {
     const loadUserData = async () => {
@@ -35,7 +46,6 @@ const Sidebar = () => {
       }
       
       // Otherwise try to get from Supabase
-      const supabase = createClient()
       const { data } = await supabase.auth.getUser()
       if (data?.user) {
         setUser(data.user)
@@ -46,32 +56,15 @@ const Sidebar = () => {
   }, [])
   
   const handleSignOut = async () => {
-    try {
-      console.log('Signing out user...');
-      
-      // First, remove any mock user from localStorage
-      localStorage.removeItem('mock_user');
-      
-      // Then, sign out from Supabase
-      const supabase = createClient();
-      const { error } = await supabase.auth.signOut();
-      
-      if (error) {
-        console.error('Error signing out:', error);
-        throw error;
-      }
-      
-      console.log('Sign out successful, redirecting to sign in page...');
-      
-      // Use direct navigation for a clean logout
-      window.location.href = '/auth/signin';
-    } catch (err) {
-      console.error('Error during sign out:', err);
-      alert('There was a problem signing out. Please try again.');
+    const { error } = await supabase.auth.signOut()
+    if (error) {
+      console.error('Error signing out:', error)
+    } else {
+      router.push('/auth/signin')
     }
   }
 
-  const navigation = [
+  const navigation: NavigationItem[] = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Accounts', href: '/accounts', icon: CreditCard },
     { name: 'Transactions', href: '/transactions', icon: ReceiptText },
@@ -138,10 +131,10 @@ const Sidebar = () => {
                 </div>
                 <div className="flex flex-col">
                   <span className="text-sm font-medium text-text-dark truncate max-w-[120px]">
-                    {user?.email || 'User'}
+                    {user?.email || 'Guest User'}
                   </span>
                   <span className="text-xs text-text-light">
-                    Profile
+                    {user?.email ? 'Profile' : 'Not signed in'}
                   </span>
                 </div>
               </div>

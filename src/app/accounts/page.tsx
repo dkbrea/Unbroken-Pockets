@@ -2,20 +2,21 @@
 
 import { useState, useEffect } from 'react'
 import { Plus, Search, Filter, CreditCard, Wallet, BuildingIcon, CircleDollarSign, Edit, Trash2 } from 'lucide-react'
-import { getAccounts, getTotalBalance, Account as BaseAccount, AccountType, clearAllAccounts, updateAccount, deleteAccount } from '@/lib/services/accountService'
+import { getAccounts, getTotalBalance, updateAccount, deleteAccount } from '@/lib/services/accountService'
+import type { Account as ImportedAccount, AccountType } from '@/lib/types/states'
 import AddAccountModal from '@/components/features/AddAccountModal'
 import EditAccountModal from '@/components/features/EditAccountModal'
 import DeleteConfirmModal from '@/components/features/DeleteConfirmModal'
 import AccountTransactionsModal from '@/components/features/AccountTransactionsModal'
 import { createAccount } from '@/lib/services/accountService'
-import { createClient } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useDebtData } from '@/hooks/useDebtData'
 import AddTransactionModal from '@/components/features/AddTransactionModal'
 
 // Extend the base Account type to include debt-specific properties
-interface Account extends BaseAccount {
+interface Account extends ImportedAccount {
   is_debt?: boolean;
   interest_rate?: number;
   minimum_payment?: number;
@@ -35,22 +36,32 @@ export default function Accounts() {
   const [authChecked, setAuthChecked] = useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<'all' | 'checking' | 'savings' | 'credit' | 'investment'>('all')
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   
   // Get credit card debts
   const { debts } = useDebtData()
-  const creditCardDebts = debts.filter(debt => debt.category === 'Credit Card')
-
+  const creditCardDebts = debts.filter(debt => debt.category === 'Credit Card').map(debt => ({
+    ...debt,
+    user_id: debt.user_id || currentUserId || ''
+  }))
+  
   // Convert credit card debts to account format for display
-  const creditCardAccounts = creditCardDebts.map(debt => ({
-    id: debt.id,
+  const creditCardAccounts: Account[] = creditCardDebts.map((debt) => ({
+    id: debt.id.toString(),
+    user_id: debt.user_id,
     name: debt.name,
     institution: debt.lender || 'Unknown',
     balance: debt.balance,
-    type: 'credit' as AccountType, // Cast as AccountType
-    last_updated: debt.updatedAt || new Date().toISOString().split('T')[0],
+    type: 'credit' as AccountType,
+    created_at: debt.createdAt || new Date().toISOString(),
+    updated_at: debt.updatedAt || new Date().toISOString(),
     is_debt: true,
     interest_rate: debt.interestRate,
-    minimum_payment: debt.minimumPayment
+    minimum_payment: debt.minimumPayment,
+    account_number: null,
+    currency: 'USD',
+    last_four: null,
+    status: 'active'
   }))
   
   // Combined accounts for display
@@ -81,8 +92,8 @@ export default function Accounts() {
   
   const checkAuthAndLoadData = async () => {
     try {
-      const supabase = createClient()
-      
+      // const supabase = createClient() // REMOVED: No longer creating a local client instance
+
       // Get current session
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
       
@@ -96,45 +107,78 @@ export default function Accounts() {
       // Check for bypass parameter in the URL for development
       const bypassAuth = typeof window !== 'undefined' && 
         window.location.search.includes('bypassAuth=true')
-      
+
+      let userIdToUse: string | null = null;
+
+      if (sessionData.session?.user?.id) {
+        userIdToUse = sessionData.session.user.id;
+      } else if (bypassAuth) {
+        // In bypass mode, you might want to set a mock user ID or handle appropriately
+        console.warn("Bypass auth mode: No actual user session. Using mock user ID if available or null.");
+        const mockUser = localStorage.getItem('mock_user');
+        if (mockUser) {
+          userIdToUse = JSON.parse(mockUser).id;
+        } else {
+          // Fallback or error if no mock user in bypass mode
+          setError("Bypass auth mode enabled, but no mock user data found in local storage.");
+          setLoading(false);
+          return;
+        }
+      }
+
       console.log('Auth check - Session data:', sessionData)
       console.log('Auth check - Bypass auth:', bypassAuth)
-      
-      if (!sessionData.session && !bypassAuth) {
+      console.log('Auth check - User ID to use:', userIdToUse)
+
+      if (!userIdToUse && !bypassAuth) { // Condition adjusted, bypassAuth already implies we might not have a session
         // Redirect to login if no session and not bypassing auth
-        console.log('No active session, redirecting to login')
+        console.log('No active session or usable user ID, redirecting to login')
         router.push('/auth/signin')
         return
       }
       
+      setCurrentUserId(userIdToUse); // STORE userId
       setAuthChecked(true)
-      
+
       // Now load the accounts - ensure we load accounts right after auth is confirmed
-      console.log('Auth confirmed, loading accounts data...')
-      await loadAccounts()
+      console.log('Auth confirmed, loading accounts data for user:', userIdToUse)
+      if (userIdToUse) {
+        await loadAccounts(userIdToUse)
+      } else if (bypassAuth && !userIdToUse) {
+        // If bypassing auth but couldn't get a mock user ID, it's an error state.
+        setError("Bypass auth mode: No mock user ID to load data for.");
+        setLoading(false);
+      }
     } catch (err) {
-      console.error('Error in auth check:', err)
-      setError('An unexpected error occurred')
+      console.error('Error in auth check or loading accounts:', err) // Combined error handling
+      setError('An unexpected error occurred during authentication or data loading')
       setLoading(false)
     }
   }
   
-  const loadAccounts = async () => {
+  const loadAccounts = async (userId: string) => { // MODIFIED: Accept userId
+    if (!userId) {
+      setError("User ID is missing, cannot load accounts.");
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true)
       setError(null)
-      
-      console.log('Loading accounts data...')
+
+      console.log('Loading accounts data for user:', userId)
       // Add a small delay to ensure database operations complete
       await new Promise(resolve => setTimeout(resolve, 100))
-      
-      const userAccounts = await getAccounts()
+
+      const userAccounts = await getAccounts(userId) // PASS userId
       console.log('Accounts loaded:', userAccounts)
       console.log('Account count:', userAccounts.length)
       console.log('Account user_ids:', userAccounts.map(a => a.user_id))
       setAccounts(userAccounts)
-      
-      const balance = await getTotalBalance()
+
+      // getTotalBalance in service fetches its own userId, but good practice to be consistent
+      // If you modify getTotalBalance to accept userId, pass it here too.
+      const balance = await getTotalBalance() // This service function gets its own userId
       console.log('Total balance calculated:', balance)
       setTotalBalance(balance)
     } catch (error: any) {
@@ -146,18 +190,23 @@ export default function Accounts() {
   }
   
   const handleAddAccount = async (accountData: { name: string; institution: string; type: AccountType; balance: number }) => {
+    if (!currentUserId) {
+      setError("User ID is missing, cannot add account.");
+      setIsSubmittingAccount(false); // Ensure submitting state is reset
+      return;
+    }
     try {
       setIsSubmittingAccount(true)
       setError(null)
-      
-      console.log('Adding new account:', accountData)
-      
+
+      console.log('Adding new account for user:', currentUserId, accountData)
+
       // Save account to database
-      const newAccount = await createAccount(accountData)
-      
+      const newAccount = await createAccount(accountData, currentUserId) // PASS currentUserId
+
       if (newAccount) {
         console.log('New account created successfully:', newAccount)
-        await loadAccounts()
+        await loadAccounts(currentUserId) // PASS currentUserId
         setIsAccountModalOpen(false)
       } else {
         console.error('Failed to create account, no error returned')
@@ -171,19 +220,24 @@ export default function Accounts() {
     }
   }
   
-  const handleUpdateAccount = async (id: number, accountData: { name: string; institution: string; type: AccountType; balance: number }) => {
+  const handleUpdateAccount = async (id: string, accountData: { name: string; institution: string; type: AccountType; balance: number }) => {
+    if (!currentUserId) {
+      setError("User ID is missing, cannot update account.");
+      setIsSubmittingAccount(false);
+      return;
+    }
     try {
       setIsSubmittingAccount(true)
       setError(null)
       
-      console.log('Updating account:', { id, ...accountData })
+      console.log('Updating account for user:', currentUserId, { id, ...accountData })
       
       // Update account in database
-      const updatedAccount = await updateAccount(id, accountData)
+      const updatedAccount = await updateAccount(id, accountData, currentUserId) // PASS currentUserId
       
       if (updatedAccount) {
         console.log('Account updated successfully:', updatedAccount)
-        await loadAccounts()
+        await loadAccounts(currentUserId) // PASS currentUserId
         setIsEditModalOpen(false)
       } else {
         console.error('Failed to update account, no error returned')
@@ -208,16 +262,16 @@ export default function Accounts() {
   }
   
   const handleDeleteConfirm = async () => {
-    if (selectedAccount?.id) {
+    if (selectedAccount?.id && currentUserId) { // Check for currentUserId
       try {
         setError(null)
-        console.log('Deleting account:', selectedAccount.id)
+        console.log('Deleting account for user:', currentUserId, selectedAccount.id)
         
-        const deleted = await deleteAccount(selectedAccount.id)
+        const deleted = await deleteAccount(selectedAccount.id.toString(), currentUserId) // Ensure ID is string
         
         if (deleted) {
           console.log('Account deleted successfully')
-          await loadAccounts()
+          await loadAccounts(currentUserId) // PASS currentUserId
           setIsDeleteModalOpen(false)
         } else {
           console.error('Failed to delete account, no error returned')
@@ -312,7 +366,7 @@ export default function Accounts() {
           <p className="font-bold">Error</p>
           <p>{error}</p>
           <button 
-            onClick={() => loadAccounts()} 
+            onClick={() => { if (currentUserId) loadAccounts(currentUserId); }}
             className="mt-2 bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
           >
             Try Again
@@ -347,8 +401,8 @@ export default function Accounts() {
               onClick={async () => {
                 try {
                   // Check for auth status
-                  const supabase = createClient();
-                  const { data: { user }, error: authError } = await supabase.auth.getUser();
+                  // const supabase = createClient(); // REMOVED, use singleton
+                  const { data: { user }, error: authError } = await supabase.auth.getUser(); // USE SINGLETON
                   console.log('Auth check - Current user:', user);
                   if (authError) {
                     console.error('Auth error:', authError);
@@ -569,7 +623,7 @@ export default function Accounts() {
                     </div>
                     <div className="flex justify-between items-center mt-2">
                       <span className="text-gray-600 text-sm">Last Updated</span>
-                      <span className="text-sm text-gray-600">{account.last_updated ? new Date(account.last_updated).toLocaleDateString() : 'N/A'}</span>
+                      <span className="text-sm text-gray-600">{account.updated_at ? new Date(account.updated_at).toLocaleDateString() : 'N/A'}</span>
                     </div>
                     
                     {/* Quick Actions with actual navigation links */}
@@ -629,29 +683,22 @@ export default function Accounts() {
                 <h4 className="font-semibold">Developer Actions</h4>
                 <div className="flex flex-wrap gap-2 mt-2">
                   <button 
-                    onClick={loadAccounts}
+                    onClick={() => { if (currentUserId) loadAccounts(currentUserId); }}
                     className="px-3 py-1 text-xs bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
                   >
                     Reload Accounts
                   </button>
-                  <button 
+                  <button
                     onClick={async () => {
-                      try {
-                        const success = await clearAllAccounts();
-                        if (success) {
-                          alert('All accounts cleared successfully');
-                          loadAccounts(); // Reload the accounts
-                        } else {
-                          alert('Failed to clear accounts');
-                        }
-                      } catch (error) {
-                        console.error('Error clearing accounts:', error);
-                        alert('Error clearing accounts');
+                      if (!currentUserId) {
+                        alert('Please log in to clear accounts.');
+                        return;
                       }
+                      alert("clearAllAccounts functionality is currently disabled.");
                     }}
-                    className="px-3 py-1 text-xs bg-red-100 text-red-800 rounded hover:bg-red-200"
+                    className="px-3 py-1.5 text-xs bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
                   >
-                    Clear All Accounts
+                    Clear All Accounts (Disabled)
                   </button>
                   <button 
                     onClick={() => {
@@ -689,8 +736,8 @@ export default function Accounts() {
                     onClick={async () => {
                       try {
                         // Access Supabase directly to get all accounts without user_id filter
-                        const supabase = createClient();
-                        const { data, error } = await supabase
+                        // const supabase = createClient(); // REMOVED, use singleton
+                        const { data, error } = await supabase // USE SINGLETON
                           .from('accounts')
                           .select('*')
                           .order('name');
@@ -742,8 +789,8 @@ export default function Accounts() {
               <button
                 onClick={async () => {
                   try {
-                    const supabase = createClient();
-                    const { data, error } = await supabase.auth.getSession();
+                    // const supabase = createClient(); // REMOVED, use singleton
+                    const { data, error } = await supabase.auth.getSession(); // USE SINGLETON
                     console.log('Current session:', data, error);
                     
                     // Display in the debug panel
@@ -771,19 +818,7 @@ export default function Accounts() {
           isOpen={isEditModalOpen}
           onClose={() => setIsEditModalOpen(false)}
           onSubmit={handleUpdateAccount}
-          account={{
-            id: selectedAccount.id || 0,
-            name: selectedAccount.name,
-            institution: selectedAccount.institution || '',
-            balance: selectedAccount.balance,
-            type: selectedAccount.type,
-            account_type: selectedAccount.type,
-            last_updated: selectedAccount.last_updated || new Date().toISOString().split('T')[0],
-            change: {
-              amount: 0,
-              percentage: 0
-            }
-          }}
+          account={selectedAccount}
           isSubmitting={isSubmittingAccount}
         />
       )}
@@ -810,7 +845,7 @@ export default function Accounts() {
         <AccountTransactionsModal
           isOpen={isTransactionsModalOpen}
           onClose={() => setIsTransactionsModalOpen(false)}
-          accountId={selectedAccountForTransactions.id || 0}
+          accountId={selectedAccountForTransactions.id || ''}
           accountName={selectedAccountForTransactions.name}
         />
       )}
@@ -820,8 +855,8 @@ export default function Accounts() {
         <AddTransactionModal
           isOpen={isAddTransactionModalOpen}
           onClose={() => setIsAddTransactionModalOpen(false)}
-          onTransactionAdded={() => loadAccounts()}
-          preselectedAccountId={selectedAccountForAddTransaction.id || 0}
+          onTransactionAdded={() => { if (currentUserId) loadAccounts(currentUserId); }}
+          preselectedAccountId={selectedAccountForAddTransaction.id || ''}
         />
       )}
     </div>

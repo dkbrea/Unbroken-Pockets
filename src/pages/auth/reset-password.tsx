@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { createClient } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase'
 
 export default function ResetPassword() {
   const [email, setEmail] = useState('')
@@ -9,27 +9,21 @@ export default function ResetPassword() {
   const [message, setMessage] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const handleResetPassword = async (e: React.FormEvent) => {
+  const handleResetPassword = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+    setLoading(true)
     setError(null)
     setMessage(null)
-    setLoading(true)
 
-    try {
-      const supabase = createClient()
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/update-password`,
-      })
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/update-password`,
+    })
 
-      if (error) {
-        throw error
-      }
-
-      setMessage('Check your email for the password reset link')
-    } catch (error: any) {
-      setError(error.message || 'An error occurred while sending the password reset link')
-    } finally {
-      setLoading(false)
+    setLoading(false)
+    if (resetError) {
+      setError(resetError.message)
+    } else {
+      setMessage('Password reset email sent! Please check your inbox.')
     }
   }
 
@@ -83,7 +77,7 @@ export default function ResetPassword() {
             disabled={loading}
             className="w-full bg-[#1F3A93] text-white py-2 px-4 rounded-md hover:bg-[#152C70] focus:outline-none focus:ring-2 focus:ring-[#1F3A93] focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? 'Sending link...' : 'Send reset link'}
+            {loading ? 'Sending...' : 'Send Password Reset Email'}
           </button>
         </form>
         

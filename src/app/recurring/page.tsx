@@ -348,7 +348,7 @@ export default function Recurring() {
 
       {/* Summary Cards */}
       {viewType === 'upcoming' && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-6">
           <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-6">
             <h2 className="text-sm font-medium text-gray-500 mb-1">Monthly Income</h2>
             <div className="flex items-center">
@@ -358,10 +358,29 @@ export default function Recurring() {
           </div>
           
           <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-6">
-            <h2 className="text-sm font-medium text-gray-500 mb-1">Monthly Expenses</h2>
+            <h2 className="text-sm font-medium text-gray-500 mb-1">Fixed Expenses</h2>
             <div className="flex items-center">
               <ArrowDown className="h-5 w-5 text-red-500 mr-2" />
-              <p className="text-2xl font-bold text-gray-900">${monthlyExpenses.toLocaleString(undefined, {maximumFractionDigits: 2})}</p>
+              <p className="text-2xl font-bold text-gray-900">${displayTransactions
+                .filter(t => 
+                  t.amount < 0 && 
+                  t.status === 'active' && 
+                  (!t.category || t.category.toLowerCase() !== 'subscriptions') &&
+                  !t.debtId // Exclude transactions with debtId
+                )
+                .reduce((sum, t) => sum + Math.abs(t.amount), 0)
+                .toLocaleString(undefined, {maximumFractionDigits: 2})}</p>
+            </div>
+          </div>
+
+          <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-6">
+            <h2 className="text-sm font-medium text-gray-500 mb-1">Subscriptions</h2>
+            <div className="flex items-center">
+              <ArrowDown className="h-5 w-5 text-orange-500 mr-2" />
+              <p className="text-2xl font-bold text-gray-900">${displayTransactions
+                .filter(t => t.amount < 0 && t.status === 'active' && t.category?.toLowerCase() === 'subscriptions')
+                .reduce((sum, t) => sum + Math.abs(t.amount), 0)
+                .toLocaleString(undefined, {maximumFractionDigits: 2})}</p>
             </div>
           </div>
           
@@ -452,7 +471,11 @@ export default function Recurring() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center text-sm text-gray-500">
                           <Calendar className="h-4 w-4 mr-1 text-gray-400" />
-                          {new Date(transaction.nextDate).toLocaleDateString()}
+                          {(() => {
+                            const [yearStr, monthStr, dayStr] = transaction.nextDate.split('-').map(num => parseInt(num, 10));
+                            const nextDate = new Date(yearStr, monthStr - 1, dayStr);
+                            return nextDate.toLocaleDateString();
+                          })()}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">

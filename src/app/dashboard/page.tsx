@@ -8,8 +8,9 @@ import { Check, ChevronRight, CreditCard, ArrowDownCircle, ArrowUpCircle,
          CalendarClock, Wallet, Target, BellRing, CircleDollarSign, Car, Home, Plane, GraduationCap, Briefcase, Plus,
          TrendingUp, TrendingDown, AlertCircle, CheckCircle, Info, LineChart, BarChart, PieChart, ArrowRight } from 'lucide-react'
 import AddAccountModal from '@/components/features/AddAccountModal'
-import { createAccount, getAccounts, getTotalBalance, Account, AccountType, getCurrentUserId } from '@/lib/services/accountService'
-import { getSetupProgress, updateSetupProgress, SetupProgress, DEFAULT_SETUP_PROGRESS, resetSetupProgress, ensureUserPreferencesExist } from '@/lib/services/setupProgressService'
+import { createAccount, getAccounts, getTotalBalance } from '@/lib/services/accountService'
+import type { Account, AccountType } from '@/lib/types/states'
+import { getSetupProgress, updateSetupProgress, SetupProgress, ExtendedSetupProgress, DEFAULT_SETUP_PROGRESS, DEFAULT_EXTENDED_SETUP_PROGRESS, resetSetupProgress, ensureUserPreferencesExist } from '@/lib/services/setupProgressService'
 import AddRecurringModal from '@/components/features/AddRecurringModal'
 import AddDebtModal from '@/components/features/AddDebtModal'
 import { useCashFlowData } from '@/hooks/useCashFlowData'
@@ -199,6 +200,14 @@ function GoalFormModal({
   );
 }
 
+// Add a helper function to verify date formatting
+const formatDateForSupabase = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export default function Dashboard() {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
@@ -211,16 +220,31 @@ export default function Dashboard() {
   const [totalBalance, setTotalBalance] = useState(0)
   
   // Use persisted setup progress state
-  const [setupProgress, setSetupProgress] = useState<SetupProgress>(DEFAULT_SETUP_PROGRESS)
+  const [setupProgress, setSetupProgress] = useState<ExtendedSetupProgress>(DEFAULT_EXTENDED_SETUP_PROGRESS)
   
   // Add state for preference error notification
   const [preferenceError, setPreferenceError] = useState<string | null>(null)
   
-  // Calculate overall progress
-  const totalSteps = Object.keys(setupProgress).length
-  const completedSteps = Object.values(setupProgress).filter(Boolean).length
-  const progressPercentage = Math.round((completedSteps / totalSteps) * 100)
-  const isSetupComplete = progressPercentage === 100
+  // Calculate overall progress for "Getting Started"
+  // These keys correspond to the flags that determine if a Getting Started step is complete.
+  // Note: recurring_setup from DB maps to the three camelCase UI flags.
+  // debtSetup and goalsSetup are currently UI-only until DB schema is updated.
+  const gettingStartedSteps = {
+    accounts: setupProgress.accounts_setup,
+    fixedExpenses: setupProgress.recurringExpensesSetup, // Will be true if recurring_setup is true
+    incomeSources: setupProgress.recurringIncomeSetup,   // Will be true if recurring_setup is true
+    subscriptions: setupProgress.subscriptionsSetup,     // Will be true if recurring_setup is true
+    debtTracking: setupProgress.debtSetup,             // UI-only for now
+    savingsGoals: setupProgress.goalsSetup              // UI-only for now
+  };
+
+  const completedGettingStartedSteps = Object.values(gettingStartedSteps).filter(Boolean).length;
+  const totalGettingStartedUiItems = Object.keys(gettingStartedSteps).length;
+  
+  const progressPercentage = totalGettingStartedUiItems > 0 
+    ? Math.round((completedGettingStartedSteps / totalGettingStartedUiItems) * 100) 
+    : 0;
+  const isSetupComplete = progressPercentage === 100; // This specifically means Getting Started is 100%
   
   // Add state for error notification
   const [accountError, setAccountError] = useState<string | null>(null)
@@ -250,9 +274,22 @@ export default function Dashboard() {
   
   // Financial wellness data
   const [financialWellnessScore, setFinancialWellnessScore] = useState(0)
-  const [insights, setInsights] = useState<{ type: 'warning' | 'success' | 'info', message: string }[]>([])
+  const [insights, setInsights] = useState<{ type: 'warning' | 'success' | 'info' | 'error', message: string }[]>([])
   const [recentTransactions, setRecentTransactions] = useState<any[]>([])
   const [upcomingBills, setUpcomingBills] = useState<any[]>([])
+  const [budgetSnapshot, setBudgetSnapshot] = useState<any>(null);
+  const [goals, setGoals] = useState<any[]>([]);
+  const [cashFlowData, setCashFlowData] = useState<any>(null);
+  const [alerts, setAlerts] = useState<any[]>([]);
+
+  // Add new imports for additional data
+  const [debts, setDebts] = useState<any[]>([]);
+  const [investments, setInvestments] = useState<any>(null);
+  const [budgetCategories, setBudgetCategories] = useState<any[]>([]);
+  const [budgetPeriod, setBudgetPeriod] = useState<any>(null);
+  const [cashFlow, setCashFlow] = useState<any>(null);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [userPreferences, setUserPreferences] = useState<any>(null);
 
   // Helper function to format currency
   const formatCurrency = (amount: number) => {
@@ -320,65 +357,163 @@ export default function Dashboard() {
     return newInsights.slice(0, 3) // Limit to 3 insights
   }
   
-  // Get recent transactions and upcoming bills
-  const fetchRecentTransactions = async () => {
+  // Update the fetchRecentTransactions function with improved date handling
+  const fetchRecentTransactions = async (forceRefresh = false) => {
+    if (!user || !user.id) {
+      console.warn("fetchRecentTransactions: User not available or user.id missing.");
+      return;
+    }
+    
     try {
-      const supabase = createClient()
+      // Create a fresh Supabase client to avoid caching
+      const supabase = createClient();
+      
+      if (forceRefresh) {
+        console.log('FORCE REFRESH: Getting fresh data from Supabase');
+      }
       
       // Fetch recent transactions
       const { data: txData, error: txError } = await supabase
         .from('transactions')
         .select('*')
+        .eq('user_id', user.id)
         .order('date', { ascending: false })
-        .limit(5)
+        .limit(5);
       
       if (txError) {
-        console.error('Error fetching transactions:', txError)
+        console.error('Error fetching transactions:', txError);
       } else {
-        setRecentTransactions(txData || [])
+        setRecentTransactions(txData || []);
       }
       
-      // Fetch upcoming bills from recurring transactions
-      const today = new Date()
-      const nextMonth = new Date()
-      nextMonth.setDate(today.getDate() + 30) // Next 30 days
+      // Use the current date for upcoming bills
+      const today = new Date();
+      const nextTenDays = new Date();
+      nextTenDays.setDate(today.getDate() + 10);
       
-      const { data: billsData, error: billsError } = await supabase
+      // Format dates properly for Supabase query
+      const todayFormatted = formatDateForSupabase(today);
+      const nextTenDaysFormatted = formatDateForSupabase(nextTenDays);
+      
+      console.log('🔍 DEBUGGING DATES:');
+      console.log('- Today (hardcoded for debug):', todayFormatted);
+      console.log('- Next 10 days:', nextTenDaysFormatted);
+      console.log('- User ID:', user.id);
+      
+      // IMPORTANT: Add cache-busting query parameter to avoid stale data
+      const timestamp = new Date().getTime();
+      
+      // First, directly query the recurring_transactions table to see ALL user's bills (for debugging)
+      const { data: allUserBills, error: allBillsError } = await supabase
         .from('recurring_transactions')
         .select('*')
-        .or(`type.eq.expense,type.eq.debt_payment,type.eq.debt`) // Include expense and debt types
-        .gte('next_date', today.toISOString().split('T')[0])
-        .lte('next_date', nextMonth.toISOString().split('T')[0])
-        .order('next_date', { ascending: true })
-        .limit(5)
+        .eq('user_id', user.id)
+        .order('next_date', { ascending: true });
+        
+      console.log(`Found ${allUserBills?.length || 0} total recurring transactions for user`);
       
-      if (billsError) {
-        console.error('Error fetching upcoming bills:', billsError)
+      if (allUserBills && allUserBills.length > 0) {
+        console.log('Sample date from first bill:', allUserBills[0].next_date);
+        console.log('Date types in data:', typeof allUserBills[0].next_date);
       } else {
-        setUpcomingBills(billsData || [])
+        console.log('No bills found at all');
+      }
+      
+      // Then get bills from today to 10 days from now - using explicit date strings
+      const { data: upcomingData, error: upcomingError } = await supabase
+        .from('recurring_transactions')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .gte('next_date', todayFormatted)
+        .lte('next_date', nextTenDaysFormatted)
+        .order('next_date', { ascending: true });
+      
+      console.log(`Upcoming bills query with date range: ${todayFormatted} to ${nextTenDaysFormatted}`);
+      console.log(`Found ${upcomingData?.length || 0} bills in the 10-day window`);
+      
+      if (upcomingError) {
+        console.error('Error fetching upcoming bills:', upcomingError);
+        setUpcomingBills([]);
+      } else if (upcomingData && upcomingData.length > 0) {
+        console.log('✅ Found upcoming bills within next 10 days!');
+        setUpcomingBills(upcomingData);
+      } else {
+        console.log('No bills found in date range. Checking DATE FORMATS...');
+        
+        // For debugging: Try to match individual bills by their date
+        if (allUserBills && allUserBills.length > 0) {
+          console.log('ALL RECURRING TRANSACTIONS DATES:');
+          allUserBills.forEach((bill, i) => {
+            const isInRange = bill.next_date >= todayFormatted && bill.next_date <= nextTenDaysFormatted;
+            console.log(`Bill ${i+1}: ${bill.name}, Date: ${bill.next_date}, In Range: ${isInRange}`);
+          });
+        }
+        
+        // Fallback to showing any future bills
+        console.log('Falling back to any future bills...');
+        const { data: futureBills, error: futureError } = await supabase
+          .from('recurring_transactions')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('status', 'active')
+          .gte('next_date', todayFormatted) // Only today or future
+          .order('next_date', { ascending: true })
+          .limit(5);
+          
+        console.log(`Found ${futureBills?.length || 0} future bills`);
+        
+        if (!futureError && futureBills && futureBills.length > 0) {
+          console.log('✅ Found future bills to display');
+          setUpcomingBills(futureBills);
+        } else {
+          console.log('No future bills found. Showing all bills...');
+          
+          if (allUserBills && allUserBills.length > 0) {
+            console.log('✅ Using all bills as last resort');
+            setUpcomingBills(allUserBills.slice(0, 5)); // Show first 5 bills
+          } else {
+            setUpcomingBills([]);
+          }
+        }
       }
     } catch (error) {
-      console.error('Error in fetch operations:', error)
+      console.error('Error in fetch operations:', error);
     }
-  }
+  };
   
   // Helper function to safely get setup progress, even if database fails
-  const safeGetSetupProgress = async (): Promise<SetupProgress> => {
+  const safeGetSetupProgress = async (userId: string): Promise<ExtendedSetupProgress> => {
+    if (!userId) {
+      console.error('safeGetSetupProgress: No user ID provided');
+      return DEFAULT_EXTENDED_SETUP_PROGRESS;
+    }
     try {
-      console.log('Dashboard - Safely getting setup progress');
+      console.log('Dashboard - Safely getting setup progress for user:', userId);
       // Try to get from database via the service
-      const progress = await getSetupProgress();
+      const progress = await getSetupProgress(userId);
       console.log('Dashboard - Successfully loaded setup progress');
       return progress;
     } catch (error) {
       console.error('Dashboard - Error getting setup progress:', error);
       
-      // Try to get from localStorage
+      // Try to get from localStorage (ensure it's compatible with ExtendedSetupProgress or map it)
       if (typeof window !== 'undefined') {
         try {
-          const localProgress = localStorage.getItem('setup_progress');
-          if (localProgress) {
-            return JSON.parse(localProgress);
+          const localProgressString = localStorage.getItem('setup_progress');
+          if (localProgressString) {
+            const localProgress = JSON.parse(localProgressString);
+            // Assuming localProgress might be SetupProgress, map it or ensure it's ExtendedSetupProgress
+            if ('accounts_setup' in localProgress && !('recurringExpensesSetup' in localProgress)) {
+               // This looks like a base SetupProgress, attempt to map
+               // For simplicity, returning default extended if local is not already extended.
+               // A proper mapping function from SetupProgress to ExtendedSetupProgress might be needed here
+               // if localStorage can store the base type.
+               // For now, if it's not clearly ExtendedSetupProgress, we default.
+               // Or better: ensure what's saved to localStorage IS ExtendedSetupProgress.
+               // Given the service getSetupProgress returns Extended, this path might be less common.
+            }
+            return localProgress as ExtendedSetupProgress; // Cast if confident, or map
           }
         } catch (e) {
           console.error('Error parsing localStorage progress:', e);
@@ -386,7 +521,7 @@ export default function Dashboard() {
       }
       
       // If all else fails, return default progress
-      return DEFAULT_SETUP_PROGRESS;
+      return { ...DEFAULT_EXTENDED_SETUP_PROGRESS, user_id: userId };
     }
   };
   
@@ -414,20 +549,23 @@ export default function Dashboard() {
       }
       
       // User is authenticated, set user data
-      setUser(data.user);
-      console.log('User authenticated:', data.user);
+      const currentUser = data.user;
+      setUser(currentUser);
+      console.log('User authenticated:', currentUser);
       
       try {
         // Load setup progress
-        const progress = await safeGetSetupProgress();
+        const progress = await safeGetSetupProgress(currentUser.id);
         setSetupProgress(progress);
         
-        // Load accounts and check existing data for all setup items
-        await checkAllSetupItems();
+        // Load user accounts first, as checkAllSetupItems might depend on account status indirectly
+        await loadUserAccounts(currentUser.id);
+        // Then check all other setup items
+        await checkAllSetupItems(currentUser.id);
         
         // Load user preferences
         try {
-          await ensureUserPreferencesExist();
+          await ensureUserPreferencesExist(currentUser.id);
         } catch (prefError) {
           console.error('Failed to ensure user preferences exist:', prefError);
           setPreferenceError('Your preferences could not be loaded. Some features may not work correctly.');
@@ -475,26 +613,35 @@ export default function Dashboard() {
   }, [user])
 
   // Function to check all setup items for existing data
-  const checkAllSetupItems = async () => {
+  const checkAllSetupItems = async (userId: string) => {
+    if (!userId) {
+        console.error("checkAllSetupItems: No userId provided");
+        return;
+    }
     try {
-      console.log('Dashboard - Checking all setup items for existing data');
+      console.log('Dashboard - Checking all setup items for existing data for user:', userId);
       const supabase = createClient();
-      const updatedSetupItems: Partial<SetupProgress> = {};
+      const updatedSetupItems: Partial<ExtendedSetupProgress> = {};
       
-      // 1. Check accounts - this is already checked in loadUserAccounts, but we'll include it here for completeness
-      await loadUserAccounts();
-      
+      // 1. Check accounts - this is handled by loadUserAccounts. 
+      // loadUserAccounts should be called before this or as part of initial data load.
+      // We'll ensure loadUserAccounts is called with userId.
+      // If accounts are present and setupProgress.accounts_setup is false, loadUserAccounts handles the update.
+      // No need to call loadUserAccounts(userId) from here if it's already part of checkAuthAndLoadData sequence.
+      // Let's assume it has run or will run, and this function primarily checks other items.
+
       // 2. Check recurring expenses
       try {
         const { data: recurringExpenses, error: expensesError } = await supabase
           .from('recurring_transactions')
-          .select('id')
+          .select('id', { count: 'exact' }) // Use count for efficiency
+          .eq('user_id', userId) // Add user_id filter
           .eq('type', 'expense')
           .limit(1);
           
         if (!expensesError && recurringExpenses && recurringExpenses.length > 0) {
           console.log('Dashboard - Found recurring expenses');
-          updatedSetupItems.recurringExpensesSetup = true;
+          updatedSetupItems.recurringExpensesSetup = true; 
         }
       } catch (error) {
         console.error('Error checking recurring expenses:', error);
@@ -504,7 +651,8 @@ export default function Dashboard() {
       try {
         const { data: recurringIncome, error: incomeError } = await supabase
           .from('recurring_transactions')
-          .select('id')
+          .select('id', { count: 'exact' })
+          .eq('user_id', userId) // Add user_id filter
           .eq('type', 'income')
           .limit(1);
           
@@ -520,8 +668,9 @@ export default function Dashboard() {
       try {
         const { data: subscriptions, error: subscriptionsError } = await supabase
           .from('recurring_transactions')
-          .select('id')
-          .eq('category', 'Subscriptions')
+          .select('id', { count: 'exact' })
+          .eq('user_id', userId) // Add user_id filter
+          .eq('category', 'Subscriptions') // Assuming 'category' field exists
           .limit(1);
           
         if (!subscriptionsError && subscriptions && subscriptions.length > 0) {
@@ -536,7 +685,8 @@ export default function Dashboard() {
       try {
         const { data: debts, error: debtsError } = await supabase
           .from('debts')
-          .select('id')
+          .select('id', { count: 'exact' })
+          .eq('user_id', userId) // Add user_id filter
           .limit(1);
           
         if (!debtsError && debts && debts.length > 0) {
@@ -551,7 +701,8 @@ export default function Dashboard() {
       try {
         const { data: goals, error: goalsError } = await supabase
           .from('financial_goals')
-          .select('id')
+          .select('id', { count: 'exact' })
+          .eq('user_id', userId) // Add user_id filter
           .limit(1);
           
         if (!goalsError && goals && goals.length > 0) {
@@ -564,36 +715,54 @@ export default function Dashboard() {
       
       // Update setup progress if there are any changes
       if (Object.keys(updatedSetupItems).length > 0) {
-        console.log('Dashboard - Updating setup progress based on existing data:', updatedSetupItems);
-        const updatedProgress = await updateSetupProgress(updatedSetupItems);
-        setSetupProgress(updatedProgress);
+        console.log('Dashboard - Updating setup progress based on existing data for user:', userId, updatedSetupItems);
+        const currentProgress = await updateSetupProgress(userId, updatedSetupItems);
+        setSetupProgress(currentProgress);
       }
       
     } catch (error) {
-      console.error('Error checking setup items:', error);
+      console.error('Error checking setup items for user:', userId, error);
     }
   };
 
   // Function to load user accounts
-  const loadUserAccounts = async () => {
+  const loadUserAccounts = async (userId: string) => {
+    if (!userId) {
+        console.error("loadUserAccounts: No userId provided");
+        setAccountError("Could not load accounts: User ID missing.");
+        return;
+    }
     try {
-      console.log('Dashboard - Loading user accounts')
+      console.log('Dashboard - Loading user accounts for user:', userId);
       // Fetch accounts
-      const userAccounts = await getAccounts();
-      console.log('Dashboard - Accounts loaded:', userAccounts)
+      const userAccounts = await getAccounts(userId);
+      console.log('Dashboard - Accounts loaded:', userAccounts);
       setAccounts(userAccounts);
+      setAccountError(null); 
       
       // Update setup progress based on accounts
       if (userAccounts.length > 0) {
-        const updatedProgress = await updateSetupProgress({ accountsSetup: true });
-        setSetupProgress(updatedProgress);
+        if (!setupProgress.accounts_setup) {
+          console.log('Dashboard - Accounts found, updating accounts_setup to true for user:', userId);
+          const updatedProgress = await updateSetupProgress(userId, { accounts_setup: true });
+          setSetupProgress(updatedProgress);
+        } else {
+          console.log('Dashboard - Accounts found, accounts_setup is already true for user:', userId);
+        }
       } else {
-        console.log('Dashboard - No accounts found, setup progress not updated')
+        // If no accounts, and accounts_setup was true, set it to false.
+        if (setupProgress.accounts_setup) {
+            console.log('Dashboard - No accounts found, setting accounts_setup to false for user:', userId);
+            const updatedProgress = await updateSetupProgress(userId, { accounts_setup: false });
+            setSetupProgress(updatedProgress);
+        } else {
+            console.log('Dashboard - No accounts found, accounts_setup is already false or state not initialized for user:', userId);
+        }
       }
       
       // Get total balance
       const balance = await getTotalBalance();
-      console.log('Dashboard - Total balance calculated:', balance)
+      console.log('Dashboard - Total balance calculated:', balance);
       setTotalBalance(balance);
     } catch (error) {
       console.error('Error loading user accounts:', error);
@@ -605,7 +774,7 @@ export default function Dashboard() {
     // Store which setup item was clicked
     setLastClickedSetupItem(item);
     
-    if (item === 'accountsSetup') {
+    if (item === 'accounts_setup') {
       setIsAccountModalOpen(true);
       console.log('Dashboard - Opening account modal');
     } else if (item === 'recurringExpensesSetup' || item === 'recurringIncomeSetup' || item === 'subscriptionsSetup') {
@@ -621,7 +790,7 @@ export default function Dashboard() {
       // Toggle the progress state and persist it
       const newValue = !setupProgress[item];
       console.log(`Dashboard - Toggling ${item} from ${setupProgress[item]} to ${newValue}`);
-      const updatedProgress = await updateSetupProgress({ [item]: newValue });
+      const updatedProgress = await updateSetupProgress(setupProgress.user_id, { [item]: newValue });
       console.log('Dashboard - Progress update returned:', updatedProgress);
       
       // Update local state with the persisted data
@@ -636,17 +805,23 @@ export default function Dashboard() {
       setAccountError(null);
       console.log('Dashboard - Adding new account:', accountData);
       
+      if (!user || !user.id) {
+        console.error("handleAddAccount: User ID not available.");
+        setAccountError("User not identified. Cannot create account.");
+        setIsSubmittingAccount(false);
+        return;
+      }
       // Save the account to the database
-      const newAccount = await createAccount(accountData);
+      const newAccount = await createAccount(accountData, user.id);
       
       console.log('Dashboard - Account created successfully:', newAccount);
       
       // Update setup progress
-      const updatedProgress = await updateSetupProgress({ accountsSetup: true });
+      const updatedProgress = await updateSetupProgress(user.id, { accounts_setup: true });
       setSetupProgress(updatedProgress);
       
       // Reload accounts
-      await loadUserAccounts();
+      await loadUserAccounts(user.id);
       
       // Close the modal
       setIsAccountModalOpen(false);
@@ -665,7 +840,7 @@ export default function Dashboard() {
       console.log('Dashboard - Adding new recurring transaction:', transaction);
       
       // Determine which setup progress item to update based on what was clicked
-      let updatedItem: Partial<SetupProgress> = {};
+      let updatedItem: Partial<ExtendedSetupProgress> = {};
       
       if (lastClickedSetupItem === 'recurringIncomeSetup') {
         updatedItem = { recurringIncomeSetup: true };
@@ -685,7 +860,7 @@ export default function Dashboard() {
       }
       
       // Update the setup progress
-      const updatedProgress = await updateSetupProgress(updatedItem);
+      const updatedProgress = await updateSetupProgress(setupProgress.user_id, updatedItem);
       setSetupProgress(updatedProgress);
       
       // Close the modal
@@ -702,7 +877,7 @@ export default function Dashboard() {
       
       // Save the debt to the database
       const supabase = createClient();
-      const userId = await getCurrentUserId();
+      const userId = setupProgress.user_id;
       
       const { data: newDebt, error } = await supabase
         .from('debts')
@@ -727,7 +902,7 @@ export default function Dashboard() {
       console.log('Dashboard - Debt created successfully:', newDebt);
       
       // Update setup progress
-      const updatedProgress = await updateSetupProgress({ debtSetup: true });
+      const updatedProgress = await updateSetupProgress(userId, { debtSetup: true });
       setSetupProgress(updatedProgress);
       
       // Close the modal
@@ -744,7 +919,7 @@ export default function Dashboard() {
       
       // Save the goal to the database
       const supabase = createClient();
-      const userId = await getCurrentUserId();
+      const userId = setupProgress.user_id;
       
       // Find the icon name from the icon object if it exists
       const iconName = goal.iconName || 'CircleDollarSign';
@@ -772,7 +947,7 @@ export default function Dashboard() {
       console.log('Dashboard - Goal created successfully:', newGoal);
       
       // Update setup progress
-      const updatedProgress = await updateSetupProgress({ goalsSetup: true });
+      const updatedProgress = await updateSetupProgress(userId, { goalsSetup: true });
       setSetupProgress(updatedProgress);
       
       // Close the modal
@@ -783,786 +958,239 @@ export default function Dashboard() {
     }
   }
   
+  // Fetch all user data
+  const fetchAllUserData = async (userId: string) => {
+    const supabase = createClient();
+
+    // Debts
+    const { data: debtsData } = await supabase.from('debts').select('*').eq('user_id', userId);
+    setDebts(debtsData || []);
+
+    // Investments
+    const { data: investmentsData } = await supabase.from('investment_portfolio').select('*').eq('user_id', userId).single();
+    setInvestments(investmentsData || null);
+
+    // Budget Categories
+    const { data: budgetCatData } = await supabase.from('budget_categories').select('*').eq('user_id', userId);
+    setBudgetCategories(budgetCatData || []);
+
+    // Budget Period (active)
+    const { data: budgetPeriodData } = await supabase.from('budget_periods').select('*').eq('user_id', userId).eq('is_active', true).single();
+    setBudgetPeriod(budgetPeriodData || null);
+
+    // Cash Flow (current month)
+    const month = new Date().toISOString().slice(0, 7);
+    const { data: cashFlowData } = await supabase.from('cash_flow').select('*').eq('user_id', userId).eq('month', month).single();
+    setCashFlow(cashFlowData || null);
+
+    // Notifications (unread)
+    const { data: notificationsData } = await supabase.from('notifications').select('*').eq('user_id', userId).eq('is_read', false).order('timestamp', { ascending: false }).limit(5);
+    setNotifications(notificationsData || []);
+
+    // User Preferences
+    const { data: preferencesData } = await supabase.from('user_preferences').select('*').eq('user_id', userId).single();
+    setUserPreferences(preferencesData || null);
+  };
+
+  // Call fetchAllUserData after user is set
+  useEffect(() => {
+    if (user && user.id) {
+      fetchAllUserData(user.id);
+    }
+  }, [user]);
+
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="animate-pulse h-4 w-32 bg-gray-200 rounded"></div>
-      </div>
-    )
+    return <div className="flex justify-center items-center h-96">Loading...</div>;
   }
   
   if (error) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="bg-white p-8 rounded-lg shadow-md max-w-md">
-          <h1 className="text-xl font-semibold text-red-600 mb-2">Error Loading Dashboard</h1>
-          <p className="text-gray-700 mb-4">{error}</p>
-          <button 
-            onClick={() => router.push('/auth/signin')}
-            className="bg-[#1F3A93] text-white px-4 py-2 rounded-md hover:bg-[#152C70]"
-          >
-            Go to Sign In
-          </button>
-        </div>
-      </div>
-    )
+    return <div className="text-red-600 text-center mt-8">{error}</div>;
   }
   
   return (
-    <div className="py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold text-[#1F3A93] mb-6">Welcome to Your Dashboard</h1>
-        
-        {/* Show Getting Started section if not complete, otherwise show Financial Dashboard */}
-        {!isSetupComplete ? (
-          /* Getting Started Section */
-          <div className="bg-white shadow rounded-lg p-6 mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold">Getting Started</h2>
-              <span className="text-sm text-gray-500">{progressPercentage}% Complete</span>
-            </div>
-            
-            {/* Progress bar */}
-            <div className="w-full h-2 bg-gray-200 rounded-full mb-6">
-              <div 
-                className="h-full bg-[#1F3A93] rounded-full" 
-                style={{ width: `${progressPercentage}%` }}
-              ></div>
-            </div>
-            
-            <p className="text-gray-600 mb-6">
-              Welcome to Unbroken Pockets! Let's set up your financial dashboard by completing these important steps.
-            </p>
-            
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-4">
-              {/* Accounts setup */}
-              <div 
-                className={`border rounded-lg p-4 hover:shadow-md cursor-pointer transition-shadow ${
-                  setupProgress.accountsSetup ? 'border-green-500 bg-green-50' : 'border-gray-200'
-                }`}
-                onClick={() => handleSetupItemClick('accountsSetup')}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center">
-                    <div className={`p-2 rounded-full mr-3 ${setupProgress.accountsSetup ? 'bg-green-100' : 'bg-blue-100'}`}>
-                      {setupProgress.accountsSetup ? 
-                        <Check className="h-5 w-5 text-green-600" /> :
-                        <CreditCard className="h-5 w-5 text-[#1F3A93]" />
-                      }
-                    </div>
-                    <div>
-                      <h3 className="font-medium">Set Up Accounts</h3>
-                      <p className="text-sm text-gray-500">Add your bank and credit accounts</p>
-                    </div>
-                  </div>
-                  <ChevronRight className="h-5 w-5 text-gray-400" />
-                </div>
-              </div>
-              
-              {/* Recurring Expenses setup */}
-              <div 
-                className={`border rounded-lg p-4 hover:shadow-md cursor-pointer transition-shadow ${
-                  setupProgress.recurringExpensesSetup ? 'border-green-500 bg-green-50' : 'border-gray-200'
-                }`}
-                onClick={() => handleSetupItemClick('recurringExpensesSetup')}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center">
-                    <div className={`p-2 rounded-full mr-3 ${setupProgress.recurringExpensesSetup ? 'bg-green-100' : 'bg-blue-100'}`}>
-                      {setupProgress.recurringExpensesSetup ? 
-                        <Check className="h-5 w-5 text-green-600" /> :
-                        <ArrowDownCircle className="h-5 w-5 text-[#1F3A93]" />
-                      }
-                    </div>
-                    <div>
-                      <h3 className="font-medium">Fixed Expenses</h3>
-                      <p className="text-sm text-gray-500">Add your recurring bills and expenses</p>
-                    </div>
-                  </div>
-                  <ChevronRight className="h-5 w-5 text-gray-400" />
-                </div>
-              </div>
-              
-              {/* Recurring Income setup */}
-              <div 
-                className={`border rounded-lg p-4 hover:shadow-md cursor-pointer transition-shadow ${
-                  setupProgress.recurringIncomeSetup ? 'border-green-500 bg-green-50' : 'border-gray-200'
-                }`}
-                onClick={() => handleSetupItemClick('recurringIncomeSetup')}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center">
-                    <div className={`p-2 rounded-full mr-3 ${setupProgress.recurringIncomeSetup ? 'bg-green-100' : 'bg-blue-100'}`}>
-                      {setupProgress.recurringIncomeSetup ? 
-                        <Check className="h-5 w-5 text-green-600" /> :
-                        <ArrowUpCircle className="h-5 w-5 text-[#1F3A93]" />
-                      }
-                    </div>
-                    <div>
-                      <h3 className="font-medium">Income Sources</h3>
-                      <p className="text-sm text-gray-500">Add your salary and other income</p>
-                    </div>
-                  </div>
-                  <ChevronRight className="h-5 w-5 text-gray-400" />
-                </div>
-              </div>
-              
-              {/* Subscriptions setup */}
-              <div 
-                className={`border rounded-lg p-4 hover:shadow-md cursor-pointer transition-shadow ${
-                  setupProgress.subscriptionsSetup ? 'border-green-500 bg-green-50' : 'border-gray-200'
-                }`}
-                onClick={() => handleSetupItemClick('subscriptionsSetup')}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center">
-                    <div className={`p-2 rounded-full mr-3 ${setupProgress.subscriptionsSetup ? 'bg-green-100' : 'bg-blue-100'}`}>
-                      {setupProgress.subscriptionsSetup ? 
-                        <Check className="h-5 w-5 text-green-600" /> :
-                        <BellRing className="h-5 w-5 text-[#1F3A93]" />
-                      }
-                    </div>
-                    <div>
-                      <h3 className="font-medium">Subscriptions</h3>
-                      <p className="text-sm text-gray-500">Track your recurring subscriptions</p>
-                    </div>
-                  </div>
-                  <ChevronRight className="h-5 w-5 text-gray-400" />
-                </div>
-              </div>
-              
-              {/* Debt setup */}
-              <div 
-                className={`border rounded-lg p-4 hover:shadow-md cursor-pointer transition-shadow ${
-                  setupProgress.debtSetup ? 'border-green-500 bg-green-50' : 'border-gray-200'
-                }`}
-                onClick={() => handleSetupItemClick('debtSetup')}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center">
-                    <div className={`p-2 rounded-full mr-3 ${setupProgress.debtSetup ? 'bg-green-100' : 'bg-blue-100'}`}>
-                      {setupProgress.debtSetup ? 
-                        <Check className="h-5 w-5 text-green-600" /> :
-                        <Wallet className="h-5 w-5 text-[#1F3A93]" />
-                      }
-                    </div>
-                    <div>
-                      <h3 className="font-medium">Debt Tracking</h3>
-                      <p className="text-sm text-gray-500">Add your loans and credit cards</p>
-                    </div>
-                  </div>
-                  <ChevronRight className="h-5 w-5 text-gray-400" />
-                </div>
-              </div>
-              
-              {/* Savings Goals setup */}
-              <div 
-                className={`border rounded-lg p-4 hover:shadow-md cursor-pointer transition-shadow ${
-                  setupProgress.goalsSetup ? 'border-green-500 bg-green-50' : 'border-gray-200'
-                }`}
-                onClick={() => handleSetupItemClick('goalsSetup')}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center">
-                    <div className={`p-2 rounded-full mr-3 ${setupProgress.goalsSetup ? 'bg-green-100' : 'bg-blue-100'}`}>
-                      {setupProgress.goalsSetup ? 
-                        <Check className="h-5 w-5 text-green-600" /> :
-                        <Target className="h-5 w-5 text-[#1F3A93]" />
-                      }
-                    </div>
-                    <div>
-                      <h3 className="font-medium">Savings Goals</h3>
-                      <p className="text-sm text-gray-500">Set up your financial goals</p>
-                    </div>
-                  </div>
-                  <ChevronRight className="h-5 w-5 text-gray-400" />
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex justify-center mt-4">
-              <button 
-                onClick={() => setIsAccountModalOpen(true)}
-                className="bg-[#1F3A93] text-white px-6 py-2 rounded-md hover:bg-[#152C70] inline-flex items-center"
-                disabled={isSubmittingAccount}
-              >
-                <CreditCard className="h-5 w-5 mr-2" />
-                Set Up Accounts
-              </button>
-              <button 
-                className="ml-4 bg-white text-[#1F3A93] border border-[#1F3A93] px-6 py-2 rounded-md hover:bg-gray-50 inline-flex items-center"
-                onClick={() => window.location.href = '/recurring'}
-              >
-                <CalendarClock className="h-5 w-5 mr-2" />
-                Manage Recurring Items
-              </button>
-            </div>
+    <div className="p-6 space-y-6">
+      {/* Personalized Greeting & Profile */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Welcome back{user && user.full_name ? `, ${user.full_name}` : ''}!</h1>
+          <p className="text-gray-500 mt-1">Here's your financial overview at a glance.</p>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="flex flex-col items-center">
+            <span className="text-xs text-gray-400">Wellness Score</span>
+            <span className="text-2xl font-semibold text-blue-600">{financialWellnessScore}</span>
           </div>
-        ) : (
-          /* Financial Dashboard Section - Shown when all setup is complete */
-          <div className="space-y-6 mb-6">
-            {/* Financial Health Overview */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Financial Wellness Score */}
-              <div className="bg-white shadow rounded-lg p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-semibold text-gray-800">Financial Wellness</h2>
-                  <div className="flex items-center">
-                    <Info className="h-5 w-5 text-gray-400 cursor-help" />
-                    <span className="sr-only">Your overall financial health score</span>
-                  </div>
-                </div>
-                <div className="flex items-center justify-center mb-4">
-                  <div className="relative h-32 w-32">
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="text-3xl font-bold">{financialWellnessScore}</div>
-                    </div>
-                    <svg className="w-full h-full" viewBox="0 0 120 120">
-                      <circle 
-                        cx="60" 
-                        cy="60" 
-                        r="54" 
-                        fill="none" 
-                        stroke="#e5e7eb" 
-                        strokeWidth="12" 
-                      />
-                      <circle 
-                        cx="60" 
-                        cy="60" 
-                        r="54" 
-                        fill="none" 
-                        stroke={financialWellnessScore >= 70 ? "#10B981" : financialWellnessScore >= 40 ? "#F59E0B" : "#EF4444"} 
-                        strokeWidth="12" 
-                        strokeDasharray="339.3"
-                        strokeDashoffset={339.3 - (339.3 * financialWellnessScore / 100)} 
-                        transform="rotate(-90 60 60)" 
-                      />
-                    </svg>
-                  </div>
-                </div>
-                <p className="text-center text-sm text-gray-500 mb-4">
-                  {financialWellnessScore >= 70 ? 'Excellent financial health' : 
-                   financialWellnessScore >= 40 ? 'Good financial health' : 
-                   'Your financial health needs attention'}
-                </p>
-                <Link 
-                  href="/financial-health"
-                  className="block text-center text-[#1F3A93] hover:underline text-sm"
-                >
-                  View detailed analysis
-                </Link>
-              </div>
-              
-              {/* Cash Flow Summary */}
-              <div className="bg-white shadow rounded-lg p-6">
-                <h2 className="text-lg font-semibold text-gray-800 mb-4">Monthly Cash Flow</h2>
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-500">Income</span>
-                    <span className="font-semibold text-green-600">{formatCurrency(cashFlowMetrics?.totalIncome || 0)}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-500">Expenses</span>
-                    <span className="font-semibold text-red-600">{formatCurrency(cashFlowMetrics?.totalExpenses || 0)}</span>
-                  </div>
-                  <div className="border-t pt-3">
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium">Net Cash Flow</span>
-                      <span className={`font-bold ${(cashFlowMetrics?.netCashFlow || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {formatCurrency(cashFlowMetrics?.netCashFlow || 0)}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-end mt-1">
-                      <span className={`flex items-center text-xs ${(cashFlowMetrics?.netCashFlowChangePercent || 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                        {(cashFlowMetrics?.netCashFlowChangePercent || 0) >= 0 ? 
-                          <TrendingUp className="h-3 w-3 mr-1" /> : 
-                          <TrendingDown className="h-3 w-3 mr-1" />
-                        }
-                        {Math.abs(cashFlowMetrics?.netCashFlowChangePercent || 0).toFixed(1)}% from last month
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-6 flex justify-center">
-                  <div className="h-20 w-full">
-                    {monthlyData && monthlyData.length > 0 && (
-                      <div className="flex h-full items-end justify-between space-x-2">
-                        {monthlyData.slice(-6).map((month, index) => (
-                          <div key={index} className="flex flex-col items-center">
-                            <div className="flex h-14 items-end space-x-1">
-                              <div 
-                                className="w-3 bg-green-500 rounded-t"
-                                style={{ height: `${(month.income / (Math.max(...monthlyData.map(m => Math.max(m.income, m.expenses))) || 1)) * 100}%` }}
-                              ></div>
-                              <div 
-                                className="w-3 bg-red-500 rounded-t"
-                                style={{ height: `${(month.expenses / (Math.max(...monthlyData.map(m => Math.max(m.income, m.expenses))) || 1)) * 100}%` }}
-                              ></div>
-                            </div>
-                            <span className="text-xs mt-1 text-gray-500">{month.month.substring(0, 3)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <Link 
-                  href="/cashflow"
-                  className="block text-center text-[#1F3A93] hover:underline text-sm mt-4"
-                >
-                  View detailed cash flow
-                </Link>
-              </div>
-              
-              {/* Insights & Actions */}
-              <div className="bg-white shadow rounded-lg p-6">
-                <h2 className="text-lg font-semibold text-gray-800 mb-4">Insights & Actions</h2>
-                {insights.length > 0 ? (
-                  <div className="space-y-3">
-                    {insights.map((insight, index) => (
-                      <div key={index} className="flex items-start p-3 bg-gray-50 rounded-md">
-                        {insight.type === 'warning' && <AlertCircle className="h-5 w-5 text-amber-500 mr-3 flex-shrink-0 mt-0.5" />}
-                        {insight.type === 'success' && <CheckCircle className="h-5 w-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" />}
-                        {insight.type === 'info' && <Info className="h-5 w-5 text-blue-500 mr-3 flex-shrink-0 mt-0.5" />}
-                        <p className="text-sm text-gray-700">{insight.message}</p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center h-40">
-                    <p className="text-gray-500 text-sm">No insights available yet. Add more financial data to get personalized insights.</p>
-                  </div>
-                )}
-                
-                <div className="mt-4 border-t pt-4">
-                  <h3 className="font-medium text-sm text-gray-700 mb-2">Recommended Actions</h3>
-                  <ul className="space-y-2">
-                    <li>
-                      <Link href="/transactions" className="flex items-center text-sm text-[#1F3A93] hover:underline">
-                        <ArrowRight className="h-4 w-4 mr-2" />
-                        Review recent transactions
-                      </Link>
-                    </li>
-                    <li>
-                      <Link href="/budget" className="flex items-center text-sm text-[#1F3A93] hover:underline">
-                        <ArrowRight className="h-4 w-4 mr-2" />
-                        Update your budget
-                      </Link>
-                    </li>
-                    <li>
-                      <Link href="/goals" className="flex items-center text-sm text-[#1F3A93] hover:underline">
-                        <ArrowRight className="h-4 w-4 mr-2" />
-                        Track your financial goals
-                      </Link>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-            
-            {/* Additional Dashboard Sections */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Upcoming Bills */}
-              <div className="bg-white shadow rounded-lg p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-semibold text-gray-800">Upcoming Bills</h2>
-                  <Link href="/recurring" className="text-sm text-[#1F3A93] hover:underline">View all</Link>
-                </div>
-                {upcomingBills && upcomingBills.length > 0 ? (
-                  <div className="space-y-3">
-                    {upcomingBills.slice(0, 3).map((bill, index) => (
-                      <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded-md">
-                        <div className="flex items-center">
-                          <div className="bg-red-100 p-2 rounded-full mr-3">
-                            <ArrowDownCircle className="h-4 w-4 text-red-500" />
-                          </div>
-                          <div>
-                            <p className="font-medium text-sm">{bill.name}</p>
-                            <p className="text-xs text-gray-500">{new Date(bill.next_date).toLocaleDateString()}</p>
-                          </div>
-                        </div>
-                        <p className="font-semibold text-red-600">{formatCurrency(Math.abs(bill.amount))}</p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center h-32">
-                    <BellRing className="h-8 w-8 text-gray-300 mb-2" />
-                    <p className="text-gray-500 text-sm text-center">No upcoming bills found.<br />Add recurring expenses to see them here.</p>
-                  </div>
-                )}
-              </div>
-              
-              {/* Recent Transactions */}
-              <div className="bg-white shadow rounded-lg p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-semibold text-gray-800">Recent Transactions</h2>
-                  <Link href="/transactions" className="text-sm text-[#1F3A93] hover:underline">View all</Link>
-                </div>
-                {recentTransactions.length > 0 ? (
-                  <div className="space-y-3">
-                    {recentTransactions.slice(0, 4).map((transaction, index) => (
-                      <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded-md">
-                        <div className="flex items-center">
-                          <div className={`p-2 rounded-full mr-3 ${transaction.amount > 0 ? 'bg-green-100' : 'bg-red-100'}`}>
-                            {transaction.amount > 0 ? 
-                              <ArrowUpCircle className="h-4 w-4 text-green-500" /> : 
-                              <ArrowDownCircle className="h-4 w-4 text-red-500" />
-                            }
-                          </div>
-                          <div>
-                            <p className="font-medium text-sm">{transaction.name || transaction.description}</p>
-                            <p className="text-xs text-gray-500">{transaction.category}</p>
-                          </div>
-                        </div>
-                        <p className={`font-semibold ${transaction.amount > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {formatCurrency(Math.abs(transaction.amount))}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center h-32">
-                    <CreditCard className="h-8 w-8 text-gray-300 mb-2" />
-                    <p className="text-gray-500 text-sm text-center">No recent transactions found.<br />Add transactions to see them here.</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-        
-        {/* Error Notifications */}
-        {(accountError || preferenceError) && (
-          <div className="fixed bottom-4 right-4 flex flex-col gap-2">
-            {accountError && (
-              <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 max-w-md shadow-lg rounded">
-                <div className="flex">
-                  <div className="flex-shrink-0">
-                    <svg className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <div className="ml-3">
-                    <p className="text-sm font-medium">Account Error</p>
-                    <p className="text-xs mt-1">{accountError}</p>
-                    <div className="mt-2 flex flex-col space-y-1">
-                      <Link 
-                        href="/admin/fix-database"
-                        className="text-xs text-red-800 font-medium bg-red-200 px-2 py-1 rounded hover:bg-red-300"
-                      >
-                        Run Database Fix
-                      </Link>
-                      <button 
-                        onClick={() => setAccountError(null)}
-                        className="text-xs underline"
-                      >
-                        Dismiss
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            {preferenceError && (
-              <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 max-w-md shadow-lg rounded">
-                <div className="flex">
-                  <div className="flex-shrink-0">
-                    <svg className="h-5 w-5 text-yellow-500" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <div className="ml-3">
-                    <p className="text-sm font-medium">Preference Warning</p>
-                    <p className="text-xs mt-1">{preferenceError}</p>
-                    <div className="mt-2">
-                      <button 
-                        onClick={() => setPreferenceError(null)}
-                        className="text-xs underline"
-                      >
-                        Dismiss
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-        
-        {/* Account Setup Modal */}
-        <AddAccountModal 
-          isOpen={isAccountModalOpen}
-          onClose={() => setIsAccountModalOpen(false)}
-          onSubmit={handleAddAccount}
-          isSubmitting={isSubmittingAccount}
-        />
-        
-        {/* Recurring Transaction Modal */}
-        <AddRecurringModal
-          isOpen={isRecurringModalOpen}
-          onClose={() => setIsRecurringModalOpen(false)}
-          onAdd={handleAddRecurringTransaction}
-        />
-        
-        {/* Debt Modal */}
-        <AddDebtModal
-          isOpen={isDebtModalOpen}
-          onClose={() => setIsDebtModalOpen(false)}
-          onAdd={handleAddDebt}
-        />
-        
-        {/* Goal Modal */}
-        {isGoalModalOpen && (
-          <GoalFormModal
-            onClose={() => setIsGoalModalOpen(false)}
-            onSubmit={handleAddGoal}
-            title="Add New Goal"
-          />
-        )}
-        
-        {/* Account cards and dashboard widgets */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Accounts Summary Card */}
-          <div className="bg-white shadow rounded-lg p-6">
-            <h3 className="text-lg font-semibold mb-4">Accounts</h3>
-            <p className="text-gray-500 mb-6">Manage your financial accounts</p>
-            
-            <div className="flex justify-between items-center mb-2">
-              <div className="flex items-center">
-                <div className="bg-blue-100 p-2 rounded-full mr-3">
-                  <CreditCard className="h-5 w-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="font-medium">Total Balance</p>
-                  <p className="text-2xl font-bold text-blue-600">
-                    ${totalBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {accounts.length > 0 && (
-              <div className="mt-4 space-y-2">
-                <h4 className="text-sm font-medium text-gray-500">Your Accounts</h4>
-                {accounts.slice(0, 3).map((account) => (
-                  <div key={account.id} className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                    <div>
-                      <p className="font-medium">{account.name}</p>
-                      <p className="text-xs text-gray-500">{account.institution}</p>
-                    </div>
-                    <p className={`font-semibold ${account.type === 'credit' ? 'text-red-600' : 'text-green-600'}`}>
-                      ${Math.abs(account.balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </p>
-                  </div>
-                ))}
-                {accounts.length > 3 && (
-                  <p className="text-xs text-center text-blue-600">
-                    +{accounts.length - 3} more accounts
-                  </p>
-                )}
-              </div>
-            )}
-            
-            <Link 
-              href="/accounts"
-              className="w-full mt-4 flex justify-center items-center py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50"
-            >
-              View All Accounts
-            </Link>
-
-            <button 
-              onClick={() => setIsAccountModalOpen(true)}
-              className="w-full mt-2 flex justify-center items-center py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
-              disabled={isSubmittingAccount}
-            >
-              {accounts.length > 0 ? 'Add Another Account' : 'Set Up Accounts'}
-            </button>
-          </div>
-          
-          <div className="bg-white shadow rounded-lg p-6">
-            <h3 className="text-lg font-medium text-[#1F3A93] mb-2">Transactions</h3>
-            <p className="text-gray-600 mb-4">Track your income and expenses</p>
-            <a href="/transactions" className="text-[#1F3A93] font-medium hover:underline">
-              View Transactions →
-            </a>
-          </div>
-          
-          <div className="bg-white shadow rounded-lg p-6">
-            <h3 className="text-lg font-medium text-[#1F3A93] mb-2">Recurring</h3>
-            <p className="text-gray-600 mb-4">Manage recurring transactions</p>
-            <a href="/recurring" className="text-[#1F3A93] font-medium hover:underline">
-              View Recurring Transactions →
-            </a>
+          {/* Profile avatar */}
+          <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-lg">
+            {user && user.full_name ? user.full_name[0] : 'U'}
           </div>
         </div>
-        
-        {debugInfo && (
-          <div className="mt-6 p-3 border border-gray-200 rounded-md">
-            <details>
-              <summary className="text-sm font-medium text-gray-600 cursor-pointer">Debug Information</summary>
-              <div className="mt-2">
-                <pre className="text-xs overflow-auto max-h-40 whitespace-pre-wrap">
-                  {JSON.stringify(debugInfo, null, 2)}
-                </pre>
-                
-                {/* Development Tools */}
-                {process.env.NODE_ENV !== 'production' && (
-                  <div className="mt-4 pt-4 border-t border-gray-200">
-                    <h3 className="text-sm font-semibold text-red-600">Development Tools</h3>
-                    <div className="flex mt-2 flex-wrap gap-2">
-                      <button
-                        onClick={() => {
-                          // Create a consistent mock user for testing
-                          const mockUser = {
-                            id: 'test-user-1234',  // Same ID as used in accounts page
-                            email: 'test@example.com',
-                            last_sign_in_at: new Date().toISOString()
-                          };
-                          localStorage.setItem('mock_user', JSON.stringify(mockUser));
-                          console.log('Set consistent test user:', mockUser);
-                          alert('Test user set! Reload the page with bypass mode to apply.');
-                          window.location.href = window.location.pathname + '?bypassAuth=true';
-                        }}
-                        className="px-3 py-1 text-xs bg-green-100 text-green-800 rounded hover:bg-green-200"
-                      >
-                        Set Test User
-                      </button>
-                      <button
-                        onClick={() => {
-                          // Create a mock user for testing
-                          const mockUser = {
-                            id: 'development-user-id',  // Fixed ID for testing
-                            email: 'dev@example.com',
-                            last_sign_in_at: new Date().toISOString()
-                          };
-                          localStorage.setItem('mock_user', JSON.stringify(mockUser));
-                          console.log('Set mock user:', mockUser);
-                          alert('Development user set! Reload the page to apply.');
-                        }}
-                        className="px-3 py-1 text-xs bg-red-100 text-red-800 rounded hover:bg-red-200"
-                      >
-                        Set Dev User
-                      </button>
-                      <button
-                        onClick={() => {
-                          localStorage.removeItem('mock_user');
-                          console.log('Cleared mock user');
-                          alert('Mock user cleared! Reload the page to apply.');
-                        }}
-                        className="ml-2 px-3 py-1 text-xs bg-gray-100 text-gray-800 rounded hover:bg-gray-200"
-                      >
-                        Clear User Data
-                      </button>
-                      <button
-                        onClick={() => window.location.href = window.location.pathname + '?bypassAuth=true'}
-                        className="ml-2 px-3 py-1 text-xs bg-yellow-100 text-yellow-800 rounded hover:bg-yellow-200"
-                      >
-                        Bypass Auth Mode
-                      </button>
-                      <button
-                        onClick={async () => {
-                          try {
-                            const supabase = createClient();
-                            
-                            // Test connection by getting session
-                            const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-                            console.log('Session test:', { data: sessionData, error: sessionError });
-                            
-                            // Test the database connection directly with a simple query
-                            const { data: testData, error: testError } = await supabase
-                              .from('accounts')
-                              .select('count(*)')
-                              .limit(1);
-                              
-                            console.log('DB connection test:', { data: testData, error: testError });
-                            
-                            // Create a test record
-                            const testRecord = {
-                              name: 'Test Account ' + new Date().toISOString(),
-                              balance: 100,
-                              type: 'checking',
-                              institution: 'Test Bank',
-                              user_id: sessionData.session?.user.id || 'test-user-id',
-                              last_updated: new Date().toISOString().split('T')[0]
-                            };
-                            
-                            const { data: insertData, error: insertError } = await supabase
-                              .from('accounts')
-                              .insert(testRecord)
-                              .select();
-                              
-                            console.log('Insert test:', { data: insertData, error: insertError });
-                            
-                            if (insertError) {
-                              alert(`Database test failed: ${insertError.message}`);
-                            } else if (insertData) {
-                              alert(`Database test successful! Created test account ID: ${insertData[0]?.id}`);
-                              // Reload accounts to show the new test account
-                              await loadUserAccounts();
-                            }
-                          } catch (error: any) {
-                            console.error('Connection test error:', error);
-                            alert(`Connection test error: ${error.message}`);
-                          }
-                        }}
-                        className="ml-2 px-3 py-1 text-xs bg-green-100 text-green-800 rounded hover:bg-green-200"
-                      >
-                        Test DB Connection
-                      </button>
-                      <button
-                        onClick={async () => {
-                          try {
-                            // Check local storage with the simplified key
-                            const localProgress = localStorage.getItem('setup_progress');
-                            
-                            console.log('Setup progress in localStorage:', {
-                              key: 'setup_progress',
-                              exists: localProgress !== null,
-                              value: localProgress ? JSON.parse(localProgress) : null
-                            });
-                            
-                            alert('Setup progress check complete! Check console for details.');
-                          } catch (error: any) {
-                            console.error('Check error:', error);
-                            alert(`Error checking progress: ${error.message}`);
-                          }
-                        }}
-                        className="ml-2 px-3 py-1 text-xs bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
-                      >
-                        Check Progress Data
-                      </button>
-                      <button
-                        onClick={async () => {
-                          try {
-                            if (confirm('Are you sure you want to reset your setup progress? This will mark all items as NOT DONE.')) {
-                              // Reset the setup progress using our new function
-                              const defaultProgress = await resetSetupProgress();
-                              
-                              // Update local state
-                              setSetupProgress(defaultProgress);
-                              alert('Setup progress has been reset! All items are now marked as not done.');
-                              
-                              // Force reload to ensure everything is updated
-                              window.location.reload();
-                            }
-                          } catch (error: any) {
-                            console.error('Reset progress error:', error);
-                            alert(`Error resetting progress: ${error.message}`);
-                          }
-                        }}
-                        className="ml-2 px-3 py-1 text-xs bg-red-100 text-red-800 rounded hover:bg-red-200"
-                      >
-                        Reset Setup Progress
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </details>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="flex flex-wrap gap-3">
+        <button className="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700">Add Transaction</button>
+        <button className="bg-green-600 text-white px-4 py-2 rounded shadow hover:bg-green-700">Add Account</button>
+        <button className="bg-yellow-500 text-white px-4 py-2 rounded shadow hover:bg-yellow-600">Transfer Money</button>
+        <button className="bg-purple-600 text-white px-4 py-2 rounded shadow hover:bg-purple-700">Pay Bill</button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Net Worth */}
+        <div className="bg-white rounded-lg shadow p-5 flex flex-col items-center">
+          <span className="text-xs text-gray-400">Net Worth</span>
+          <span className="text-2xl font-bold text-gray-900">$0.00</span>
+          {/* TODO: Calculate net worth from accounts, debts, investments */}
+        </div>
+        {/* Total Balances */}
+        <div className="bg-white rounded-lg shadow p-5 flex flex-col items-center">
+          <span className="text-xs text-gray-400">Cash & Bank</span>
+          <span className="text-xl font-semibold text-green-600">{totalBalance ? `$${totalBalance.toLocaleString()}` : '$0.00'}</span>
+        </div>
+        <div className="bg-white rounded-lg shadow p-5 flex flex-col items-center">
+          <span className="text-xs text-gray-400">Credit/Debt</span>
+          <span className="text-xl font-semibold text-red-600">{/* TODO: Calculate total debt */}$0.00</span>
+        </div>
+        <div className="bg-white rounded-lg shadow p-5 flex flex-col items-center">
+          <span className="text-xs text-gray-400">Investments</span>
+          <span className="text-xl font-semibold text-blue-600">{/* TODO: Calculate investments */}$0.00</span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Recent Transactions */}
+        <div className="bg-white rounded-lg shadow p-5">
+          <h2 className="text-lg font-semibold mb-3">Recent Transactions</h2>
+          <ul className="divide-y divide-gray-100">
+            {recentTransactions.length > 0 ? recentTransactions.slice(0, 5).map((tx: any) => (
+              <li key={tx.id} className="py-2 flex justify-between items-center">
+                <span className="text-gray-700">{tx.description || tx.category}</span>
+                <span className={`font-semibold ${tx.amount < 0 ? 'text-red-600' : 'text-green-600'}`}>{tx.amount < 0 ? '-' : '+'}${Math.abs(tx.amount).toFixed(2)}</span>
+              </li>
+            )) : <li className="text-gray-400">No recent transactions</li>}
+          </ul>
+        </div>
+        {/* Upcoming Bills */}
+        <div className="bg-white rounded-lg shadow p-5">
+          <div className="flex justify-between items-center mb-3">
+            <h2 className="text-lg font-semibold">Upcoming Bills</h2>
+            <button 
+              onClick={() => fetchRecentTransactions(true)} 
+              className="text-xs text-blue-600 hover:text-blue-800 flex items-center"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Refresh
+            </button>
           </div>
-        )}
+          {upcomingBills.length > 0 && upcomingBills[0]._isOutdated && (
+            <div className="mb-3 text-xs text-amber-600 bg-amber-50 p-2 rounded">
+              Note: Your recurring bills have outdated due dates. Visit the Recurring page to update them.
+            </div>
+          )}
+          <ul className="divide-y divide-gray-100">
+            {upcomingBills.length > 0 ? upcomingBills.slice(0, 5).map((bill: any) => (
+              <li key={bill.id} className="py-2 flex justify-between items-center">
+                <span className="text-gray-700">{bill.name}</span>
+                <span className={`text-gray-500 text-sm ${bill._isOutdated ? "text-amber-500" : ""}`}>
+                  {new Date(bill.next_date).toLocaleDateString()}
+                </span>
+                <span className="font-semibold text-red-600">${Math.abs(bill.amount).toFixed(2)}</span>
+              </li>
+            )) : <li className="text-gray-400">No upcoming bills</li>}
+          </ul>
+        </div>
+        {/* Budget Snapshot */}
+        <div className="bg-white rounded-lg shadow p-5">
+          <h2 className="text-lg font-semibold mb-3">Budget Snapshot</h2>
+          {budgetSnapshot ? (
+            <>
+              <div className="flex justify-between mb-2">
+                <span className="text-gray-500">Spent</span>
+                <span className="font-semibold text-red-600">${budgetSnapshot.spent.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between mb-2">
+                <span className="text-gray-500">Budgeted</span>
+                <span className="font-semibold text-green-600">${budgetSnapshot.budgeted.toFixed(2)}</span>
+              </div>
+              <div className="w-full h-2 bg-gray-200 rounded-full mb-2">
+                <div className="h-full bg-blue-500 rounded-full" style={{ width: `${Math.min(100, (budgetSnapshot.spent / budgetSnapshot.budgeted) * 100)}%` }}></div>
+              </div>
+              <div className="text-xs text-gray-400">Top Categories:</div>
+              <ul className="text-xs text-gray-600">
+                {budgetSnapshot.topCategories.map((cat: any) => (
+                  <li key={cat.name}>{cat.name}: ${cat.spent.toFixed(2)}</li>
+                ))}
+              </ul>
+            </>
+          ) : <div className="text-gray-400">No budget data</div>}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Savings Goals */}
+        <div className="bg-white rounded-lg shadow p-5">
+          <h2 className="text-lg font-semibold mb-3">Savings Goals</h2>
+          {goals.length > 0 ? goals.slice(0, 2).map((goal: any) => (
+            <div key={goal.id} className="mb-3">
+              <div className="flex justify-between">
+                <span className="text-gray-700">{goal.name}</span>
+                <span className="text-gray-500 text-sm">{goal.progress}%</span>
+              </div>
+              <div className="w-full h-2 bg-gray-200 rounded-full">
+                <div className="h-full bg-green-500 rounded-full" style={{ width: `${goal.progress}%` }}></div>
+              </div>
+            </div>
+          )) : <div className="text-gray-400">No savings goals</div>}
+        </div>
+        {/* Cash Flow Mini-Chart */}
+        <div className="bg-white rounded-lg shadow p-5 flex flex-col items-center">
+          <h2 className="text-lg font-semibold mb-3">Cash Flow</h2>
+          {/* TODO: Add mini chart component */}
+          <div className="w-full h-24 flex items-center justify-center text-gray-400">[Mini Chart]</div>
+        </div>
+        {/* Alerts & Insights */}
+        <div className="bg-white rounded-lg shadow p-5">
+          <h2 className="text-lg font-semibold mb-3">Alerts & Insights</h2>
+          <ul className="space-y-2">
+            {insights.length > 0 ? insights.map((insight, index) => (
+              <li key={index} className={`text-sm ${insight.type === 'warning' ? 'text-yellow-600' : insight.type === 'error' ? 'text-red-600' : 'text-blue-600'}`}>{insight.message}</li>
+            )) : <li className="text-gray-400">No alerts</li>}
+          </ul>
+        </div>
+      </div>
+
+      {/* New widgets/cards for each data type */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Debts */}
+        <div className="bg-white rounded-lg shadow p-5 flex flex-col items-center">
+          <span className="text-xs text-gray-400">Debts</span>
+          <span className="text-xl font-semibold text-red-600">{debts.reduce((sum, d) => sum + (d.balance || 0), 0).toLocaleString(undefined, { style: 'currency', currency: userPreferences?.currency || 'USD' })}</span>
+        </div>
+        {/* Investments */}
+        <div className="bg-white rounded-lg shadow p-5 flex flex-col items-center">
+          <span className="text-xs text-gray-400">Investments</span>
+          <span className="text-xl font-semibold text-blue-600">{investments ? investments.total_value.toLocaleString(undefined, { style: 'currency', currency: userPreferences?.currency || 'USD' }) : '$0.00'}</span>
+        </div>
+        {/* Notifications */}
+        <div className="bg-white rounded-lg shadow p-5">
+          <h2 className="text-lg font-semibold mb-3">Notifications</h2>
+          <ul className="divide-y divide-gray-100">
+            {notifications.length > 0 ? notifications.map(n => (
+              <li key={n.id} className="py-2 flex flex-col">
+                <span className="font-semibold">{n.title}</span>
+                <span className="text-gray-500 text-sm">{n.message}</span>
+              </li>
+            )) : <li className="text-gray-400">No new notifications</li>}
+          </ul>
+        </div>
+        {/* Preferences */}
+        <div className="bg-white rounded-lg shadow p-5">
+          <h2 className="text-lg font-semibold mb-3">Preferences</h2>
+          <div className="text-gray-600 text-sm">Currency: {userPreferences?.currency || 'USD'}</div>
+          <div className="text-gray-600 text-sm">Theme: {userPreferences?.theme || 'light'}</div>
+        </div>
       </div>
     </div>
   )

@@ -44,7 +44,7 @@ const EditRecurringModal = ({ isOpen, onClose, onEdit, transaction }: EditRecurr
   const [isIncome, setIsIncome] = useState(false);
 
   // Check if this is a debt-related transaction
-  const isDebtRelated = transaction?.debtId !== undefined;
+  const isDebtRelated = transaction?.debtId !== undefined && transaction?.debtId !== null;
 
   // Update form when transaction changes
   useEffect(() => {
@@ -96,30 +96,19 @@ const EditRecurringModal = ({ isOpen, onClose, onEdit, transaction }: EditRecurr
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!transaction) return;
-    
     // Make a copy of the form data to ensure we're working with the correct values
-    let submissionData = {
+    const submissionData = {
       ...formData,
       // Ensure amount has correct sign based on transaction type
       amount: isIncome ? Math.abs(formData.amount) : -Math.abs(formData.amount),
+      // Set the type explicitly based on isIncome
+      type: isIncome ? 'income' : 'expense',
     };
-    
-    // For debt transactions, ensure certain values don't change
-    if (isDebtRelated && transaction) {
-      submissionData = {
-        ...submissionData,
-        name: transaction.name, // Keep original name
-        type: 'expense', // Always an expense
-        category: 'Debt', // Always in Debt category
-        frequency: transaction.frequency, // Keep original frequency
-      };
-    }
     
     console.log("Submitting edited recurring transaction:", submissionData);
     
     // Call the onEdit function with the data
-    onEdit(transaction.id, submissionData);
+    onEdit(transaction?.id || 0, submissionData);
     onClose();
   };
 

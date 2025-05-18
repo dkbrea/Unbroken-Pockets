@@ -70,6 +70,8 @@ const AddRecurringModal = ({ isOpen, onClose, onAdd }: AddRecurringModalProps) =
       ...formData,
       // Ensure amount has correct sign based on transaction type
       amount: isIncome ? Math.abs(formData.amount) : -Math.abs(formData.amount),
+      // Set the type explicitly based on isIncome
+      type: isIncome ? 'income' : 'expense',
     };
     
     console.log("Submitting recurring transaction:", submissionData);

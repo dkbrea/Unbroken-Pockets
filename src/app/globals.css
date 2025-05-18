@@ -11,6 +11,7 @@
   /* Brand colors from landing page */
   --primary: #4A6FA1;
   --primary-light: #7EB4E2;
+  --primary-dark: #0284c7;
   --background-light: #f0f6ff;
   --background-lighter: #f8fcff;
   --text-dark: #333;
@@ -43,6 +44,10 @@
   /* Font families */
   --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'Fira Mono', monospace;
+
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 0, 0, 0;
+  --background-end-rgb: 0, 0, 0;
 }
 
 /* Base styles */
@@ -53,9 +58,9 @@
 }
 
 body {
-  background-color: var(--background-light);
-  color: var(--text-dark);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+  min-height: 100vh;
 }
 
 /* Dynamic gradient background */
@@ -214,4 +219,71 @@ a.styled-link:hover::after {
   .btn-secondary {
     @apply bg-white border border-gray-300 py-2 px-4 rounded-md hover:bg-[#F5F5F5] transition-colors;
   }
+}
+
+@layer utilities {
+  .perspective-500 {
+    perspective: 500px;
+  }
+  
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+  
+  .perspective-2000 {
+    perspective: 2000px;
+  }
+  
+  .preserve-3d {
+    transform-style: preserve-3d;
+  }
+  
+  .origin-center-bottom {
+    transform-origin: center bottom;
+  }
+}
+
+/* Immersive scrolling effects */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-black text-white;
+  overflow-x: hidden;
+}
+
+/* For finer-grain scroll control with SmoothScroll component */
+html.lenis-smooth {
+  scroll-behavior: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto;
+}
+
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+.lenis.lenis-scrolling iframe {
+  pointer-events: none;
+}
+
+/* Grid background pattern */
+.bg-grid-pattern {
+  background-image: radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.1) 1px, transparent 0);
+}
+
+.bg-grid-size {
+  background-size: 30px 30px;
+}
+
+/* Perspective for 3D effects */
+.perspective {
+  perspective: 1500px;
 }

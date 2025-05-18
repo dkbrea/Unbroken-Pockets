@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useTransactionsData } from './useTransactionsData'
 import { useAccountsData } from './useAccountsData'
 import type { Transaction as BaseTransaction } from './useTransactionsData'
-import { createClient } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase'
 
 // Extend the Transaction type to include isProjected property for our needs
 type Transaction = BaseTransaction & { isProjected?: boolean };
@@ -80,7 +80,6 @@ export function useCashFlowData(options: CashFlowOptions = {}) {
   useEffect(() => {
     async function getUserId() {
       setIsLoadingUser(true)
-      const supabase = createClient()
       const { data, error } = await supabase.auth.getUser()
       
       if (error) {
@@ -233,149 +232,72 @@ export function useCashFlowData(options: CashFlowOptions = {}) {
         }, {} as Record<string, number>)
       
       // Transform into array and calculate percentages
-      categorySummary = Object.entries(expensesByCategory).map(([name, amount], index) => {
-        const previousAmount = previousExpensesByCategory[name] || 0
-        const percentage = totalExpenses > 0 ? (amount / totalExpenses) * 100 : 0
-        const change = amount - previousAmount
-        const changePercent = previousAmount > 0 ? (change / previousAmount) * 100 : 0
+      categorySummary = Object.entries(expensesByCategory).map(([name, amountFromEntries], index) => {
+        const previousAmount = previousExpensesByCategory[name] || 0;
+        const currentAmount = Number(amountFromEntries); // Explicit cast
+        const percentage = totalExpenses > 0 ? (currentAmount / totalExpenses) * 100 : 0;
+        const change = currentAmount - previousAmount;
+        const changePercent = previousAmount > 0 ? (change / previousAmount) * 100 : 0;
         
         return {
           name,
-          amount,
+          amount: currentAmount, // Use the casted amount
           percentage,
           previousAmount,
           change,
           changePercent,
           color: predefinedColors[index % predefinedColors.length]
-        }
-      })
-      
-      // Sort by amount (descending)
-      categorySummary.sort((a, b) => b.amount - a.amount)
-      
-      // Get top expense categories
-      topExpenseCategories = categorySummary.slice(0, 5)
-      
-      // If expense categories are all Uncategorized or we have no categories, create some realistic ones for demo
-      if ((topExpenseCategories.length === 0 || 
-          (topExpenseCategories.length === 1 && topExpenseCategories[0].name === 'Uncategorized')) 
-          && totalExpenses > 0) {
-        
-        console.log('No meaningful expense categories found, generating fallback visualization data');
-        
-        // Create realistic mock expense categories
-        const mockExpenseCategories: Record<string, number> = {
-          'Housing': totalExpenses * 0.35,
-          'Food & Dining': totalExpenses * 0.20,
-          'Transportation': totalExpenses * 0.15,
-          'Utilities': totalExpenses * 0.10,
-          'Entertainment': totalExpenses * 0.08,
-          'Shopping': totalExpenses * 0.07,
-          'Health & Fitness': totalExpenses * 0.05
         };
-        
-        const mockPreviousExpenseCategories: Record<string, number> = {
-          'Housing': previousTotalExpenses * 0.35,
-          'Food & Dining': previousTotalExpenses * 0.18,
-          'Transportation': previousTotalExpenses * 0.15,
-          'Utilities': previousTotalExpenses * 0.12,
-          'Entertainment': previousTotalExpenses * 0.09,
-          'Shopping': previousTotalExpenses * 0.06,
-          'Health & Fitness': previousTotalExpenses * 0.05
-        };
-        
-        topExpenseCategories = Object.entries(mockExpenseCategories)
-          .map(([name, amount], index) => {
-            const previousAmount = mockPreviousExpenseCategories[name] || 0;
-            const percentage = totalExpenses > 0 ? (amount / totalExpenses) * 100 : 0;
-            const change = amount - previousAmount;
-            const changePercent = previousAmount > 0 ? (change / previousAmount) * 100 : 0;
-            
-            return {
-              name,
-              amount,
-              percentage,
-              previousAmount,
-              change,
-              changePercent,
-              color: predefinedColors[index % predefinedColors.length]
-            };
-          })
-          .sort((a, b) => b.amount - a.amount)
-          .slice(0, 5);
-      }
+      });
       
-      // Calculate income categories by grouping income transactions by name (source)
-      console.log('Calculating income sources from transaction data');
+      // Sort by amount and take top 5 expense categories
+      topExpenseCategories = [...categorySummary]
+        .sort((a, b) => b.amount - a.amount)
+        .slice(0, 5);
       
-      // Get income transactions for current month (positive amounts)
-      const incomeTransactions = currentMonthTransactions.filter(t => t.amount > 0);
-      console.log('Income transactions:', incomeTransactions.map(t => ({
-        name: t.name,
-        amount: t.amount,
-      })));
-      
-      // Group income transactions by name (source)
-      const incomeBySource = incomeTransactions.reduce((acc, t) => {
-        const sourceName = t.name || 'Other Income';
-        if (!acc[sourceName]) {
-          acc[sourceName] = 0;
-        }
-        acc[sourceName] += t.amount;
-        return acc;
-      }, {} as Record<string, number>);
-      
-      console.log('Income by source:', incomeBySource);
-      
-      // Get previous month income transactions grouped by name
-      const previousIncomeTransactions = previousMonthTransactions.filter(t => t.amount > 0);
-      const previousIncomeBySource = previousIncomeTransactions.reduce((acc, t) => {
-        const sourceName = t.name || 'Other Income';
-        if (!acc[sourceName]) {
-          acc[sourceName] = 0;
-        }
-        acc[sourceName] += t.amount;
-        return acc;
-      }, {} as Record<string, number>);
-      
-      // Create income categories from income sources
-      if (Object.keys(incomeBySource).length > 0) {
-        topIncomeCategories = Object.entries(incomeBySource)
-          .map(([name, amount], index) => {
-            const previousAmount = previousIncomeBySource[name] || 0;
-            const percentage = totalIncome > 0 ? (amount / totalIncome) * 100 : 0;
-            const change = amount - previousAmount;
-            const changePercent = previousAmount > 0 ? (change / previousAmount) * 100 : 0;
-            
-            return {
-              name,
-              amount,
-              percentage,
-              previousAmount,
-              change,
-              changePercent,
-              color: predefinedColors[(index + 5) % predefinedColors.length]
-            };
-          })
-          .sort((a, b) => b.amount - a.amount)
-          .slice(0, 5);
-      } else if (totalIncome > 0) {
-        // If no income sources but we have a total income, create a single "Income" entry
-        topIncomeCategories = [{
-          name: 'Income',
-          amount: totalIncome,
-          percentage: 100,
-          previousAmount: previousTotalIncome,
-          change: totalIncome - previousTotalIncome,
-          changePercent: previousTotalIncome > 0 ? ((totalIncome - previousTotalIncome) / previousTotalIncome) * 100 : 0,
-          color: predefinedColors[0]
-        }];
-      } else {
-        // No income at all
-        topIncomeCategories = [];
-      }
-      
-      console.log('Final income categories used:', topIncomeCategories);
+      // Calculate income categories
+      const incomeByCategory = currentMonthTransactions
+        .filter(t => t.amount > 0)
+        .reduce((acc, t) => {
+          const category = t.category || 'Uncategorized Income'
+          if (!acc[category]) {
+            acc[category] = 0
+          }
+          acc[category] += t.amount // Income is positive
+          return acc
+        }, {} as Record<string, number>)
+
+      const previousIncomeByCategory = previousMonthTransactions
+        .filter(t => t.amount > 0)
+        .reduce((acc, t) => {
+          const category = t.category || 'Uncategorized Income'
+          if (!acc[category]) {
+            acc[category] = 0
+          }
+          acc[category] += t.amount // Income is positive
+          return acc
+        }, {} as Record<string, number>)
+
+      topIncomeCategories = Object.entries(incomeByCategory)
+        .map(([name, amountFromEntries], index) => {
+          const previousAmount = previousIncomeByCategory[name] || 0;
+          const currentAmount = Number(amountFromEntries); // Explicit cast
+          const percentage = totalIncome > 0 ? (currentAmount / totalIncome) * 100 : 0;
+          const change = currentAmount - previousAmount;
+          const changePercent = previousAmount > 0 ? (change / previousAmount) * 100 : 0;
+
+          return {
+            name,
+            amount: currentAmount, // Use the casted amount
+            percentage,
+            previousAmount,
+            change,
+            changePercent,
+            color: predefinedColors[(index + 5) % predefinedColors.length] // Offset color index
+          };
+        })
+        .sort((a, b) => b.amount - a.amount)
+        .slice(0, 5);
     }
     
     // Update the state with calculated values
@@ -536,7 +458,6 @@ export function useCashFlowData(options: CashFlowOptions = {}) {
   // Calculate upcoming transactions based on recurring patterns
   const calculateUpcomingTransactions = async (transactions: Transaction[]) => {
     // Get recurring transactions from Supabase directly
-    const supabase = createClient();
     const today = new Date();
     
     try {

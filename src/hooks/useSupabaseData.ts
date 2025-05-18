@@ -12,18 +12,26 @@ import {
   loadUserProfileData,
   loadNotificationsData,
   loadRecurringData
-} from '../lib/supabaseUtils';
-import { BudgetState } from './useBudgetData';
-import { CashFlowState } from './useCashFlowData';
-import { GoalsState } from './useGoalsData';
-import { InvestmentsState } from './useInvestmentsData';
-import { ReportsState } from './useReportsData';
-import { TransactionsState } from './useTransactionsData';
-import { AccountsState } from './useAccountsData';
-import { UserProfileState } from './useUserProfile';
-import { NotificationsState } from './useNotifications';
-import { RecurringState, RecurringTransaction } from './useRecurringData';
-import { supabase } from '../lib/supabase';
+} from './supabaseUtils';
+import { createClient } from '@supabase/supabase-js';
+import {
+  BudgetState,
+  CashFlowState,
+  GoalsState,
+  InvestmentsState,
+  ReportsState,
+  TransactionsState,
+  AccountsState,
+  UserProfileState,
+  NotificationsState,
+  RecurringState,
+  RecurringTransaction
+} from '@/lib/types/states';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 export type FinancialDashboardData = {
   budget: Partial<BudgetState>;
@@ -59,25 +67,6 @@ export const useSupabaseData = (): FinancialDashboardData => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Load all data in parallel
-        const [
-          budgetData, 
-          cashFlowData, 
-          goalsData, 
-          investmentsData, 
-          reportsData,
-          transactionsData,
-          accountsData
-        ] = await Promise.all([
-          loadBudgetData(),
-          loadCashFlowData(),
-          loadGoalsData(),
-          loadInvestmentsData(),
-          loadReportsData(),
-          loadTransactionsData(),
-          loadAccountsData()
-        ]);
-
         // Get the current user
         const { data: { user } } = await supabase.auth.getUser();
         
@@ -90,8 +79,26 @@ export const useSupabaseData = (): FinancialDashboardData => {
           return;
         }
 
-        // Load user-specific data
-        const [userProfileData, notificationsData, recurringData] = await Promise.all([
+        // Load all data in parallel
+        const [
+          budgetData, 
+          cashFlowData, 
+          goalsData, 
+          investmentsData, 
+          reportsData,
+          transactionsData,
+          accountsData,
+          userProfileData,
+          notificationsData,
+          recurringData
+        ] = await Promise.all([
+          loadBudgetData(),
+          loadCashFlowData(),
+          loadGoalsData(),
+          loadInvestmentsData(),
+          loadReportsData(),
+          loadTransactionsData(),
+          loadAccountsData(),
           loadUserProfileData(user.id),
           loadNotificationsData(user.id),
           loadRecurringData(user.id)
@@ -197,100 +204,36 @@ export function useRecurring() {
   const [data, setData] = useState<RecurringTransaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  
-  const loadData = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      // Get the current user
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        console.error('User not authenticated in useRecurring');
-        setData([]);
-        setError(new Error('User not authenticated'));
-        setIsLoading(false);
-        return;
-      }
-      
-      console.log('Fetching recurring transactions for user:', user.id);
-      
-      // Load fresh data directly from supabase
-      const { data: recurringData, error: supabaseError } = await supabase
-        .from('recurring_transactions')
-        .select('*')
-        .eq('user_id', user.id);
-      
-      if (supabaseError) {
-        console.error('Supabase error in useRecurring:', supabaseError);
-        throw supabaseError;
-      }
-      
-      console.log('Recurring transactions loaded:', recurringData?.length || 0);
-      
-      // Log debt-related transactions
-      const debtTransactions = recurringData?.filter(t => t.debt_id) || [];
-      console.log('Debt-related transactions from database:', debtTransactions);
-      
-      if (!recurringData) {
-        setData([]);
-        return;
-      }
-      
-      // Transform to match expected format
-      const transactions = recurringData.map(transaction => {
-        // Debug mapping for debt transactions
-        if (transaction.debt_id) {
-          console.log(`Mapping debt transaction: ${transaction.name} (debt_id: ${transaction.debt_id})`);
-        }
-        
-        return {
-          id: transaction.id,
-          name: transaction.name,
-          amount: transaction.amount,
-          frequency: transaction.frequency,
-          category: transaction.category || 'Uncategorized',
-          nextDate: transaction.next_date,
-          status: transaction.status as 'active' | 'paused',
-          paymentMethod: transaction.payment_method || 'Other',
-          debtId: transaction.debt_id,
-          user_id: transaction.user_id,
-          createdAt: transaction.created_at,
-          updatedAt: transaction.updated_at,
-          type: transaction.type || 'expense',
-          description: transaction.description || '',
-          startDate: transaction.start_date || transaction.next_date
-        };
-      });
-      
-      // Log mapped debt transactions
-      const mappedDebtTransactions = transactions.filter(t => t.debtId);
-      console.log('Mapped debt transactions:', mappedDebtTransactions);
-      
-      setData(transactions);
-      setError(null);
-    } catch (err) {
-      console.error('Error loading recurring transactions:', err);
-      setError(err instanceof Error ? err : new Error('Unknown error occurred'));
-      setData([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-  
-  // Load data on mount
+
   useEffect(() => {
+    const loadData = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          setError(new Error('No authenticated user'));
+          setIsLoading(false);
+          return;
+        }
+
+        const { data: recurringData, error: recurringError } = await supabase
+          .from('recurring_transactions')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (recurringError) throw recurringError;
+        
+        setData(recurringData || []);
+        setIsLoading(false);
+      } catch (err) {
+        console.error('Error loading recurring transactions:', err);
+        setError(err instanceof Error ? err : new Error('Unknown error occurred'));
+        setIsLoading(false);
+      }
+    };
+
     loadData();
-  }, [loadData]);
-  
-  // Function to mutate the data (used after adding, editing, or deleting)
-  const mutate = useCallback(() => {
-    loadData();
-  }, [loadData]);
-  
-  return {
-    recurringTransactions: data,
-    isLoading,
-    error,
-    mutate
-  };
+  }, []);
+
+  return { data, isLoading, error };
 } 
