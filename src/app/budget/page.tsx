@@ -217,13 +217,37 @@ export default function Budget() {
         }));
       });
 
+      // Fetch all monthly debt payments for the year
+      const { data: monthlyDebtPayments, error: debtPaymentsError } = await supabase
+        .from('debt_payments_forecast')
+        .select('*')
+        .eq('user_id', userId)
+        .gte('month', `${currentYear}-01`)
+        .lte('month', `${currentYear}-12`);
+
+      if (debtPaymentsError) {
+        console.error('Error fetching monthly debt payments:', debtPaymentsError);
+        // Continue with default values if there's an error
+      }
+
       // Calculate debt payments for each month
-      const debtPaymentsByMonth = months.map(month => {
-        return debts.map(debt => ({
-          ...debt,
-          amount: -Math.abs(debt.minimumPayment),
-          status: 'active' as 'active',
-        }));
+      const debtPaymentsByMonth = months.map((month, monthIndex) => {
+        const monthStr = `${currentYear}-${String(monthIndex + 1).padStart(2, '0')}`;
+        
+        return debts.map(debt => {
+          // Find month-specific payment if it exists
+          const monthlyPayment = monthlyDebtPayments?.find(
+            mp => mp.debt_id === debt.id && mp.month === monthStr
+          );
+
+          return {
+            ...debt,
+            // Use month-specific payment if it exists, otherwise use default minimum payment
+            // Store as negative to represent payment
+            amount: monthlyPayment ? Math.abs(monthlyPayment.amount) : Math.abs(debt.minimumPayment),
+            status: 'active' as 'active',
+          };
+        });
       });
 
       // Fetch all monthly goal contributions for the year

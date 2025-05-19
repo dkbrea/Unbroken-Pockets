@@ -740,29 +740,46 @@ export function useDebtData(): DebtState {
     };
   }, [debts, totalDebt, totalMinPayment]);
 
+  // Function to update debt payment amount (for both regular and forecast views)
   const updateDebtPayment = async (debtId: number, amount: number, month?: string) => {
     try {
+      if (!user) {
+        console.error("No user logged in, cannot update debt payment");
+        return false;
+      }
+
       // If month is provided, we're updating a forecast entry for a specific month
       if (month) {
+        console.log(`Updating debt payment forecast for debt ${debtId} in month ${month} to ${amount}`);
+                    
         // First check if there's an existing entry for this month
         const { data: existingEntry, error: fetchError } = await supabase
           .from('debt_payments_forecast')
           .select('*')
           .eq('debt_id', debtId)
           .eq('month', month)
+          .eq('user_id', user.id)
           .maybeSingle();
 
-        if (fetchError) throw fetchError;
+        if (fetchError) {
+          console.error('Error fetching existing debt payment forecast:', fetchError);
+          throw fetchError;
+        }
 
         if (existingEntry) {
+          console.log('Updating existing debt payment forecast entry:', existingEntry.id);
           // Update existing entry
           const { error } = await supabase
             .from('debt_payments_forecast')
             .update({ amount: -Math.abs(amount) }) // Store as negative to represent payment
             .eq('id', existingEntry.id);
 
-          if (error) throw error;
+          if (error) {
+            console.error('Error updating debt payment forecast:', error);
+            throw error;
+          }
         } else {
+          console.log('Creating new debt payment forecast entry');
           // Insert new entry
           const { error } = await supabase
             .from('debt_payments_forecast')
@@ -770,26 +787,47 @@ export function useDebtData(): DebtState {
               debt_id: debtId,
               month,
               amount: -Math.abs(amount), // Store as negative to represent payment
-              user_id: userId
+              user_id: user.id
             });
 
-          if (error) throw error;
+          if (error) {
+            console.error('Error creating debt payment forecast:', error);
+            throw error;
+          }
         }
 
+        console.log('Successfully updated debt payment forecast');
         // Only update the local state for the current view if needed
         // This won't affect other months in the forecast view
         return true;
       } else {
+        console.log(`Updating base debt payment for debt ${debtId} to ${amount}`);
         // Regular update for the main debt data (used in current view)
         const updatedDebts = debts.map(debt => 
           debt.id === debtId 
             ? { ...debt, minimumPayment: amount }
             : debt
         );
-        
+                    
         // Update local state
         setDebts(updatedDebts);
-        
+                    
+        // Also update the debt in the database
+        const { error } = await supabase
+          .from('debts')
+          .update({ minimum_payment: amount })
+          .eq('id', debtId)
+          .eq('user_id', user.id);
+
+        if (error) {
+          console.error('Error updating debt payment in database:', error);
+          throw error;
+        }
+
+        // Update localStorage
+        localStorage.setItem('debt_data', JSON.stringify(updatedDebts));
+                    
+        console.log('Successfully updated base debt payment');
         return true;
       }
     } catch (error) {
