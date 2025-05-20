@@ -78,8 +78,8 @@ const Sidebar = () => {
   ]
 
   return (
-    <div className="flex md:w-64 md:flex-col md:fixed md:inset-y-0 z-40">
-      <div className="flex-1 flex flex-col min-h-0 border-r border-gray-200 bg-white shadow-md">
+    <div className="flex md:w-[var(--sidebar-width)] lg:w-[var(--sidebar-collapsed-width)] xl:w-[var(--sidebar-width)] md:flex-col md:fixed md:inset-y-0 z-40 transition-all duration-300 group/sidebar">
+      <div className="flex-1 flex flex-col min-h-0 border-r border-gray-200 bg-white shadow-md overflow-hidden">
         {/* Logo and app name */}
         <div className="flex items-center h-20 flex-shrink-0 px-4 bg-gradient-primary text-white">
           <Link href="/" className="flex flex-col items-center w-full transition-transform duration-300 hover:-translate-y-1">
@@ -93,7 +93,7 @@ const Sidebar = () => {
         </div>
         
         <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
-          <nav className="mt-5 flex-1 px-2 space-y-1">
+          <nav className="mt-5 flex-1 px-4 space-y-[var(--item-spacing)]">
             {navigation.map((item) => {
               const isActive = pathname === item.href
               const Icon = item.icon
@@ -102,19 +102,23 @@ const Sidebar = () => {
                 <Link
                   key={item.name}
                   href={item.href}
-                  className={`group flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-300 ${
+                  className={`group/item flex items-center px-4 py-3 text-base font-medium rounded-xl transition-all duration-300 ${
                     isActive
                       ? 'bg-background-light text-primary shadow-sm'
                       : 'text-text-medium hover:bg-background-lighter hover:text-primary hover:-translate-y-1'
                   }`}
                 >
                   <Icon
-                    className={`mr-3 flex-shrink-0 h-5 w-5 ${
+                    className={`mr-3 flex-shrink-0 h-5 w-5 lg:mr-0 xl:mr-3 ${
                       isActive ? 'text-primary-light' : 'text-text-medium group-hover:text-primary'
                     }`}
                     aria-hidden="true"
                   />
-                  {item.name}
+                  <span className="lg:hidden xl:inline">{item.name}</span>
+                  {/* Tooltip - only show when sidebar is collapsed */}
+                  <div className="hidden lg:group-hover/sidebar:group-hover/item:block xl:hidden absolute left-[var(--sidebar-collapsed-width)] ml-2 bg-white px-2 py-1 rounded-md shadow-md text-sm whitespace-nowrap z-50">
+                    {item.name}
+                  </div>
                 </Link>
               )
             })}

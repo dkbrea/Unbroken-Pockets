@@ -20,12 +20,26 @@
   --white: #ffffff;
   --gradient-primary: linear-gradient(135deg, #4A6FA1 0%, #7EB4E2 100%);
   
+  /* Layout */
+  --sidebar-width: 260px;
+  --sidebar-collapsed-width: 56px;
+  --content-max-width: 1140px;
+  --content-padding: 32px;
+  --grid-gap: 30px;
+  
+  /* Typography */
+  --font-size-base: 16px;
+  --font-size-h1: 32px;
+  --font-size-h2: 24px;
+  
   /* Spacing */
   --spacing-xs: 0.5rem;
   --spacing-sm: 1rem;
   --spacing-md: 1.5rem;
   --spacing-lg: 2rem;
   --spacing-xl: 3rem;
+  --section-spacing: 24px;
+  --item-spacing: 16px;
   
   /* Border radius */
   --radius-sm: 5px;

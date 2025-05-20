@@ -8,12 +8,14 @@ interface MainContentProps {
 
 const MainContent = ({ children }: MainContentProps) => {
   return (
-    <main className="md:pl-64 flex flex-col flex-1 min-h-screen">
-      <div className="p-6 pt-8 flex-grow w-full">
-        {children}
+    <main className="md:pl-[var(--sidebar-width)] lg:pl-[var(--sidebar-collapsed-width)] xl:pl-[var(--sidebar-width)] flex flex-col flex-1 min-h-screen transition-all duration-300">
+      <div className="px-[var(--content-padding)] py-8 flex-grow w-full max-w-[var(--content-max-width)] mx-auto">
+        <div className="grid gap-[var(--grid-gap)]">
+          {children}
+        </div>
       </div>
     </main>
   )
 }
 
-export default MainContent 
+export default MainContent

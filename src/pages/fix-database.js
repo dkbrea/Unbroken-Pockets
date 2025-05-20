@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Button, Box, Text, Heading, Container, Stack, Alert, AlertIcon, Code, Spinner } from '@chakra-ui/react';
 
 export default function FixDatabasePage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -35,64 +34,73 @@ export default function FixDatabasePage() {
   };
 
   return (
-    <Container maxW="container.md" py={10}>
-      <Heading mb={6}>Database Fix Tool</Heading>
+    <div className="container mx-auto py-10 px-4 max-w-3xl">
+      <h1 className="text-2xl font-bold mb-6">Database Fix Tool</h1>
       
-      <Stack spacing={4} direction="column" mb={8}>
-        <Text>
+      <div className="flex flex-col gap-4 mb-8">
+        <p className="text-gray-700">
           Use these buttons to run the database fix scripts that will:
-        </Text>
-        <Box pl={4}>
-          <Text>• Create the accounts table if it doesn't exist</Text>
-          <Text>• Add user_id column if it doesn't exist</Text>
-          <Text>• Setup Row Level Security policies properly</Text>
-        </Box>
+        </p>
+        <div className="pl-4">
+          <p className="text-gray-700">• Create the accounts table if it doesn't exist</p>
+          <p className="text-gray-700">• Add user_id column if it doesn't exist</p>
+          <p className="text-gray-700">• Setup Row Level Security policies properly</p>
+        </div>
         
-        <Stack direction="row" spacing={4} mt={4}>
-          <Button 
-            colorScheme="blue" 
+        <div className="flex gap-4 mt-4">
+          <button 
+            className={`px-4 py-2 rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
             onClick={() => runFix('fix-database')}
-            isLoading={isLoading && !result && !error}
-            loadingText="Running..."
-            isDisabled={isLoading}
+            disabled={isLoading}
           >
-            Run Standard Fix
-          </Button>
+            {isLoading && !result && !error ? (
+              <>
+                <span className="inline-block animate-spin mr-2">⌛</span>
+                Running...
+              </>
+            ) : (
+              'Run Standard Fix'
+            )}
+          </button>
 
-          <Button 
-            colorScheme="green" 
+          <button 
+            className={`px-4 py-2 rounded-md text-white bg-green-600 hover:bg-green-700 transition-colors ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
             onClick={() => runFix('direct-fix-alt')}
-            isLoading={isLoading && !result && !error}
-            loadingText="Running..."
-            isDisabled={isLoading}
+            disabled={isLoading}
           >
-            Run Alternative Fix (Hardcoded)
-          </Button>
-        </Stack>
-      </Stack>
+            {isLoading && !result && !error ? (
+              <>
+                <span className="inline-block animate-spin mr-2">⌛</span>
+                Running...
+              </>
+            ) : (
+              'Run Alternative Fix (Hardcoded)'
+            )}
+          </button>
+        </div>
+      </div>
 
       {isLoading && (
-        <Box textAlign="center" py={4}>
-          <Spinner size="xl" />
-          <Text mt={2}>Running database fix...</Text>
-        </Box>
+        <div className="text-center py-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-2 text-gray-700">Running database fix...</p>
+        </div>
       )}
 
       {error && (
-        <Alert status="error" mb={4}>
-          <AlertIcon />
-          {error}
-        </Alert>
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4" role="alert">
+          <p>{error}</p>
+        </div>
       )}
 
       {result && (
-        <Box mt={4} p={4} borderWidth={1} borderRadius="md">
-          <Heading size="md" mb={2}>Fix Result:</Heading>
-          <Code p={4} borderRadius="md" w="100%" display="block" whiteSpace="pre-wrap">
+        <div className="mt-4 p-4 border border-gray-200 rounded-md">
+          <h2 className="text-xl font-semibold mb-2">Fix Result:</h2>
+          <pre className="p-4 bg-gray-50 rounded-md w-full overflow-x-auto whitespace-pre-wrap text-sm">
             {JSON.stringify(result, null, 2)}
-          </Code>
-        </Box>
+          </pre>
+        </div>
       )}
-    </Container>
+    </div>
   );
-} 
+}
