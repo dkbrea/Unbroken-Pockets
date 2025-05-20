@@ -29,6 +29,8 @@ import {
   Target,
   Calendar as CalendarIcon
 } from 'lucide-react'
+import { normalizeDate, formatDisplayDate } from '@/lib/utils/dateUtils'
+import { calculateSubscriptions } from '@/lib/utils/budgetUtils'
 import { useBudgetData } from '@/hooks/useBudgetData'
 import { format, parseISO, startOfMonth } from 'date-fns'
 import { BudgetCategory } from '@/hooks/useBudgetData'
@@ -44,6 +46,7 @@ import { AllocationForm } from '@/components/forms/AllocationForm'
 import { supabase } from '@/lib/supabase'
 import { MonthlyFlowHeader } from '@/components/MonthlyFlowHeader'
 import { getAuthenticatedUserId } from '@/lib/auth/authUtils'
+import { BudgetAllocationHelper } from '@/components/BudgetAllocationHelper'
 
 // Add FinancialGoal type definition
 type FinancialGoal = {
@@ -120,6 +123,7 @@ export default function Budget() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [viewMode, setViewMode] = useState<'current' | 'forecast'>('current');
   const [isLoadingForecast, setIsLoadingForecast] = useState(false);
+  const [showAllocationHelper, setShowAllocationHelper] = useState(false);
   
   // Calculate total expenses including subscriptions
   const totalExpenses = totalAllocated + fixedExpenses + totalSubscriptions + totalDebtPayments + totalGoalContributions;
@@ -375,6 +379,25 @@ export default function Budget() {
     }
   };
   
+  // Handle bulk allocation update
+  const handleBulkAllocation = async (allocations: { categoryId: number; amount: number }[]) => {
+    try {
+      setIsSubmitting(true);
+      
+      // Process each allocation sequentially
+      for (const allocation of allocations) {
+        await setAllocation(allocation.categoryId, allocation.amount);
+      }
+      
+      setShowAllocationHelper(false);
+      await refreshData(); // Refresh data to show updated allocations
+    } catch (err) {
+      console.error('Error updating allocations:', err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+  
   // Handle adding a transaction
   const handleAddTransaction = async (transactionData: any) => {
     try {
@@ -542,114 +565,108 @@ export default function Budget() {
     }
   };
 
+  // Define CSS styles for forecast table
+  const forecastStyles = {
+    scrollWrapper: {
+      overflowX: 'auto' as const,
+      width: '100%',
+      maxHeight: 'calc(100vh - 200px)',
+      overflowY: 'auto' as const,
+      position: 'relative' as const
+    },
+    table: {
+      tableLayout: 'fixed' as const,
+      width: '1400px',
+      borderCollapse: 'separate'
+    },
+    forecastLabelCol: {
+      width: '180px',
+      minWidth: '180px',
+      maxWidth: '180px',
+      position: 'sticky',
+      left: 0,
+      zIndex: 20,
+      background: 'inherit'
+    },
+    forecastMonthCol: {
+      width: '200px',
+      minWidth: '200px',
+      maxWidth: '200px'
+    },
+    forecastTableThead: {
+      position: 'sticky',
+      top: 0,
+      zIndex: 50,
+      background: 'white'
+    },
+    forecastTableTheadTh: {
+      background: 'white',
+      position: 'sticky',
+      top: 0,
+      height: '120px'
+    },
+    forecastTableTheadThForecastLabelCol: {
+      zIndex: 51,
+      left: 0,
+      background: 'white'
+    },
+    sectionHeader: {
+      position: 'sticky',
+      top: '120px',
+      background: 'inherit',
+      zIndex: 40
+    },
+    sectionHeaderTd: {
+      position: 'sticky',
+      top: '120px',
+      background: 'inherit',
+      zIndex: 40
+    },
+    sectionHeaderTdFirst: {
+      position: 'sticky',
+      left: 0,
+      zIndex: 41
+    },
+    incomeSection: {
+      backgroundColor: 'rgb(239 246 255)'
+    },
+    fixedSection: {
+      backgroundColor: 'rgb(254 242 242)'
+    },
+    subscriptionsSection: {
+      backgroundColor: 'rgb(239 246 255)'
+    },
+    variableSection: {
+      backgroundColor: 'rgb(240 253 244)'
+    },
+    debtSection: {
+      backgroundColor: 'rgb(250 245 255)'
+    },
+    goalsSection: {
+      backgroundColor: 'rgb(254 252 232)'
+    },
+    incomeSectionRow: {
+      backgroundColor: 'rgb(239 246 255)'
+    },
+    fixedSectionRow: {
+      backgroundColor: 'rgb(254 242 242)'
+    },
+    subscriptionsSectionRow: {
+      backgroundColor: 'rgb(239 246 255)'
+    },
+    variableSectionRow: {
+      backgroundColor: 'rgb(240 253 244)'
+    },
+    debtSectionRow: {
+      backgroundColor: 'rgb(250 245 255)'
+    },
+    goalsSectionRow: {
+      backgroundColor: 'rgb(254 252 232)'
+    }
+  };
+
   return (
-    <div className="w-full">
-      <style jsx global>{`
-        .forecast-scroll-wrapper {
-          overflow-x: auto;
-          width: 100%;
-          max-height: calc(100vh - 200px);
-          overflow-y: auto;
-          position: relative;
-        }
-        .forecast-table {
-          table-layout: fixed;
-          width: 1400px;
-          border-collapse: separate;
-          border-spacing: 0;
-        }
-        
-        /* Column sizing */
-        .forecast-label-col {
-          width: 180px;
-          min-width: 180px;
-          max-width: 180px;
-          position: sticky;
-          left: 0;
-          z-index: 20;
-          background: inherit;
-        }
-        .forecast-month-col {
-          width: 200px;
-          min-width: 200px;
-          max-width: 200px;
-        }
-        
-        /* Main header styles */
-        .forecast-table thead {
-          position: sticky !important;
-          top: 0;
-          z-index: 50;
-          background: white;
-        }
-        .forecast-table thead th {
-          background: white;
-          position: sticky !important;
-          top: 0;
-          height: 120px;
-        }
-        .forecast-table thead th.forecast-label-col {
-          z-index: 51;
-          left: 0;
-          background: white;
-        }
-        
-        /* Section header styles */
-        tr.section-header {
-          position: sticky !important;
-          top: 120px !important;
-          background: inherit;
-          z-index: 40;
-        }
-        
-        tr.section-header td {
-          position: sticky !important;
-          top: 120px !important;
-          background: inherit !important;
-          z-index: 40;
-        }
-        
-        tr.section-header td:first-child {
-          position: sticky !important;
-          left: 0;
-          z-index: 41;
-        }
-
-        /* Section background colors */
-        .income-section.section-header td {
-          background-color: rgb(239 246 255) !important;
-        }
-        .fixed-section.section-header td {
-          background-color: rgb(254 242 242) !important;
-        }
-        .subscriptions-section.section-header td {
-          background-color: rgb(239 246 255) !important;
-        }
-        .variable-section.section-header td {
-          background-color: rgb(240 253 244) !important;
-        }
-        .debt-section.section-header td {
-          background-color: rgb(250 245 255) !important;
-        }
-        .goals-section.section-header td {
-          background-color: rgb(254 252 232) !important;
-        }
-
-        /* Row background colors */
-        .income-section-row td { background-color: rgb(239 246 255); }
-        .fixed-section-row td { background-color: rgb(254 242 242); }
-        .subscriptions-section-row td { background-color: rgb(239 246 255); }
-        .variable-section-row td { background-color: rgb(240 253 244); }
-        .debt-section-row td { background-color: rgb(250 245 255); }
-        .goals-section-row td { background-color: rgb(254 252 232); }
-
-        /* First column in regular rows */
-        .forecast-label-col {
-          position: sticky !important;
-          left: 0;
-          z-index: 20;
-        }
-      `}</style>
+    <div style={{ width: '100%' }}>
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-[#1F3A93] mb-4 md:mb-0">Variable Expense Budget</h1>
         
@@ -923,17 +940,19 @@ export default function Budget() {
           {/* Call-to-action for zero-based budgeting */}
           {leftToAllocate > 0 && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6 flex items-center">
-              <div className="p-2 mr-3 rounded-full bg-yellow-100">
-                <ArrowDown className="h-5 w-5 text-yellow-600" />
+              <div className="flex flex-col items-center mb-6">
+                <div 
+                  className="bg-yellow-100 text-yellow-800 font-medium py-2 px-4 rounded-lg flex items-center cursor-pointer hover:bg-yellow-200"
+                  onClick={() => setShowAllocationHelper(true)}
+                  title="Click to allocate remaining budget"
+                >
+                  <ArrowDown className="h-4 w-4 mr-2" />
+                  ${leftToAllocate.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} left to allocate
+                </div>
               </div>
-              <div>
-                <h3 className="font-medium text-yellow-800 mb-1">
-                  You have ${leftToAllocate.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} left to allocate
-                </h3>
-                <p className="text-sm text-yellow-700">
-                  Zero-based budgeting means giving every dollar a job. Allocate your remaining funds to variable expense categories by clicking the "+" button next to any category or create a new category.
-                </p>
-              </div>
+              <p className="text-sm text-yellow-700">
+                Zero-based budgeting means giving every dollar a job. Allocate your remaining funds to variable expense categories by clicking the "+" button next to any category or create a new category.
+              </p>
               <button 
                 className="ml-auto bg-yellow-100 hover:bg-yellow-200 text-yellow-800 font-medium py-2 px-4 rounded-md text-sm flex items-center"
                 onClick={() => setShowNewCategoryModal(true)}
@@ -1084,357 +1103,62 @@ export default function Budget() {
               </div>
             )}
           </div>
+          
+          {/* Allocation Modal */}
+          {showAllocationModal && selectedCategory && (
+            <AllocationForm
+              category={selectedCategory}
+              onSubmit={(amount) => handleUpdateAllocation(selectedCategory.id, amount)}
+              onCancel={() => {
+                setShowAllocationModal(false);
+                setSelectedCategory(null);
+              }}
+              isSubmitting={isSubmitting}
+            />
+          )}
+          
+          {/* Budget Allocation Helper */}
+          {showAllocationHelper && leftToAllocate > 0 && (
+            <BudgetAllocationHelper
+              categories={budgetCategories}
+              leftToAllocate={leftToAllocate}
+              onAllocate={handleBulkAllocation}
+              onCancel={() => setShowAllocationHelper(false)}
+            />
+          )}
+          
+          {/* Modals */}
+          {showNewCategoryModal && (
+            <CategoryForm
+              onSubmit={handleAddCategory}
+              onCancel={() => setShowNewCategoryModal(false)}
+              title="Add Budget Category"
+            />
+          )}
+          
+          {showEditCategoryModal && selectedCategory && (
+            <CategoryForm
+              onSubmit={handleEditCategory}
+              onCancel={() => {
+                setShowEditCategoryModal(false);
+                setSelectedCategory(null);
+              }}
+              initialData={selectedCategory}
+              title="Edit Budget Category"
+            />
+          )}
+          
+          {showTransactionModal && (
+            <TransactionForm
+              categories={budgetCategories}
+              onSubmit={handleAddTransaction}
+              onCancel={() => setShowTransactionModal(false)}
+            />
+          )}
         </>
-        )
-      ) : (
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold text-[#1F3A93] mb-4">Year Forecast</h2>
-            {isLoadingForecast ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1F3A93]"></div>
-              </div>
-            ) : (
-              <div className="space-y-8">
-                {/* Unified Table */}
-                <div className="forecast-scroll-wrapper">
-                  <table className="forecast-table">
-                    <thead>
-                      <tr>
-                        <th className="forecast-label-col">Category</th>
-                        {(forecastData.months ?? []).map((month, index) => {
-                          const monthlyIncome = forecastData.incomeSourcesByMonth[index]?.reduce((sum, source) => sum + (source.amount || 0), 0) || 0;
-                          const monthlyFixed = forecastData.fixedExpensesByMonth[index]?.reduce((sum, expense) => {
-                            // Skip if this is a subscription
-                            if (expense.category === 'Subscriptions') return sum;
-                            return sum + Math.abs(expense.amount || 0);
-                          }, 0) || 0;
-                          // Debug subscription calculations in forecast view
-                          console.log(`Forecast view - Processing subscriptions for ${month.toLocaleDateString('en-US', {month: 'long', year: 'numeric'})}`);
-                          
-                          const subscriptionTxs = recurringTransactions.filter(tx => tx.category === 'Subscriptions');
-                          console.log('Forecast view - Subscription transactions found:', subscriptionTxs);
-                          
-                          let forecastDebugTotal = 0;
-                          const monthlySubscriptions = subscriptionTxs.reduce((sum, subscription) => {
-                            // Make a deep copy to ensure we don't modify the original
-                            const subscriptionCopy = JSON.parse(JSON.stringify(subscription));
-                            
-                            console.log(`Forecast view - Processing subscription: ${subscription.name}, Category: ${subscription.category}, Amount: ${subscription.amount}, Frequency: ${subscription.frequency}, Next Date: ${subscription.nextDate}`);
-                            
-                            const monthlyAmount = calculateMonthExpenses(month, [subscriptionCopy]);
-                            forecastDebugTotal += Math.abs(monthlyAmount);
-                            
-                            console.log(`Forecast view - Monthly amount for ${subscription.name}: $${Math.abs(monthlyAmount)}`);
-                            
-                            return sum + Math.abs(monthlyAmount);
-                          }, 0);
-                          
-                          console.log(`Forecast view - Total subscriptions for ${month.toLocaleDateString('en-US', {month: 'long', year: 'numeric'})}: $${forecastDebugTotal}`);
-                          const monthlyVariable = forecastData.monthlySummaries[index]?.categories.reduce((sum, cat) => sum + (cat.allocated || 0), 0) || 0;
-                          const monthlyDebt = forecastData.debtPaymentsByMonth[index]?.reduce((sum, debt) => sum + Math.abs(debt.amount || 0), 0) || 0;
-                          const monthlyGoals = forecastData.savingsByMonth[index]?.reduce((sum, goal) => sum + (goal.amount || 0), 0) || 0;
-
-                          return (
-                            <th key={`month-${index}`} className="forecast-month-col p-0">
-                              <div className="month-header-wrapper">
-                                <MonthlyFlowHeader
-                                  month={month}
-                                  income={monthlyIncome}
-                                  fixedExpenses={monthlyFixed}
-                                  subscriptions={monthlySubscriptions}
-                                  variableExpenses={monthlyVariable}
-                                  debtPayments={monthlyDebt}
-                                  goalContributions={monthlyGoals}
-                                />
-                              </div>
-                            </th>
-                          );
-                        })}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {/* Income Section */}
-                      <tr className="section-header income-section">
-                        <td className="py-2 px-4 font-semibold text-blue-800">Income Sources</td>
-                        {Array(12).fill(0).map((_, i) => (
-                          <td key={`income-header-${i}`} />
-                        ))}
-                      </tr>
-                      {incomeSources.map((source) => (
-                        <tr key={`income-${source.id || source.name}`} className="income-section-row">
-                          <td className="forecast-label-col py-2 px-4">
-                            <div className="text-sm font-medium text-gray-900">{source.name}</div>
-                          </td>
-                          {forecastData.months.map((_, index) => {
-                            const sourceData = forecastData.incomeSourcesByMonth[index]?.find(s => s.id === source.id);
-                            return (
-                              <td key={`income-${source.id || source.name}-${index}`} className="forecast-month-col py-2 px-4 text-sm text-gray-900 text-center">
-                                ${(sourceData?.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
-
-                      {/* Fixed Expenses Section */}
-                      <tr className="section-header fixed-section">
-                        <td className="py-2 px-4 font-semibold text-red-800">Fixed Expenses</td>
-                        {Array(12).fill(0).map((_, i) => (
-                          <td key={`fixed-header-${i}`} />
-                        ))}
-                      </tr>
-                      {fixedExpensesList
-                        .filter(expense => expense.category?.toLowerCase() !== 'subscriptions')
-                        .map((expense) => (
-                        <tr key={`fixed-${expense.id || expense.name}`} className="fixed-section-row">
-                          <td className="forecast-label-col py-2 px-4">
-                            <div className="text-sm font-medium text-gray-900">{expense.name}</div>
-                          </td>
-                          {forecastData.months.map((_, index) => {
-                            const expenseData = forecastData.fixedExpensesByMonth[index]?.find(e => e.id === expense.id);
-                            return (
-                              <td key={`fixed-${expense.id || expense.name}-${index}`} className="forecast-month-col py-2 px-4 text-sm text-gray-900 text-center">
-                                ${Math.abs(expenseData?.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
-
-                      {/* Subscriptions Section */}
-                      <tr className="section-header subscriptions-section">
-                        <td className="py-2 px-4 font-semibold text-blue-800">Subscriptions</td>
-                        {Array(12).fill(0).map((_, i) => (
-                          <td key={`subs-header-${i}`} />
-                        ))}
-                      </tr>
-                      {recurringTransactions.filter(tx => tx.category === 'Subscriptions').map((subscription) => (
-                        <tr key={`sub-${subscription.id || subscription.name}`} className="subscriptions-section-row">
-                          <td className="forecast-label-col py-2 px-4">
-                            <div className="text-sm font-medium text-gray-900">{subscription.name}</div>
-                          </td>
-                          {forecastData.months.map((month, index) => (
-                            <td key={`sub-${subscription.id || subscription.name}-${index}`} className="forecast-month-col py-2 px-4 text-sm text-gray-900 text-center">
-                              ${Math.abs(calculateMonthExpenses(month, [{ ...subscription }])).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-
-                      {/* Variable Expenses Section */}
-                      <tr className="section-header variable-section">
-                        <td className="py-2 px-4 font-semibold text-green-800">Variable Expenses</td>
-                        {Array(12).fill(0).map((_, i) => (
-                          <td key={`var-header-${i}`} />
-                        ))}
-                      </tr>
-                      {budgetCategories.map((category) => (
-                        <tr key={`var-${category.id}`} className="variable-section-row">
-                          <td className="forecast-label-col py-2 px-4">
-                            <div className="text-sm font-medium text-gray-900">{category.name}</div>
-                          </td>
-                          {(forecastData.months ?? []).map((_, monthIndex) => {
-                            // First try to get any month-specific override from monthlySummaries
-                            const monthSummary = forecastData.monthlySummaries[monthIndex];
-                            const monthSpecificData = monthSummary?.categories?.find(c => c.id === category.id);
-                            
-                            // If no month-specific override, use the category's current allocation
-                            const allocated = monthSpecificData?.allocated ?? category.allocated;
-                            
-                            return (
-                              <td key={`var-${category.id}-${monthIndex}`} className="forecast-month-col py-2 px-4 text-sm text-gray-900 text-center">
-                                {editingCell?.id === category.id && 
-                                 editingCell?.month === monthIndex && 
-                                 editingCell?.type === 'expense' ? (
-                                  <input
-                                    type="number"
-                                    className="w-24 text-center border rounded"
-                                    value={editValue}
-                                    onChange={(e) => setEditValue(e.target.value)}
-                                    onBlur={() => handleCellEditComplete(category.id, 'expense', 'category', parseFloat(editValue))}
-                                    onKeyPress={(e) => {
-                                      if (e.key === 'Enter') {
-                                        handleCellEditComplete(category.id, 'expense', 'category', parseFloat(editValue));
-                                      }
-                                    }}
-                                    autoFocus
-                                  />
-                                ) : (
-                                  <button
-                                    className="hover:underline"
-                                    onClick={() => {
-                                      setEditingCell({ id: category.id, month: monthIndex, type: 'expense', entityType: 'category' });
-                                      setEditValue(allocated?.toString() || '0');
-                                    }}
-                                  >
-                                    ${(allocated || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                  </button>
-                                )}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
-
-                      {/* Debt Section */}
-                      <tr className="section-header debt-section">
-                        <td className="py-2 px-4 font-semibold text-purple-800">Debt Payments</td>
-                        {Array(12).fill(0).map((_, i) => (
-                          <td key={`debt-header-${i}`} />
-                        ))}
-                      </tr>
-                      {debts.map((debt) => (
-                        <tr key={`debt-${debt.id || debt.name}`} className="debt-section-row">
-                          <td className="forecast-label-col py-2 px-4">
-                            <div className="text-sm font-medium text-gray-900">{debt.name}</div>
-                          </td>
-                          {forecastData.debtPaymentsByMonth.map((month, monthIndex) => {
-                            const debtData = month.find(d => d.id === debt.id);
-                            return (
-                              <td key={`debt-${debt.id}-${monthIndex}`} className="forecast-month-col py-2 px-4 text-sm text-gray-900 text-center">
-                                {editingCell?.id === debt.id && 
-                                 editingCell?.month === monthIndex && 
-                                 editingCell?.type === 'debt' ? (
-                                  <input
-                                    type="number"
-                                    className="w-24 text-center border rounded"
-                                    value={editValue}
-                                    onChange={(e) => setEditValue(e.target.value)}
-                                    onBlur={() => handleCellEditComplete(debt.id, 'debt', 'debt', parseFloat(editValue))}
-                                    onKeyPress={(e) => {
-                                      if (e.key === 'Enter') {
-                                        handleCellEditComplete(debt.id, 'debt', 'debt', parseFloat(editValue));
-                                      }
-                                    }}
-                                    autoFocus
-                                  />
-                                ) : (
-                                  <button
-                                    className="hover:underline"
-                                    onClick={() => {
-                                      setEditingCell({ id: debt.id, month: monthIndex, type: 'debt', entityType: 'debt' });
-                                      setEditValue(Math.abs(debtData?.amount || 0).toString());
-                                    }}
-                                  >
-                                    ${Math.abs(debtData?.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                  </button>
-                                )}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
-
-                      {/* Goals Section */}
-                      <tr className="section-header goals-section">
-                        <td className="py-2 px-4 font-semibold text-yellow-800">Savings Goals</td>
-                        {Array(12).fill(0).map((_, i) => (
-                          <td key={`goal-header-${i}`} />
-                        ))}
-                      </tr>
-                      {financialGoals.map((goal) => (
-                        <tr key={`goal-${goal.id || goal.name}`} className="goals-section-row">
-                          <td className="forecast-label-col py-2 px-4">
-                            <div className="text-sm font-medium text-gray-900">{goal.name}</div>
-                          </td>
-                          {forecastData.savingsByMonth.map((month, monthIndex) => {
-                            const goalData = month.find(g => g.id === goal.id);
-                            return (
-                              <td key={`goal-${goal.id}-${monthIndex}`} className="forecast-month-col py-2 px-4 text-sm text-gray-900 text-center">
-                                {editingCell?.id === goal.id && 
-                                 editingCell?.month === monthIndex && 
-                                 editingCell?.type === 'goal' ? (
-                                  <input
-                                    type="number"
-                                    className="w-24 text-center border rounded"
-                                    value={editValue}
-                                    onChange={(e) => setEditValue(e.target.value)}
-                                    onBlur={() => handleCellEditComplete(goal.id, 'goal', 'goal', parseFloat(editValue))}
-                                    onKeyPress={(e) => {
-                                      if (e.key === 'Enter') {
-                                        handleCellEditComplete(goal.id, 'goal', 'goal', parseFloat(editValue));
-                                      }
-                                    }}
-                                    autoFocus
-                                  />
-                                ) : (
-                                  <button
-                                    className="hover:underline"
-                                    onClick={() => {
-                                      setEditingCell({ id: goal.id, month: monthIndex, type: 'goal', entityType: 'goal' });
-                                      setEditValue((goalData?.amount || 0).toString());
-                                    }}
-                                  >
-                                    ${(goalData?.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                  </button>
-                                )}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
       )}
       
-      {/* Modals */}
-      {showNewCategoryModal && (
-        <CategoryForm
-          onSubmit={handleAddCategory}
-          onCancel={() => setShowNewCategoryModal(false)}
-          title="Add Budget Category"
-        />
-      )}
-      
-      {showEditCategoryModal && selectedCategory && (
-        <CategoryForm
-          onSubmit={handleEditCategory}
-          onCancel={() => {
-            setShowEditCategoryModal(false);
-            setSelectedCategory(null);
-          }}
-          initialData={selectedCategory}
-          title="Edit Budget Category"
-        />
-      )}
-      
-      {showTransactionModal && (
-        <TransactionForm
-          categories={budgetCategories}
-          onSubmit={handleAddTransaction}
-          onCancel={() => setShowTransactionModal(false)}
-        />
-      )}
-      
-      {showAllocationModal && selectedCategory && selectedCategory.entityType !== 'goal' && (
-        <AllocationForm
-          category={selectedCategory}
-          onSubmit={(amount) => {
-            if (selectedCategory.entityType === 'debt') {
-              handleUpdateDebtPayment(selectedCategory.id, amount);
-            } else {
-              handleUpdateAllocation(selectedCategory.id, amount);
-            }
-            setShowAllocationModal(false);
-            setSelectedCategory(null);
-          }}
-          onCancel={() => {
-            setShowAllocationModal(false);
-            setSelectedCategory(null);
-          }}
-          leftToAllocate={leftToAllocate}
-          totalDebtPayments={totalDebtPayments}
-          totalGoalContributions={totalGoalContributions}
-          fixedExpenses={fixedExpenses}
-          totalSubscriptions={totalSubscriptions}
-        />
-      )}
+      {/* End of modals */}
     </div>
   );
 }

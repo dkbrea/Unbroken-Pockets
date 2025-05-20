@@ -129,35 +129,52 @@ export function useBudgetData(): ExtendedBudgetState {
   
   // Update fixed expenses and subscriptions (from recurring transactions)
   useEffect(() => {
-    // If we have transactions data, calculate fixed expenses and subscriptions for the specific month
-    if (displayTransactions && displayTransactions.length > 0) {
-      try {
-        // Calculate fixed expenses (excluding subscriptions)
-        const expensesForActiveMonth = calculateMonthExpenses(activeMonth, displayTransactions.filter(tx => 
-          tx.amount < 0 && 
-          tx.category?.toLowerCase() !== 'subscriptions'
-        ));
-        setFixedExpenses(Math.abs(expensesForActiveMonth));
+    // Define an async function inside the useEffect
+    const calculateExpenses = async () => {
+      // If we have transactions data, calculate fixed expenses and subscriptions for the specific month
+      if (displayTransactions && displayTransactions.length > 0) {
+        try {
+          // Ensure we're using the first day of the month for consistent calculations
+          const normalizedMonth = startOfMonth(activeMonth);
+          console.log(`Current month view - Calculating for ${normalizedMonth.toLocaleDateString('en-US', {month: 'long', year: 'numeric'})}`);
+          
+          // Calculate fixed expenses (excluding subscriptions)
+          const expensesForActiveMonth = calculateMonthExpenses(normalizedMonth, displayTransactions.filter(tx => 
+            tx.amount < 0 && 
+            tx.category !== 'Subscriptions' // Use exact match with capital 'S'
+          ));
+          setFixedExpenses(Math.abs(expensesForActiveMonth));
 
-        // Calculate subscriptions separately
-        const subscriptionsForActiveMonth = calculateMonthExpenses(activeMonth, displayTransactions.filter(tx => 
-          tx.amount < 0 &&
-          tx.category?.toLowerCase() === 'subscriptions'
-        ));
-        setTotalSubscriptions(Math.abs(subscriptionsForActiveMonth));
-      } catch (error) {
-        console.error("Error calculating expenses for month:", error);
-        // Fallback to the general calculation
+          // Calculate subscriptions by iterating through each subscription, consistent with the forecast view
+          const subscriptionTransactions = displayTransactions.filter(tx =>
+            tx.amount < 0 &&
+            tx.category === 'Subscriptions' // Match 'Subscriptions' (Capital S) as per forecast view
+          );
+
+          let calculatedTotalSubscriptions = 0;
+          for (const sub of subscriptionTransactions) {
+            // Pass each subscription individually to calculateMonthExpenses
+            calculatedTotalSubscriptions += calculateMonthExpenses(normalizedMonth, [sub]);
+          }
+          setTotalSubscriptions(Math.abs(calculatedTotalSubscriptions));
+        } catch (error) {
+          console.error("Error calculating expenses for month:", error);
+          // Fallback to the general calculation
+          const nonDebtExpenses = recurringExpenses - recurringDebt;
+          setFixedExpenses(Math.abs(nonDebtExpenses || 0));
+          setTotalSubscriptions(0);
+        }
+      } else {
+        // Fallback to the general calculation if no display transactions are available
         const nonDebtExpenses = recurringExpenses - recurringDebt;
         setFixedExpenses(Math.abs(nonDebtExpenses || 0));
         setTotalSubscriptions(0);
       }
-    } else {
-      // Fallback to the general calculation if no display transactions are available
-      const nonDebtExpenses = recurringExpenses - recurringDebt;
-      setFixedExpenses(Math.abs(nonDebtExpenses || 0));
-      setTotalSubscriptions(0);
-    }
+    };
+    
+    // Call the async function
+    calculateExpenses();
+    
   }, [recurringExpenses, recurringDebt, activeMonth, displayTransactions, calculateMonthExpenses]);
   
   // Update total debt payments and goal contributions

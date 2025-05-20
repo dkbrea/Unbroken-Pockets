@@ -230,8 +230,45 @@ export function useDebtData(): DebtState {
           }
           
           if (data) {
-            // Transform data from snake_case to camelCase
-            const transformedDebts = data.map(transformDebtFromDatabase);
+            // Get the current month in YYYY-MM format for forecast lookup
+            const currentDate = new Date();
+            const currentMonth = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+            
+            // Fetch forecast entries for the current month
+            const { data: forecastData, error: forecastError } = await supabase
+              .from('debt_payments_forecast')
+              .select('*')
+              .eq('user_id', user.id)
+              .eq('month', currentMonth);
+              
+            if (forecastError) {
+              console.error('Error fetching debt payment forecast data:', forecastError);
+              // Continue with regular data even if forecast fetch fails
+            }
+            
+            // Create a map of debt_id to forecast amount for quick lookup
+            const forecastMap = new Map();
+            if (forecastData && forecastData.length > 0) {
+              forecastData.forEach(entry => {
+                forecastMap.set(entry.debt_id, Math.abs(entry.amount));
+              });
+            }
+            
+            // Transform data from snake_case to camelCase, using forecast values when available
+            const transformedDebts = data.map(item => {
+              // Check if we have a forecast entry for this debt
+              const forecastPayment = forecastMap.get(item.id);
+              
+              const debtData = transformDebtFromDatabase(item);
+              
+              // Use forecast payment if available, otherwise use the default minimum payment
+              if (forecastPayment !== undefined) {
+                debtData.minimumPayment = forecastPayment;
+              }
+              
+              return debtData;
+            });
+            
             console.log(`Fetched ${data.length} debts from Supabase:`, transformedDebts);
             setDebts(transformedDebts);
             

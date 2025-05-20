@@ -106,6 +106,10 @@ export function useGoalsData(): GoalsState {
       
       if (goalsError) throw goalsError;
 
+      // Get the current month in YYYY-MM format for forecast lookup
+      const currentDate = new Date();
+      const currentMonth = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+
       // Query all monthly contributions for these goals
       const { data: monthlyContributions, error: contributionsError } = await supabase
         .from('goal_monthly_contributions')
@@ -114,33 +118,53 @@ export function useGoalsData(): GoalsState {
 
       if (contributionsError) throw contributionsError;
 
+      // Create a map of goal_id to monthly contribution amount for the current month
+      const currentMonthContributions = new Map();
+      if (monthlyContributions) {
+        monthlyContributions.forEach(contribution => {
+          if (contribution.month === currentMonth) {
+            currentMonthContributions.set(contribution.goal_id, contribution.amount);
+          }
+        });
+      }
+
       if (goalsData) {
         // Transform to match the Goal type
-        const transformedGoals: Goal[] = goalsData.map(goal => ({
-          id: goal.id,
-          name: goal.name,
-          icon: getIconByName(goal.icon),
-          color: goal.color,
-          currentAmount: goal.current_amount,
-          targetAmount: goal.target_amount,
-          targetDate: goal.target_date,
-          contributions: {
-            frequency: goal.contribution_frequency,
-            amount: goal.contribution_amount
-          }
-        }));
+        const transformedGoals: Goal[] = goalsData.map(goal => {
+          // Check if we have a forecast entry for this goal in the current month
+          const forecastContribution = currentMonthContributions.get(goal.id);
+          
+          return {
+            id: goal.id,
+            name: goal.name,
+            icon: getIconByName(goal.icon),
+            color: goal.color,
+            currentAmount: goal.current_amount,
+            targetAmount: goal.target_amount,
+            targetDate: goal.target_date,
+            contributions: {
+              frequency: goal.contribution_frequency,
+              amount: forecastContribution !== undefined ? forecastContribution : goal.contribution_amount
+            }
+          };
+        });
         
         setGoals(transformedGoals);
-        setFinancialGoals(goalsData.map(goal => ({
-          id: goal.id,
-          name: goal.name,
-          targetAmount: goal.target_amount,
-          currentAmount: goal.current_amount,
-          monthlyContribution: goal.contribution_amount,
-          targetDate: goal.target_date,
-          createdAt: goal.created_at,
-          updatedAt: goal.updated_at
-        })));
+        setFinancialGoals(goalsData.map(goal => {
+          // Check if we have a forecast entry for this goal in the current month
+          const forecastContribution = currentMonthContributions.get(goal.id);
+          
+          return {
+            id: goal.id,
+            name: goal.name,
+            targetAmount: goal.target_amount,
+            currentAmount: goal.current_amount,
+            monthlyContribution: forecastContribution !== undefined ? forecastContribution : goal.contribution_amount,
+            targetDate: goal.target_date,
+            createdAt: goal.created_at,
+            updatedAt: goal.updated_at
+          };
+        }));
       }
     } catch (err) {
       setError(err instanceof Error ? err : new Error('An unknown error occurred'));
